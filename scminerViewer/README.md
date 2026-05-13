@@ -19,9 +19,43 @@ the underlying matrices are hundreds of MB.
 
 ## Install
 
+### Command line
+
 ```sh
 R CMD build scminerViewer
 R CMD INSTALL scminerViewer_0.1.0.tar.gz
+```
+
+### From R or RStudio
+
+```r
+# devtools (or pak / remotes work too) — install from the local source dir
+install.packages("devtools")           # if not already installed
+devtools::install("scminerViewer")     # run from the project root
+```
+
+Or, in **RStudio**:
+
+1. **File → Open Project…** and pick `scminerViewer/` (the package
+   folder is its own RStudio project).
+2. **Build → Install Package** (or `Cmd/Ctrl + Shift + B`). RStudio
+   runs `R CMD INSTALL` on the package and reloads it.
+3. To install with all suggested deps (Shiny app, ExpressionSet input,
+   YAML configs), tick **Build → Configure Build Tools… → Install and
+   Restart** options, or run once:
+   ```r
+   install.packages(c("yaml", "shiny", "bslib", "plotly", "DT",
+                       "visNetwork", "htmlwidgets"))
+   # Bioconductor:
+   if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+   BiocManager::install("Biobase")
+   ```
+
+Verify the install:
+
+```r
+library(scminerViewer)
+?prepare_study     # or any other exported function
 ```
 
 ## How it works (one minute)
