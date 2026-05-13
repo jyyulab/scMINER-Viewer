@@ -1,0 +1,30 @@
+Package: scminerViewer
+Type: Package
+Title: View scMINER Studies via Shiny
+Version: 0.1.0
+Authors@R:
+    person("scMINER", "Team", email = "scminer@stjude.org", role = c("aut", "cre"))
+Description: Processes scMINER study data and serves it via a Shiny
+    application. Emits both the graph-import layout used by the scMINER
+    portal and a self-contained HDF5 study bundle that the Shiny app and
+    the companion Python webui both consume.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports:
+    hdf5r,
+    Matrix,
+    methods,
+    data.table,
+    R.utils
+Suggests:
+    Biobase,
+    yaml,
+    shiny (>= 1.7.0),
+    bslib,
+    plotly,
+    DT,
+    visNetwork,
+    htmlwidgets,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+RoxygenNote: 7.3.1
