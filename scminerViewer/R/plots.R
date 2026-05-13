@@ -24,21 +24,17 @@
   study$cells$cellType %in% active_clusters
 }
 
-.relationship_matrix <- function(study, relationship) {
+.relationship_index <- function(study, relationship) {
   switch(relationship,
-    "Express_normalized" = study$expression,
-    "Activity_tf"        = study$activity_tf,
-    "Activity_sig"       = study$activity_sig,
+    "Express_normalized" = study$expression_index,
+    "Activity_tf"        = study$activity_tf_index,
+    "Activity_sig"       = study$activity_sig_index,
     NULL
   )
 }
 
 .gene_row_values <- function(study, gene, relationship) {
-  mat <- .relationship_matrix(study, relationship)
-  if (is.null(mat)) return(NULL)
-  row_idx <- match(gene, study$genes)
-  if (is.na(row_idx)) return(NULL)
-  as.numeric(mat[row_idx, ])
+  gene_values(study, gene, relationship)
 }
 
 # --- Cluster plot -----------------------------------------------------------
@@ -186,59 +182,46 @@
 
 # --- Heatmap (mean per cluster) --------------------------------------------
 
-.cluster_aggregate <- function(study, genes, relationship, active_clusters,
-                                fun = mean) {
-  mat <- .relationship_matrix(study, relationship)
-  if (is.null(mat) || length(genes) == 0) return(NULL)
-  rows <- match(genes, study$genes)
-  ok <- !is.na(rows)
-  if (!any(ok)) return(NULL)
-  rows <- rows[ok]
-  genes <- genes[ok]
+.cluster_aggregate_pair <- function(study, genes, relationship,
+                                     active_clusters) {
+  # Returns list(mean = matrix, pct = matrix), both gene x cluster.
+  index <- .relationship_index(study, relationship)
+  if (is.null(index) || length(genes) == 0) return(NULL)
+  present <- genes[genes %in% index]
+  if (length(present) == 0) return(NULL)
   ct <- study$cells$cellType
   clusters <- active_clusters %||% unique(ct)
-  out <- matrix(0, nrow = length(rows), ncol = length(clusters),
-                dimnames = list(genes, clusters))
-  for (j in seq_along(clusters)) {
-    cell_mask <- ct == clusters[j]
-    if (!any(cell_mask)) next
-    sub <- mat[rows, cell_mask, drop = FALSE]
-    out[, j] <- apply(sub, 1, fun)
+  means <- matrix(0, nrow = length(present), ncol = length(clusters),
+                  dimnames = list(present, clusters))
+  pcts  <- matrix(0, nrow = length(present), ncol = length(clusters),
+                  dimnames = list(present, clusters))
+  for (i in seq_along(present)) {
+    vals <- gene_values(study, present[i], relationship)
+    if (is.null(vals)) next
+    for (j in seq_along(clusters)) {
+      cell_mask <- ct == clusters[j]
+      if (!any(cell_mask)) next
+      sub <- vals[cell_mask]
+      sub <- sub[!is.na(sub)]
+      n <- length(sub)
+      if (n == 0) next
+      means[i, j] <- mean(sub)
+      pcts[i, j]  <- sum(sub != 0) / n
+    }
   }
-  out
-}
-
-.pct_expressing <- function(study, genes, relationship, active_clusters) {
-  mat <- .relationship_matrix(study, relationship)
-  if (is.null(mat) || length(genes) == 0) return(NULL)
-  rows <- match(genes, study$genes)
-  ok <- !is.na(rows)
-  if (!any(ok)) return(NULL)
-  rows <- rows[ok]
-  genes <- genes[ok]
-  ct <- study$cells$cellType
-  clusters <- active_clusters %||% unique(ct)
-  out <- matrix(0, nrow = length(rows), ncol = length(clusters),
-                dimnames = list(genes, clusters))
-  for (j in seq_along(clusters)) {
-    cell_mask <- ct == clusters[j]
-    n <- sum(cell_mask)
-    if (n == 0) next
-    sub <- mat[rows, cell_mask, drop = FALSE]
-    out[, j] <- Matrix::rowSums(sub != 0) / n
-  }
-  out
+  list(mean = means, pct = pcts)
 }
 
 .heatmap_plot <- function(study, genes, relationship, active_clusters) {
   if (!requireNamespace("plotly", quietly = TRUE)) {
     return(plotly::plotly_empty())
   }
-  m <- .cluster_aggregate(study, genes, relationship, active_clusters)
-  if (is.null(m) || nrow(m) == 0) {
+  agg <- .cluster_aggregate_pair(study, genes, relationship, active_clusters)
+  if (is.null(agg)) {
     return(plotly::plotly_empty() %>%
              plotly::layout(title = "Select gene(s) to build heatmap"))
   }
+  m <- agg$mean
   plotly::plot_ly(
     z = m,
     x = colnames(m), y = rownames(m),
@@ -261,12 +244,13 @@
   if (!requireNamespace("plotly", quietly = TRUE)) {
     return(plotly::plotly_empty())
   }
-  means <- .cluster_aggregate(study, genes, relationship, active_clusters)
-  pcts  <- .pct_expressing(study, genes, relationship, active_clusters)
-  if (is.null(means) || is.null(pcts)) {
+  agg <- .cluster_aggregate_pair(study, genes, relationship, active_clusters)
+  if (is.null(agg)) {
     return(plotly::plotly_empty() %>%
              plotly::layout(title = "Select gene(s) to build bubble plot"))
   }
+  means <- agg$mean
+  pcts  <- agg$pct
   rows <- rownames(means)
   cols <- colnames(means)
   grid <- expand.grid(gene = rows, cluster = cols,

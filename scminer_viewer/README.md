@@ -34,31 +34,37 @@ Programmatic usage:
 ```python
 from scminer_viewer import load_study, build_app, run_app
 
-study = load_study("path/to/2327.scminer.h5")
+# shard_dir defaults to Path(bundle_path).parent
+study = load_study("path/to/data/2327.scminer.h5")
 print(study)
 # <Study tex (2327) cells=8464 genes=9861 clusters=3
-#  expression=- activity_tf=- activity_sig=- network_tf=yes network_sig=yes>
+#  expression_index=9861 activity_tf_index=925 activity_sig_index=4708
+#  defaults=- network_tf=yes network_sig=yes
+#  shard_dir=path/to/data>
 
 # Inspect data directly
 print(study.cells.head())
 print(study.clusters)
+
+# Lazy: reads path/to/data/expression_files/2327/m/Mrpl15.csv.gz
 expr_row = study.gene_values("Mrpl15", relationship="Express_normalized")
-print(expr_row)  # ndarray of length n_cells, or None if the matrix is absent
+print(expr_row)  # ndarray of length n_cells, or None if missing
 
 # Launch (blocking)
-run_app("path/to/2327.scminer.h5", port=8000)
+run_app("path/to/data/2327.scminer.h5", port=8000)
 
 # Or build for embedding into a larger Shiny app / tests
-app = build_app("path/to/2327.scminer.h5")
+app = build_app("path/to/data/2327.scminer.h5")
 ```
 
 ## Public API
 
 | Symbol | Purpose |
 | --- | --- |
-| `load_study(bundle_path) -> Study`               | Read a `.scminer.h5` into a `Study` dataclass. |
-| `Study`                                           | Dataclass with `meta`, `cells` (pandas, indexed by cellID), `clusters` (pandas, indexed by cellType), `genes` (numpy), `expression`/`activity_tf`/`activity_sig` (scipy CSR or `None`), `network_tf`/`network_sig` (pandas or `None`). |
-| `Study.gene_values(gene, relationship)`          | Dense ndarray row for one gene, or `None` if missing. `relationship` is one of `"Express_normalized"`, `"Activity_tf"`, `"Activity_sig"`. |
+| `load_study(bundle_path, shard_dir=None) -> Study` | Read a `.scminer.h5` into a `Study` dataclass. `shard_dir` defaults to `Path(bundle_path).parent`. |
+| `Study`                                           | Dataclass with `meta`, `cells` (pandas, indexed by cellID), `clusters` (pandas, indexed by cellType), `genes` (numpy), `expression_index`/`activity_tf_index`/`activity_sig_index` (numpy or `None`), `default_genes` (numpy or `None`), `network_tf`/`network_sig` (pandas or `None`), `shard_dir`. |
+| `Study.gene_values(gene, relationship)`          | Lazily read one gene's row from the shard tree; ndarray of length `n_cells` aligned to `Study.cells.index`, or `None` if missing. Cached per gene. `relationship` is one of `"Express_normalized"`, `"Activity_tf"`, `"Activity_sig"`. |
+| `Study.has_gene(gene, relationship)`             | True if `gene` is in the corresponding bundle index. |
 | `build_app(bundle_path) -> shiny.App`            | Build a Shiny app without launching it. |
 | `run_app(bundle_path, host, port, launch_browser)` | Launch + serve the Shiny app via uvicorn (blocking). |
 | `plots.cluster_plot(study, ...)`                 | Plotly cluster scatter (coord1, coord2 colored by cellType). |
@@ -93,8 +99,10 @@ automatically.
 pytest tests -q
 ```
 
-14 tests across `test_data.py` (load_study, Study, gene_values) and
-`test_plots.py` (six plot helpers). Each test builds its fixture by
-shelling out to `Rscript` → `scminerViewer::write_bundle()`, so the
-Python reader is verified against bytes produced by the R writer. The
-tests skip cleanly when `Rscript` is unavailable.
+17 tests across `test_data.py` (load_study, Study, lazy gene_values,
+caching, explicit shard_dir) and `test_plots.py` (six plot helpers).
+Each test builds its fixture by shelling out to `Rscript` →
+`scminerViewer::prepare_study_data()` (which emits both the graph
+layout and the bundle), so the Python lazy reader is verified against
+bytes produced by the R writer. The tests skip cleanly when `Rscript`
+is unavailable.

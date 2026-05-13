@@ -47,6 +47,7 @@ prepare_study_data <- function(out_dir,
                                 activity_sig = NULL,
                                 network_tf = NULL,
                                 network_sig = NULL,
+                                default_genes = NULL,
                                 emit = c("graph", "bundle"),
                                 verbose = FALSE) {
   emit <- match.arg(emit, c("graph", "bundle"), several.ok = TRUE)
@@ -133,17 +134,18 @@ prepare_study_data <- function(out_dir,
                              paste0(meta$studyID, ".scminer.h5"))
     if (isTRUE(verbose)) message("Writing bundle to ", bundle_path)
     write_bundle(
-      bundle_path  = bundle_path,
-      meta         = meta,
-      cells        = cells,
-      clusters     = clusters,
-      genes        = genes,
-      expression   = expression,
-      activity_tf  = activity_tf,
-      activity_sig = activity_sig,
-      network_tf   = network_tf,
-      network_sig  = network_sig,
-      overwrite    = TRUE
+      bundle_path        = bundle_path,
+      meta               = meta,
+      cells              = cells,
+      clusters           = clusters,
+      genes              = genes,
+      expression_genes   = if (!is.null(expression))   rownames(expression)   else NULL,
+      activity_tf_genes  = if (!is.null(activity_tf))  rownames(activity_tf)  else NULL,
+      activity_sig_genes = if (!is.null(activity_sig)) rownames(activity_sig) else NULL,
+      default_genes      = default_genes,
+      network_tf         = network_tf,
+      network_sig        = network_sig,
+      overwrite          = TRUE
     )
   }
 

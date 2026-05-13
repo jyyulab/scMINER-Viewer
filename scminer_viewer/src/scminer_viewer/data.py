@@ -1,13 +1,13 @@
 """Load a `.scminer.h5` bundle into a Study dataclass.
 
-The bundle layout is defined by `scminerViewer::write_bundle()` in R and
-documented in `IMPLEMENTATION.md`. This module mirrors that contract:
+The bundle (v2) stores only metadata + per-matrix gene **indexes** (not
+the values). Expression / activity values are read lazily from the
+on-disk shard tree via `Study.gene_values(...)`.
 
-* String datasets are decoded utf-8.
-* Sparse matrices use scipy CSR (zero-based indices) so we can
-  reconstruct them with `scipy.sparse.csr_matrix((data, indices, indptr),
-  shape=shape)` directly.
-* Optional groups are returned as `None` when absent in the bundle.
+Bundle layout is documented in `IMPLEMENTATION.md`. The bundle is
+expected to be co-located with the shard tree by default:
+`<shard_dir>/<studyID>.scminer.h5` and
+`<shard_dir>/{expression_files,activity_files}/<studyID>/...`.
 """
 
 from __future__ import annotations
@@ -16,14 +16,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+import gzip
 import h5py
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix
+
+
+_RELATIONSHIPS = {
+    "Express_normalized": ("expression_files", "expression_index", "exp"),
+    "Activity_tf":        ("activity_files",   "activity_tf_index", "tf"),
+    "Activity_sig":       ("activity_files",   "activity_sig_index", "sig"),
+}
+
+
+def _shard_letter(gene: str) -> str:
+    first = gene[:1].lower()
+    return first if "a" <= first <= "z" else "nm"
 
 
 def _read_scalar(dset: h5py.Dataset):
-    """Read a 1-elem (or 0-d) HDF5 dataset that R wrote as a scalar."""
     val = dset[()]
     if isinstance(val, np.ndarray):
         val = val.item() if val.shape == () else val[0]
@@ -43,27 +54,17 @@ def _read_string_array(dset: h5py.Dataset) -> np.ndarray:
     return arr
 
 
-def _read_sparse(grp: h5py.Group) -> csr_matrix:
-    data = np.asarray(grp["data"][:], dtype=np.float64)
-    indices = np.asarray(grp["indices"][:], dtype=np.int64)
-    indptr = np.asarray(grp["indptr"][:], dtype=np.int64)
-    shape = tuple(int(x) for x in grp["shape"][:])
-    if len(shape) != 2:
-        raise ValueError(f"Expected shape of length 2, got {shape!r}")
-    return csr_matrix((data, indices, indptr), shape=shape)
-
-
 def _read_network(grp: h5py.Group) -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "source": _read_string_array(grp["source"]),
-            "target": _read_string_array(grp["target"]),
+            "source":   _read_string_array(grp["source"]),
+            "target":   _read_string_array(grp["target"]),
             "cellType": _read_string_array(grp["cellType"]),
-            "mi": np.asarray(grp["mi"][:], dtype=np.float64),
-            "pearson": np.asarray(grp["pearson"][:], dtype=np.float64),
+            "mi":       np.asarray(grp["mi"][:],       dtype=np.float64),
+            "pearson":  np.asarray(grp["pearson"][:],  dtype=np.float64),
             "spearman": np.asarray(grp["spearman"][:], dtype=np.float64),
-            "rho": np.asarray(grp["rho"][:], dtype=np.float64),
-            "pvalue": np.asarray(grp["pvalue"][:], dtype=np.float64),
+            "rho":      np.asarray(grp["rho"][:],      dtype=np.float64),
+            "pvalue":   np.asarray(grp["pvalue"][:],   dtype=np.float64),
         }
     )
 
@@ -84,34 +85,54 @@ class Study:
     """An scMINER study loaded from an HDF5 bundle.
 
     Attributes:
-        meta:        Study metadata.
-        cells:       DataFrame indexed by cellID with columns
-                     cellType, cellGroup, coord1, coord2.
-        clusters:    DataFrame indexed by cellType with columns
-                     count, color, label_1?, label_2?.
-        genes:       1-D ndarray of gene symbols (row order of matrices).
-        expression:  Optional CSR sparse matrix, shape (G, N).
-        activity_tf: Optional CSR sparse matrix, shape (G, N).
-        activity_sig: Optional CSR sparse matrix, shape (G, N).
-        network_tf:  Optional DataFrame of TF edges.
-        network_sig: Optional DataFrame of SIG edges.
-        bundle_path: Filesystem path the bundle was loaded from.
+        meta:               Study metadata.
+        cells:              DataFrame indexed by cellID with columns
+                            cellType, cellGroup, coord1, coord2.
+        clusters:           DataFrame indexed by cellType with columns
+                            count, color, label_1?, label_2?.
+        genes:              1-D ndarray of master gene symbols (the
+                            full picker list).
+        expression_index:   ndarray of genes with expression shards
+                            (or None if the bundle has no expression).
+        activity_tf_index:  ndarray of genes with TF activity shards.
+        activity_sig_index: ndarray of genes with SIG activity shards.
+        default_genes:      ndarray of genes the app should auto-load,
+                            or None.
+        network_tf:         Optional DataFrame of TF edges.
+        network_sig:        Optional DataFrame of SIG edges.
+        bundle_path:        Path the bundle was loaded from.
+        shard_dir:          Directory containing the shard tree (defaults
+                            to the bundle's parent dir).
     """
 
     meta: Meta
     cells: pd.DataFrame
     clusters: pd.DataFrame
     genes: np.ndarray
-    expression: Optional[csr_matrix] = None
-    activity_tf: Optional[csr_matrix] = None
-    activity_sig: Optional[csr_matrix] = None
+    expression_index: Optional[np.ndarray] = None
+    activity_tf_index: Optional[np.ndarray] = None
+    activity_sig_index: Optional[np.ndarray] = None
+    default_genes: Optional[np.ndarray] = None
     network_tf: Optional[pd.DataFrame] = None
     network_sig: Optional[pd.DataFrame] = None
     bundle_path: Optional[str] = None
-    _gene_to_row: dict = field(default_factory=dict, repr=False)
+    shard_dir: Optional[str] = None
+    _cache: dict = field(default_factory=dict, repr=False)
+    _index_sets: dict = field(default_factory=dict, repr=False)
+    _meta_perm: dict = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
-        self._gene_to_row = {g: i for i, g in enumerate(self.genes)}
+        self._index_sets = {
+            "Express_normalized": (
+                set(self.expression_index) if self.expression_index is not None else None
+            ),
+            "Activity_tf": (
+                set(self.activity_tf_index) if self.activity_tf_index is not None else None
+            ),
+            "Activity_sig": (
+                set(self.activity_sig_index) if self.activity_sig_index is not None else None
+            ),
+        }
 
     @property
     def n_cells(self) -> int:
@@ -125,49 +146,135 @@ class Study:
     def cell_types(self) -> list[str]:
         return list(self.clusters.index)
 
+    def has_gene(self, gene: str, relationship: str = "Express_normalized") -> bool:
+        idx = self._index_sets.get(relationship)
+        return idx is not None and gene in idx
+
     def gene_values(
         self, gene: str, relationship: str = "Express_normalized"
     ) -> Optional[np.ndarray]:
-        """Return the dense row vector for `gene` from the requested matrix.
+        """Lazily read one gene's values from the shard tree.
 
-        relationship: one of 'Express_normalized', 'Activity_tf',
-        'Activity_sig'. Returns None if the matrix is absent or the
-        gene is unknown.
+        Returns a numpy array of length `n_cells`, aligned to
+        `study.cells.index`; cells absent from the shard meta become
+        NaN. Returns None if the gene isn't in the requested index or
+        the shard file is missing.
         """
-        mat = {
-            "Express_normalized": self.expression,
-            "Activity_tf": self.activity_tf,
-            "Activity_sig": self.activity_sig,
-        }.get(relationship)
-        if mat is None:
+        if relationship not in _RELATIONSHIPS:
             return None
-        idx = self._gene_to_row.get(gene)
-        if idx is None:
+        idx = self._index_sets.get(relationship)
+        if idx is None or gene not in idx:
             return None
-        row = mat.getrow(idx).toarray().ravel()
-        return row
+
+        cache_key = (relationship, gene)
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        perm = self._get_perm(relationship)
+        if perm is None:
+            return None
+        perm_idx, n_shard = perm
+
+        shard_path = self._shard_path(gene, relationship)
+        if not shard_path.exists():
+            return None
+
+        try:
+            with gzip.open(shard_path, "rt") as fh:
+                line = fh.readline().strip()
+        except OSError:
+            return None
+        if not line:
+            return None
+        try:
+            shard_vals = np.fromstring(line, sep=",", dtype=np.float64)
+        except ValueError:
+            return None
+        if shard_vals.size != n_shard:
+            return None
+        aligned = np.full(self.n_cells, np.nan, dtype=np.float64)
+        valid = perm_idx >= 0
+        aligned[valid] = shard_vals[perm_idx[valid]]
+        self._cache[cache_key] = aligned
+        return aligned
+
+    def _shard_path(self, gene: str, relationship: str) -> Path:
+        subdir, _, _ = _RELATIONSHIPS[relationship]
+        kind = ""
+        if relationship == "Activity_tf":
+            kind = "TF"
+        elif relationship == "Activity_sig":
+            kind = "SIG"
+        name = gene.replace("/", "_")
+        letter = _shard_letter(gene)
+        base = Path(self.shard_dir) / subdir / self.meta.studyID
+        if kind:
+            base = base / kind
+        return base / letter / f"{name}.csv.gz"
+
+    def _get_perm(self, relationship: str):
+        """Return (perm_idx, n_shard_cells) for the relationship's meta.
+
+        perm_idx[i] is the column index in the shard for cell `i` in
+        `study.cells`, or -1 if that cell isn't represented.
+        """
+        tag = _RELATIONSHIPS[relationship][2]
+        if tag in self._meta_perm:
+            return self._meta_perm[tag]
+        subdir, _, _ = _RELATIONSHIPS[relationship]
+        meta_path = Path(self.shard_dir) / subdir / self.meta.studyID / "meta.csv"
+        if not meta_path.exists():
+            self._meta_perm[tag] = None
+            return None
+        with open(meta_path) as fh:
+            header = fh.readline().strip()
+        if not header:
+            self._meta_perm[tag] = None
+            return None
+        shard_cells = [s.strip() for s in header.split(",")]
+        # Build index from shard cell to position
+        shard_pos = {c: i for i, c in enumerate(shard_cells)}
+        perm_idx = np.fromiter(
+            (shard_pos.get(c, -1) for c in self.cells.index),
+            dtype=np.int64,
+            count=self.n_cells,
+        )
+        result = (perm_idx, len(shard_cells))
+        self._meta_perm[tag] = result
+        return result
 
     def __repr__(self) -> str:
-        def mark(v) -> str:
-            return "yes" if v is not None else "-"
+        def count(v) -> str:
+            return "-" if v is None else f"{len(v)}"
 
         return (
             f"<Study {self.meta.studyAbbr} ({self.meta.studyID}) "
             f"cells={self.n_cells} genes={self.n_genes} "
             f"clusters={len(self.clusters)} "
-            f"expression={mark(self.expression)} "
-            f"activity_tf={mark(self.activity_tf)} "
-            f"activity_sig={mark(self.activity_sig)} "
+            f"expression_index={count(self.expression_index)} "
+            f"activity_tf_index={count(self.activity_tf_index)} "
+            f"activity_sig_index={count(self.activity_sig_index)} "
+            f"defaults={count(self.default_genes)} "
             f"network_tf={'yes' if self.network_tf is not None else '-'} "
-            f"network_sig={'yes' if self.network_sig is not None else '-'}>"
+            f"network_sig={'yes' if self.network_sig is not None else '-'} "
+            f"shard_dir={self.shard_dir}>"
         )
 
 
-def load_study(bundle_path: str | Path) -> Study:
-    """Load a `.scminer.h5` bundle from disk."""
+def load_study(bundle_path: str | Path, shard_dir: str | Path | None = None) -> Study:
+    """Load a `.scminer.h5` bundle from disk.
+
+    Args:
+        bundle_path: Path to the bundle file.
+        shard_dir:   Directory containing `expression_files/<studyID>/`
+                     and `activity_files/<studyID>/`. Defaults to the
+                     bundle's parent directory.
+    """
     bundle_path = Path(bundle_path)
     if not bundle_path.exists():
         raise FileNotFoundError(f"Bundle not found: {bundle_path}")
+    shard_dir = Path(shard_dir) if shard_dir is not None else bundle_path.parent
 
     with h5py.File(bundle_path, "r") as f:
         meta = Meta(
@@ -183,10 +290,10 @@ def load_study(bundle_path: str | Path) -> Study:
         cell_ids = _read_string_array(f["cells/cellID"])
         cells = pd.DataFrame(
             {
-                "cellType": _read_string_array(f["cells/cellType"]),
+                "cellType":  _read_string_array(f["cells/cellType"]),
                 "cellGroup": _read_string_array(f["cells/cellGroup"]),
-                "coord1": np.asarray(f["cells/coord1"][:], dtype=np.float64),
-                "coord2": np.asarray(f["cells/coord2"][:], dtype=np.float64),
+                "coord1":    np.asarray(f["cells/coord1"][:], dtype=np.float64),
+                "coord2":    np.asarray(f["cells/coord2"][:], dtype=np.float64),
             },
             index=pd.Index(cell_ids, name="cellID"),
         )
@@ -208,29 +315,30 @@ def load_study(bundle_path: str | Path) -> Study:
 
         genes = _read_string_array(f["genes/symbol"])
 
-        expression = _read_sparse(f["expression"]) if "expression" in f else None
-        activity_tf = (
-            _read_sparse(f["activity_tf"]) if "activity_tf" in f else None
-        )
-        activity_sig = (
-            _read_sparse(f["activity_sig"]) if "activity_sig" in f else None
-        )
-        network_tf = (
-            _read_network(f["network_tf"]) if "network_tf" in f else None
-        )
-        network_sig = (
-            _read_network(f["network_sig"]) if "network_sig" in f else None
-        )
+        def opt(path):
+            if path in f:
+                return _read_string_array(f[path])
+            return None
+
+        expression_index   = opt("index/expression")
+        activity_tf_index  = opt("index/activity_tf")
+        activity_sig_index = opt("index/activity_sig")
+        default_genes      = opt("defaults/genes")
+
+        network_tf  = _read_network(f["network_tf"])  if "network_tf"  in f else None
+        network_sig = _read_network(f["network_sig"]) if "network_sig" in f else None
 
     return Study(
         meta=meta,
         cells=cells,
         clusters=clusters,
         genes=genes,
-        expression=expression,
-        activity_tf=activity_tf,
-        activity_sig=activity_sig,
+        expression_index=expression_index,
+        activity_tf_index=activity_tf_index,
+        activity_sig_index=activity_sig_index,
+        default_genes=default_genes,
         network_tf=network_tf,
         network_sig=network_sig,
         bundle_path=str(bundle_path),
+        shard_dir=str(shard_dir),
     )

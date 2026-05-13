@@ -88,36 +88,30 @@ test_that("prepare_study_data emits graph layout and bundle round-trips", {
   expect_equal(shard_vals,
                as.numeric(s$expression[sample_gene, ]))
 
-  # --- Bundle round-trip --------------------------------------------------
+  # --- Bundle stores indexes; values come lazily from disk ----------------
   loaded <- load_study(res$bundle_path)
   expect_equal(loaded$meta$studyID, s$meta$studyID)
   expect_equal(loaded$cells$cellID, s$cells$cellID)
   expect_equal(loaded$genes, s$genes)
-  expect_equal(as.matrix(loaded$expression),
-               as.matrix(s$expression),
+  expect_setequal(loaded$expression_index,   rownames(s$expression))
+  expect_setequal(loaded$activity_tf_index,  rownames(s$activity_tf))
+  expect_setequal(loaded$activity_sig_index, rownames(s$activity_sig))
+
+  # Lazy read of a single gene
+  vals <- gene_values(loaded, sample_gene, "Express_normalized")
+  expect_equal(vals,
+               as.numeric(s$expression[sample_gene, ]),
                ignore_attr = TRUE)
 
-  # --- Re-read the graph layout via read_graph_study ----------------------
-  reread <- read_graph_study(
-    out_dir, s$meta$studyID,
-    shard_dir         = out_dir,
-    load_expression   = TRUE,
-    load_activity_tf  = TRUE,
-    load_activity_sig = TRUE
-  )
+  # --- Re-read the graph layout via read_graph_study (indexes only) -------
+  reread <- read_graph_study(out_dir, s$meta$studyID)
   expect_equal(reread$cells$cellID, s$cells$cellID)
   expect_equal(reread$genes,        s$genes)
   expect_equal(nrow(reread$network_tf),  nrow(s$network_tf))
   expect_equal(nrow(reread$network_sig), nrow(s$network_sig))
-  expect_equal(as.matrix(reread$expression),
-               as.matrix(s$expression),
-               ignore_attr = TRUE)
-  expect_equal(as.matrix(reread$activity_tf),
-               as.matrix(s$activity_tf),
-               ignore_attr = TRUE)
-  expect_equal(as.matrix(reread$activity_sig),
-               as.matrix(s$activity_sig),
-               ignore_attr = TRUE)
+  expect_setequal(reread$expression_genes,   rownames(s$expression))
+  expect_setequal(reread$activity_tf_genes,  rownames(s$activity_tf))
+  expect_setequal(reread$activity_sig_genes, rownames(s$activity_sig))
 })
 
 test_that("prepare_study_data emits only bundle when requested", {

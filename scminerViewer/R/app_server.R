@@ -3,10 +3,12 @@
     if (!requireNamespace("shiny", quietly = TRUE)) return(invisible())
 
     # Server-side gene autocomplete keyed off the study's full gene list.
+    # Default-load any genes the bundle marks as `defaults/genes`.
+    defaults <- study$default_genes %||% character(0)
     shiny::updateSelectizeInput(
       session, "gene_select",
       choices = study$genes,
-      selected = character(0),
+      selected = defaults,
       server = TRUE,
       options = list(maxOptions = 200,
                      placeholder = "Type to add gene(s)...")

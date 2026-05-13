@@ -1,13 +1,12 @@
 """Shared pytest fixtures for scminer_viewer.
 
-We rely on R + the scminerViewer package to produce synthetic .scminer.h5
-fixtures (so the Python reader is genuinely tested against bytes written
-by the R writer, not by code in this repo).
+We rely on R + the scminerViewer package to produce a synthetic data
+tree (graph layout + shards) plus a bundle. This way the Python reader
+is genuinely tested against bytes written by the R writer.
 """
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -24,12 +23,15 @@ def _rscript_available() -> bool:
 
 @pytest.fixture(scope="session")
 def fixture_bundle(tmp_path_factory) -> Path:
-    """Build a small .scminer.h5 via the R scminerViewer package."""
+    """Build a synthetic study layout + bundle via the R package.
+
+    Returns the path to the bundle. The bundle's parent directory is the
+    shard_dir (so `load_study(bundle)` auto-discovers the shard tree).
+    """
     if not _rscript_available():
         pytest.skip("Rscript not on PATH; cannot build fixture bundle.")
-    out_dir = tmp_path_factory.mktemp("bundle")
-    bundle_path = out_dir / "fixture.scminer.h5"
-    bundle_path_str = repr(str(bundle_path))
+    out_dir = tmp_path_factory.mktemp("study")
+    out_dir_str = repr(str(out_dir))
     rscript = f"""
     suppressPackageStartupMessages(library(scminerViewer))
     set.seed(7)
@@ -67,18 +69,25 @@ def fixture_bundle(tmp_path_factory) -> Path:
       pvalue   = runif(8),
       stringsAsFactors = FALSE
     )
-    write_bundle(
-      bundle_path  = {bundle_path_str},
-      meta         = list(
+    res <- prepare_study_data(
+      out_dir = {out_dir_str},
+      meta = list(
         studyID    = "9999", studyAbbr = "Fx",
         longTitle  = "Fixture study", shortTitle = "Fx",
         species    = "Mus musculus", coordinate = "UMAP"
       ),
-      cells        = cells, clusters = clusters, genes = genes,
-      expression   = M, activity_tf  = M * 2, activity_sig = M * 3,
-      network_tf   = net, network_sig = net,
-      overwrite    = TRUE
+      cells        = cells,
+      clusters     = clusters,
+      genes        = genes,
+      expression   = M,
+      activity_tf  = M * 2,
+      activity_sig = M * 3,
+      network_tf   = net,
+      network_sig  = net,
+      default_genes = genes[1:2],
+      emit          = c("graph", "bundle")
     )
+    cat(res$bundle_path)
     """
     res = subprocess.run(
         ["Rscript", "-e", rscript],
@@ -86,5 +95,6 @@ def fixture_bundle(tmp_path_factory) -> Path:
     )
     if res.returncode != 0:
         pytest.skip(f"Could not build fixture bundle via R:\n{res.stderr}")
+    bundle_path = Path(res.stdout.strip())
     assert bundle_path.exists(), f"Bundle not produced at {bundle_path}"
     return bundle_path

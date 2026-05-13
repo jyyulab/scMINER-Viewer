@@ -1,50 +1,24 @@
 #' Read a study from the existing graph-import directory layout.
 #'
-#' Reconstructs the inputs that [write_bundle()] consumes from the on-disk
-#' layout under `data/`.
-#'
-#' Expression and activity matrices are sharded by the first lowercase
-#' letter of each gene (or `nm` for non-alphabetic first chars), with a
-#' single cell-ID header per matrix type:
-#'
-#' \itemize{
-#'   \item `<shard_dir>/expression_files/meta.csv` (cell-ID column order
-#'     for every expression shard)
-#'   \item `<shard_dir>/expression_files/<letter>/<gene>.csv.gz`
-#'   \item `<shard_dir>/activity_files/TF/meta.csv` and
-#'     `<shard_dir>/activity_files/TF/<letter>/<gene>.csv.gz`
-#'   \item `<shard_dir>/activity_files/SIG/meta.csv` and
-#'     `<shard_dir>/activity_files/SIG/<letter>/<gene>.csv.gz`
-#' }
-#'
-#' Set the `load_expression`, `load_activity_tf`, `load_activity_sig`
-#' flags to include those matrices. The manifest CSVs under
-#' `study_gene_expression/`, `study_gene_tf/`, `study_gene_sig/` are used
-#' only to enumerate which genes have shards; their `File` / `FileHeader`
-#' columns are ignored (paths are derived from the gene name). Missing
-#' shards or per-letter meta files are tolerated and reported as warnings.
+#' Reconstructs the inputs that [write_bundle()] / [prepare_study_data()]
+#' consume from the on-disk layout under `data/`. Matrix values are
+#' *not* loaded (those are read on demand by [gene_values()] from the
+#' sharded `expression_files/<studyID>/` and `activity_files/<studyID>/`
+#' trees). Instead, per-matrix **gene indexes** are read from the three
+#' manifest CSVs and returned for the bundle to embed.
 #'
 #' @param data_dir Root directory containing `Study/`, `Cell/`, `Gene/`,
 #'   `Network_TF_Activity/`, `Network_SIG_Activity/`, `study_meta/`,
 #'   `study_gene_expression/`, `study_gene_tf/`, `study_gene_sig/`.
 #' @param study_id Study identifier (e.g., `"2327"`).
-#' @param shard_dir Root directory under which `expression_files/` and
-#'   `activity_files/` live. Defaults to `data_dir`.
-#' @param load_expression,load_activity_tf,load_activity_sig Logical;
-#'   load the corresponding matrix from per-gene shards.
-#' @param verbose Logical; emit progress messages while reading shards.
 #'
-#' @return A list with `meta`, `cells`, `clusters`, `genes`, `expression`,
-#'   `activity_tf`, `activity_sig`, `network_tf`, `network_sig`. Matrix
-#'   slots are `NULL` when the corresponding `load_*` flag is `FALSE` or
-#'   the manifest is not found.
+#' @return A list with `meta`, `cells`, `clusters`, `genes`,
+#'   `expression_genes`, `activity_tf_genes`, `activity_sig_genes`
+#'   (character vectors from the matching manifest), and `network_tf`,
+#'   `network_sig` data.frames. Any slot is `NULL` when its source file
+#'   isn't present.
 #' @export
-read_graph_study <- function(data_dir, study_id,
-                             shard_dir = data_dir,
-                             load_expression = FALSE,
-                             load_activity_tf = FALSE,
-                             load_activity_sig = FALSE,
-                             verbose = FALSE) {
+read_graph_study <- function(data_dir, study_id) {
   study_id <- as.character(study_id)
 
   study_file <- file.path(data_dir, "Study", paste0(study_id, "_study.tsv"))
@@ -182,67 +156,45 @@ read_graph_study <- function(data_dir, study_id,
     }
   }
 
-  # Shard tree: expression_files/<studyID>/{meta.csv, <letter>/<gene>.csv.gz}
-  # and activity_files/<studyID>/{meta.csv, TF/<letter>/..., SIG/<letter>/...}.
-  # Activity TF and SIG share the same meta.csv (one level above the kind dir).
-  exp_root  <- file.path("expression_files", study_id)
-  act_root  <- file.path("activity_files",   study_id)
-  act_meta  <- file.path(act_root, "meta.csv")
-  exp_meta  <- file.path(exp_root, "meta.csv")
-
-  expression <- if (isTRUE(load_expression)) {
-    .read_shard_matrix(
-      shard_dir     = shard_dir,
-      shard_root    = exp_root,
-      meta_rel_path = exp_meta,
-      manifest_path = file.path(data_dir, "study_gene_expression",
-                                paste0(study_id, "_expression.csv")),
-      genes         = genes,
-      cells         = cells$cellID,
-      label         = "expression",
-      verbose       = verbose
-    )
-  } else NULL
-
-  activity_tf <- if (isTRUE(load_activity_tf)) {
-    .read_shard_matrix(
-      shard_dir     = shard_dir,
-      shard_root    = file.path(act_root, "TF"),
-      meta_rel_path = act_meta,
-      manifest_path = file.path(data_dir, "study_gene_tf",
-                                paste0(study_id, "_activity_tf.csv")),
-      genes         = genes,
-      cells         = cells$cellID,
-      label         = "activity_tf",
-      verbose       = verbose
-    )
-  } else NULL
-
-  activity_sig <- if (isTRUE(load_activity_sig)) {
-    .read_shard_matrix(
-      shard_dir     = shard_dir,
-      shard_root    = file.path(act_root, "SIG"),
-      meta_rel_path = act_meta,
-      manifest_path = file.path(data_dir, "study_gene_sig",
-                                paste0(study_id, "_activity_sig.csv")),
-      genes         = genes,
-      cells         = cells$cellID,
-      label         = "activity_sig",
-      verbose       = verbose
-    )
-  } else NULL
+  # Per-matrix gene indexes are read from the manifest CSVs (we ignore
+  # the manifest's File / FileHeader columns since the reader derives
+  # those from gene + kind).
+  expression_genes <- .read_manifest_genes(
+    file.path(data_dir, "study_gene_expression",
+              paste0(study_id, "_expression.csv"))
+  )
+  activity_tf_genes <- .read_manifest_genes(
+    file.path(data_dir, "study_gene_tf",
+              paste0(study_id, "_activity_tf.csv"))
+  )
+  activity_sig_genes <- .read_manifest_genes(
+    file.path(data_dir, "study_gene_sig",
+              paste0(study_id, "_activity_sig.csv"))
+  )
 
   list(
-    meta         = meta,
-    cells        = cells,
-    clusters     = clusters,
-    genes        = genes,
-    expression   = expression,
-    activity_tf  = activity_tf,
-    activity_sig = activity_sig,
-    network_tf   = network_tf,
-    network_sig  = network_sig
+    meta               = meta,
+    cells              = cells,
+    clusters           = clusters,
+    genes              = genes,
+    expression_genes   = expression_genes,
+    activity_tf_genes  = activity_tf_genes,
+    activity_sig_genes = activity_sig_genes,
+    network_tf         = network_tf,
+    network_sig        = network_sig
   )
+}
+
+.read_manifest_genes <- function(path) {
+  if (!file.exists(path)) return(NULL)
+  df <- tryCatch(
+    utils::read.csv(path, stringsAsFactors = FALSE),
+    error = function(e) NULL
+  )
+  if (is.null(df) || !"GeneSymbol" %in% colnames(df) || nrow(df) == 0) {
+    return(NULL)
+  }
+  unique(as.character(df$GeneSymbol))
 }
 
 .read_graph_network <- function(path) {
@@ -263,128 +215,3 @@ read_graph_study <- function(data_dir, study_id,
   )
 }
 
-.read_shard_matrix <- function(shard_dir, shard_root, meta_rel_path,
-                               manifest_path, genes, cells, label, verbose) {
-  if (!file.exists(manifest_path)) {
-    warning(sprintf("[%s] manifest not found: %s -- skipping",
-                    label, manifest_path), call. = FALSE)
-    return(NULL)
-  }
-  manifest <- utils::read.csv(manifest_path, stringsAsFactors = FALSE)
-  if (!"GeneSymbol" %in% colnames(manifest)) {
-    warning(sprintf("[%s] manifest missing GeneSymbol column -- skipping",
-                    label), call. = FALSE)
-    return(NULL)
-  }
-  if (nrow(manifest) == 0) {
-    warning(sprintf("[%s] manifest is empty -- skipping", label),
-            call. = FALSE)
-    return(NULL)
-  }
-
-  shard_root_path <- file.path(shard_dir, shard_root)
-  if (!dir.exists(shard_root_path)) {
-    warning(sprintf("[%s] shard root not found: %s -- skipping",
-                    label, shard_root_path), call. = FALSE)
-    return(NULL)
-  }
-
-  # Header path is independent of shard_root: activity TF and SIG share a
-  # single meta.csv one level above their kind directory.
-  meta_path <- file.path(shard_dir, meta_rel_path)
-  if (!file.exists(meta_path)) {
-    warning(sprintf("[%s] cell-header meta.csv not found at %s -- skipping",
-                    label, meta_path), call. = FALSE)
-    return(NULL)
-  }
-  header_line <- tryCatch(readLines(meta_path, n = 1, warn = FALSE),
-                          error = function(e) character(0))
-  if (length(header_line) == 0 || !nzchar(header_line)) {
-    warning(sprintf("[%s] %s is empty -- skipping", label, meta_path),
-            call. = FALSE)
-    return(NULL)
-  }
-  shard_cells <- trimws(strsplit(header_line, ",", fixed = TRUE)[[1]])
-  n_shard_cells <- length(shard_cells)
-  perm <- match(cells, shard_cells)
-  missing_in_shard <- which(is.na(perm))
-  if (length(missing_in_shard) > 0) {
-    warning(sprintf(
-      "[%s] %d cell ID(s) from Cell/ not present in %s (e.g. %s); those columns will be zero",
-      label, length(missing_in_shard), meta_path,
-      paste(utils::head(cells[missing_in_shard], 3), collapse = ", ")
-    ), call. = FALSE)
-  }
-
-  gene_to_row <- stats::setNames(seq_along(genes), genes)
-  n_genes <- length(genes)
-  n_cells <- length(cells)
-
-  triplets_i <- vector("list", nrow(manifest))
-  triplets_j <- vector("list", nrow(manifest))
-  triplets_x <- vector("list", nrow(manifest))
-  n_loaded <- 0L
-  n_missing_shard <- 0L
-
-  for (k in seq_len(nrow(manifest))) {
-    gene <- manifest$GeneSymbol[k]
-    row_idx <- gene_to_row[[gene]]
-    if (is.null(row_idx) || is.na(row_idx)) {
-      n_missing_shard <- n_missing_shard + 1L
-      next
-    }
-    letter <- .shard_letter(gene)
-    shard_path <- file.path(shard_root_path, letter,
-                            paste0(gene, ".csv.gz"))
-    if (!file.exists(shard_path)) {
-      n_missing_shard <- n_missing_shard + 1L
-      next
-    }
-    vals_df <- tryCatch(
-      data.table::fread(shard_path, header = FALSE, sep = ",",
-                        data.table = FALSE),
-      error = function(e) NULL
-    )
-    if (is.null(vals_df) || nrow(vals_df) == 0 || ncol(vals_df) == 0) {
-      n_missing_shard <- n_missing_shard + 1L
-      next
-    }
-    shard_vals <- as.numeric(vals_df[1, ])
-    if (length(shard_vals) != n_shard_cells) {
-      warning(sprintf(
-        "[%s] gene %s: shard has %d values but meta.csv has %d -- skipping",
-        label, gene, length(shard_vals), n_shard_cells),
-        call. = FALSE)
-      n_missing_shard <- n_missing_shard + 1L
-      next
-    }
-    reordered <- shard_vals[perm]
-    nz <- which(!is.na(reordered) & reordered != 0)
-    if (length(nz) > 0) {
-      triplets_i[[k]] <- rep.int(as.integer(row_idx), length(nz))
-      triplets_j[[k]] <- as.integer(nz)
-      triplets_x[[k]] <- reordered[nz]
-    }
-    n_loaded <- n_loaded + 1L
-    if (isTRUE(verbose) && (k %% 1000L == 0L)) {
-      message(sprintf("  [%s] %d/%d shards loaded",
-                      label, k, nrow(manifest)))
-    }
-  }
-
-  if (isTRUE(verbose)) {
-    message(sprintf("[%s] %d shards loaded, %d skipped",
-                    label, n_loaded, n_missing_shard))
-  }
-
-  all_i <- unlist(triplets_i, use.names = FALSE)
-  all_j <- unlist(triplets_j, use.names = FALSE)
-  all_x <- unlist(triplets_x, use.names = FALSE)
-  if (is.null(all_i)) {
-    all_i <- integer(0); all_j <- integer(0); all_x <- numeric(0)
-  }
-  Matrix::sparseMatrix(
-    i = all_i, j = all_j, x = all_x,
-    dims = c(n_genes, n_cells), repr = "C"
-  )
-}

@@ -1,9 +1,11 @@
-#' Write a self-contained scMINER study bundle (HDF5).
+#' Write a self-contained scMINER study metadata bundle (HDF5).
 #'
-#' The bundle is a single `.scminer.h5` file consumable by both the R Shiny app
-#' and the companion Python webui. Sparse matrices are stored in CSR layout
-#' (rows = genes, columns = cells) with zero-based indices, matching the
-#' scipy.sparse convention so Python can construct `csr_matrix` directly.
+#' The bundle is a small `.scminer.h5` file containing study metadata,
+#' cell + cluster info, the master gene list, networks, and per-matrix
+#' **gene indexes** (which genes are available in `expression` /
+#' `activity_tf` / `activity_sig`). Expression and activity matrix
+#' values are *not* stored in the bundle — they are read on demand from
+#' the on-disk shard tree by [gene_values()].
 #'
 #' @param bundle_path Output path; should end in `.scminer.h5`.
 #' @param meta Named list with `studyID`, `studyAbbr`, `longTitle`,
@@ -12,15 +14,14 @@
 #'   (optional, defaults to `cellType`), `coord1`, `coord2`.
 #' @param clusters data.frame with columns `cellType`, `count`, `color`
 #'   (optional), `label_1` (optional), `label_2` (optional).
-#' @param genes Character vector of gene symbols. Length must match
-#'   `nrow(expression)`.
-#' @param expression Optional `Matrix` (or coercible) sized `length(genes)` by
-#'   `nrow(cells)`.
-#' @param activity_tf Optional matrix in the same orientation.
-#' @param activity_sig Optional matrix in the same orientation.
-#' @param network_tf Optional data.frame with `source`, `target`, `cellType`,
-#'   `mi`, `pearson`, `spearman`, `rho`, `pvalue`.
-#' @param network_sig Optional data.frame with the same columns.
+#' @param genes Master character vector of gene symbols (all genes in
+#'   the study, regardless of which matrices they appear in).
+#' @param expression_genes,activity_tf_genes,activity_sig_genes Optional
+#'   character vectors listing the genes that have shards in each matrix.
+#'   Typically the `GeneSymbol` column of the corresponding manifest CSV.
+#' @param default_genes Optional character vector; if present, the app
+#'   pre-selects these genes on startup.
+#' @param network_tf,network_sig Optional data.frames.
 #' @param overwrite Logical; allow overwriting `bundle_path`.
 #'
 #' @return `bundle_path` (invisibly).
@@ -30,9 +31,10 @@ write_bundle <- function(bundle_path,
                          cells,
                          clusters,
                          genes,
-                         expression = NULL,
-                         activity_tf = NULL,
-                         activity_sig = NULL,
+                         expression_genes  = NULL,
+                         activity_tf_genes = NULL,
+                         activity_sig_genes = NULL,
+                         default_genes     = NULL,
                          network_tf = NULL,
                          network_sig = NULL,
                          overwrite = FALSE) {
@@ -52,12 +54,6 @@ write_bundle <- function(bundle_path,
     stop("`genes` must be a non-empty character vector")
   }
 
-  n_cells <- nrow(cells)
-  n_genes <- length(genes)
-  if (!is.null(expression))   .validate_matrix(expression,   n_genes, n_cells, "expression")
-  if (!is.null(activity_tf))  .validate_matrix(activity_tf,  n_genes, n_cells, "activity_tf")
-  if (!is.null(activity_sig)) .validate_matrix(activity_sig, n_genes, n_cells, "activity_sig")
-
   file <- hdf5r::H5File$new(bundle_path, mode = "w")
   on.exit({ try(file$close_all(), silent = TRUE) }, add = TRUE)
 
@@ -65,9 +61,8 @@ write_bundle <- function(bundle_path,
   .write_cells(file, cells)
   .write_clusters(file, clusters)
   .write_genes(file, genes)
-  if (!is.null(expression))   .write_sparse(file, "expression",   expression)
-  if (!is.null(activity_tf))  .write_sparse(file, "activity_tf",  activity_tf)
-  if (!is.null(activity_sig)) .write_sparse(file, "activity_sig", activity_sig)
+  .write_index(file, expression_genes, activity_tf_genes, activity_sig_genes)
+  .write_defaults(file, default_genes)
   if (!is.null(network_tf))   .write_network(file, "network_tf",  network_tf)
   if (!is.null(network_sig))  .write_network(file, "network_sig", network_sig)
 
@@ -107,16 +102,20 @@ write_bundle <- function(bundle_path,
   grp[["symbol"]] <- as.character(genes)
 }
 
-.write_sparse <- function(file, name, mat) {
-  if (!inherits(mat, "Matrix")) {
-    mat <- methods::as(as.matrix(mat), "CsparseMatrix")
+.write_index <- function(file, exp_g, tf_g, sig_g) {
+  if (is.null(exp_g) && is.null(tf_g) && is.null(sig_g)) return(invisible(NULL))
+  grp <- file$create_group("index")
+  if (!is.null(exp_g))  grp[["expression"]]   <- as.character(exp_g)
+  if (!is.null(tf_g))   grp[["activity_tf"]]  <- as.character(tf_g)
+  if (!is.null(sig_g))  grp[["activity_sig"]] <- as.character(sig_g)
+}
+
+.write_defaults <- function(file, default_genes) {
+  if (is.null(default_genes) || length(default_genes) == 0) {
+    return(invisible(NULL))
   }
-  rmat <- methods::as(mat, "RsparseMatrix")
-  grp <- file$create_group(name)
-  grp[["data"]]    <- as.numeric(rmat@x)
-  grp[["indices"]] <- as.integer(rmat@j)
-  grp[["indptr"]]  <- as.integer(rmat@p)
-  grp[["shape"]]   <- as.integer(dim(rmat))
+  grp <- file$create_group("defaults")
+  grp[["genes"]] <- as.character(default_genes)
 }
 
 .write_network <- function(file, name, df) {
@@ -161,14 +160,5 @@ write_bundle <- function(bundle_path,
   miss <- setdiff(required, colnames(clusters))
   if (length(miss) > 0) {
     stop("`clusters` missing columns: ", paste(miss, collapse = ", "))
-  }
-}
-
-.validate_matrix <- function(mat, n_genes, n_cells, name) {
-  d <- dim(mat)
-  if (is.null(d) || d[1] != n_genes || d[2] != n_cells) {
-    stop(sprintf("`%s` must be %d (genes) x %d (cells), got %s",
-                 name, n_genes, n_cells,
-                 if (is.null(d)) "<no dim>" else paste(d, collapse = "x")))
   }
 }

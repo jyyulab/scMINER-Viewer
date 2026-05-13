@@ -1,0 +1,52 @@
+# Example YAML config for scminerViewer::prepare_study().
+#
+# Run with:
+#   Rscript -e 'scminerViewer::prepare_study("example_config.yml")'
+#
+# Writes:
+#   <output>/Study/, Cell/, Gene/, Network_*/, study_meta/<studyID>_study_meta.csv,
+#   <output>/study_gene_{expression,tf,sig}/<studyID>_*.csv  (manifests)
+#   <output>/expression_files/<studyID>/{meta.csv, <letter>/<gene>.csv.gz}
+#   <output>/activity_files/<studyID>/{meta.csv, TF|SIG/<letter>/<gene>.csv.gz}
+#   <output>/<studyID>.scminer.h5         (the lazy-mode bundle)
+
+# ---- Where to write everything --------------------------------------------
+output: data        # writes data/2327.scminer.h5 + the shard tree
+
+# ---- Study identity -------------------------------------------------------
+study:
+  ID:         "2327"
+  studyAbbr:  tex
+  longTitle:  >
+    Single-cell RNA sequencing of progenitor, intermediate and
+    terminally exhausted CD8+ T cells from tumors and chronic viral
+    infection
+  shortTitle: Tex
+
+# ---- Sample-level metadata (also used as scminer_study$meta fields) -------
+species:    Mus musculus    # also written into manifests' Species column
+coordinate: UMAP            # also the pData column prefix (UMAP_1, UMAP_2)
+
+# ---- pData / fData column names in the source ExpressionSet ---------------
+# These tell prepare_study_from_eset() which pData columns to pull. The
+# defaults shown here match scMINER conventions.
+cellID:     cellID          # rownames are also used; this column is added
+                            # automatically if absent
+cellType:   cellGroup       # label column in pData
+cellGroup:  cellGroup       # optional; falls back to cellType
+geneSymbol: geneSymbol      # column in fData carrying the gene symbol
+
+# ---- Input files (RDS / TSV) read by prepare_study_from_eset() ------------
+input:
+  # Required: a Biobase ExpressionSet RDS with the expression matrix.
+  expression: inputs/2327_expression.rds
+
+  # Optional: a second Biobase ExpressionSet with the activity matrix.
+  # Row names must end in _TF / .TF or _SIG / .SIG; prepare_study splits
+  # those rows into activity_tf and activity_sig automatically.
+  activity:   inputs/2327_activity.rds
+
+  # Optional: a tab-separated networks file with at least these columns:
+  #   source, target, NetworkType (TF|SIG), CellGroup,
+  #   mi, pearson, spearman, rho, pvalue
+  networks:   inputs/2327_networks.tsv

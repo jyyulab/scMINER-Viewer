@@ -37,46 +37,40 @@ def aggregate_by_cluster(
     relationship: str,
     active_clusters: Optional[list[str]] = None,
 ) -> Optional[tuple[pd.DataFrame, pd.DataFrame]]:
-    """Return (mean, pct_expressing) per gene per cluster.
+    """Return (mean, pct_expressing) per gene per cluster (lazy reads).
 
-    Both DataFrames are indexed by gene with cluster columns.
+    Each gene's row is loaded from disk via `study.gene_values(...)`.
     """
-    mat = {
-        "Express_normalized": study.expression,
-        "Activity_tf": study.activity_tf,
-        "Activity_sig": study.activity_sig,
-    }.get(relationship)
-    if mat is None or not genes:
+    if not genes:
         return None
-    rows = []
+    present_genes: list[str] = []
+    rows: list[np.ndarray] = []
     for g in genes:
-        idx = study._gene_to_row.get(g)
-        if idx is not None:
-            rows.append((g, idx))
-    if not rows:
+        vals = study.gene_values(g, relationship)
+        if vals is None:
+            continue
+        present_genes.append(g)
+        rows.append(vals)
+    if not present_genes:
         return None
-    gene_names = [g for g, _ in rows]
-    row_idx = np.array([i for _, i in rows], dtype=np.int64)
 
     clusters = active_clusters or list(study.clusters.index)
     cell_types = study.cells["cellType"].to_numpy()
-
-    means = np.zeros((len(rows), len(clusters)), dtype=np.float64)
+    means = np.zeros((len(present_genes), len(clusters)), dtype=np.float64)
     pcts = np.zeros_like(means)
-    for j, cluster in enumerate(clusters):
-        mask = cell_types == cluster
-        n = int(mask.sum())
-        if n == 0:
-            continue
-        sub = mat[row_idx][:, mask]
-        # sub is a CSR matrix
-        means[:, j] = np.asarray(sub.mean(axis=1)).ravel()
-        # pct expressing = fraction of cells with non-zero value
-        nnz_per_row = np.asarray((sub != 0).sum(axis=1)).ravel()
-        pcts[:, j] = nnz_per_row / n
+    for i, vals in enumerate(rows):
+        for j, cluster in enumerate(clusters):
+            mask = cell_types == cluster
+            sub = vals[mask]
+            sub = sub[~np.isnan(sub)]
+            n = sub.size
+            if n == 0:
+                continue
+            means[i, j] = float(sub.mean())
+            pcts[i, j] = float((sub != 0).sum()) / n
     return (
-        pd.DataFrame(means, index=gene_names, columns=clusters),
-        pd.DataFrame(pcts, index=gene_names, columns=clusters),
+        pd.DataFrame(means, index=present_genes, columns=clusters),
+        pd.DataFrame(pcts, index=present_genes, columns=clusters),
     )
 
 
