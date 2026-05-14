@@ -416,9 +416,13 @@ extract_expression <- function(expression_eset, genes = NULL) {
          "install it from Bioconductor.")
   }
   expr <- Biobase::exprs(expression_eset)
-  if (!inherits(expr, "Matrix")) {
-    expr <- methods::as(as.matrix(expr), "CsparseMatrix")
-  }
+  # NOTE: we deliberately do NOT convert to CsparseMatrix here.
+  # .write_graph_shards iterates row-by-row and handles dgeMatrix /
+  # dgCMatrix / base matrix uniformly via mat[i, , drop = TRUE], so
+  # forcing a dense->sparse cast would (a) double-allocate, and (b)
+  # blow up on studies whose nnz approaches the 2^31-1 dgCMatrix cap
+  # (e.g. > 100k cells x 20k genes scRNA-seq). Keep whatever class
+  # exprs(eset) returned.
   if (!is.null(genes)) {
     if (nrow(expr) != length(genes)) {
       stop(sprintf("Expression rows (%d) != length(genes) (%d)",
@@ -464,9 +468,10 @@ extract_activity <- function(activity_eset, master_genes) {
     if (!any(mask)) return(NULL)
     sub_act <- act[mask, , drop = FALSE]
     rownames(sub_act) <- strip_suffix(rownames(sub_act))
-    if (!inherits(sub_act, "Matrix")) {
-      sub_act <- methods::as(as.matrix(sub_act), "CsparseMatrix")
-    }
+    # Same rationale as extract_expression: keep the source class
+    # rather than forcing a dense->sparse cast that allocates twice
+    # and trips the 2^31-1 dgCMatrix cap on large activity matrices.
+    # .reindex_rows builds its own sparse output of the master shape.
     .reindex_rows(sub_act, master_genes)
   }
   list(tf = build_one(is_tf), sig = build_one(is_sig))

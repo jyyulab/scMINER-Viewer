@@ -162,12 +162,24 @@ CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
 
 | Group | Columns |
 | --- | --- |
-| Identification | `studyID`, `n_cells`, `n_genes`, `n_clusters` |
+| Identification | `studyID`, `n_cells`, `n_genes`, `n_clusters`, `out_dir` |
 | **Inputs** | `expr_input_bytes`, `act_input_bytes`, `net_input_bytes`, `total_input_bytes` |
 | **Outputs** | `bundle_bytes`, `shard_bytes`, `graph_bytes`, `total_output_bytes` |
 | Wall time & memory | `prepare_seconds`, `prepare_peak_mb`, `load_seconds` |
 | Gene fetch | `fetch_median`, `fetch_mean`, `fetch_max`, `n_fetched` |
 | Networks | `net_tf_edges`, `net_sig_edges` |
+| Status | `status` (`ok` / `skipped` / `skipped-too-large` / `error`), `note` |
+
+Status values:
+
+| `status` | When | TSV columns |
+| --- | --- | --- |
+| `ok` | Benchmark completed | All metric columns filled |
+| `skipped` | Legacy `input.genes` layout (KKYan studies) | Metrics NA; `note` carries reason |
+| `skipped-too-large` | Actual nnz exceeds 2^31-1 (R's `dgCMatrix` cap) | Metrics NA; `note` carries the size that tripped the cap |
+| `error` | Any other failure | Metrics NA; `note` carries the error message |
+
+The bsub task always exits 0 regardless of status (skip / cap / error are all "expected outcomes"), so the merge job's `ended(array)` dependency always fires.
 
 ### Resource sizing
 
@@ -184,11 +196,23 @@ largest single study (the array runs in parallel across hosts).
 
 ### Known limitations
 
-* `2343.yaml` – `2347.yaml` (KKYan mammary-gland nest substudies) use
-  a legacy raw-matrix + `genes.csv` layout and are not `ExpressionSet`s.
-  `portal_studies.R` stops with a clear error on those configs; the
-  driver array task will fail fast. Convert to `ExpressionSet` on
-  HPC before re-running.
+* **Legacy raw-matrix layout (KKYan).** `2343.yaml` – `2347.yaml`
+  (mammary-gland nest substudies) use a raw `.rds` matrix + separate
+  `.genes.csv` file, not a Biobase `ExpressionSet`. `portal_studies.R`
+  emits a `skipped` row for these (the bsub task still exits 0).
+  Convert to `ExpressionSet` on HPC before re-running.
+
+* **R `dgCMatrix` 2^31 nnz cap.** `Matrix::sparseMatrix()` refuses
+  more than 2^31-1 non-zero entries. `portal_studies.R` runs a
+  pre-flight that counts the actual nnz (via `length(m@x)` for
+  sparse, `sum(m != 0)` for dense) and emits a `skipped-too-large`
+  row when the value exceeds the cap. Studies whose dimensions are
+  large but density is low (e.g. ATRT at 18 k × 138 k, ~12 % density
+  → 300 M nnz) are *not* affected; they bundle normally.
+  scminerViewer's shard writer (`.write_graph_shards`) iterates one
+  gene at a time and never materializes a full sparse copy, so the
+  cap only bites studies whose pre-bundle expression matrix legally
+  cannot exist as a single `dgCMatrix`.
 
 ## Figure (anatomy)
 

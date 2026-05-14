@@ -344,26 +344,32 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
 
   # Pre-flight: R's Matrix package caps dgCMatrix at 2^31-1 nonzero
   # entries (sparseMatrix() throws "more than 2^31-1 nonzero entries").
-  # Check the actual nnz when the eset is already sparse, otherwise
-  # fall back to nrow * ncol (the cap a dense-to-sparse conversion
-  # would hit).
+  # For a sparse-backed eset we read the actual nnz via @x; for a
+  # dense-backed eset we have to walk the matrix once with sum(m != 0).
+  # That scan is cheap relative to the bundle write and avoids
+  # false-positive skips on scRNA-seq matrices that are sparse in fact
+  # even when stored densely (post-normalization log-CPM, etc.).
   .nnz_cap <- .Machine$integer.max  # 2^31 - 1
-  .nnz_or_cells <- function(eset) {
+  .nnz_of <- function(eset) {
     m <- Biobase::exprs(eset)
     if (inherits(m, "sparseMatrix")) {
       list(nnz = length(m@x), dense = FALSE,
            nr = nrow(m), nc = ncol(m))
     } else {
-      list(nnz = as.numeric(nrow(m)) * as.numeric(ncol(m)),
+      list(nnz = sum(as.numeric(m != 0), na.rm = TRUE),
            dense = TRUE, nr = nrow(m), nc = ncol(m))
     }
   }
   .check_size <- function(eset, label) {
-    sz <- .nnz_or_cells(eset)
+    sz <- .nnz_of(eset)
+    log_msg(sprintf("[%s] %s: %d x %d (%s), nnz=%s",
+                    study_id, label, sz$nr, sz$nc,
+                    if (sz$dense) "dense" else "sparse",
+                    format(sz$nnz, big.mark = ",")))
     if (sz$nnz > .nnz_cap) {
       stop(sprintf(paste0(
         "matrix too large for dgCMatrix: %s is %d x %d (%s), ",
-        "%.2g entries > 2^31-1 nnz cap"),
+        "nnz=%.3g > 2^31-1 cap"),
         label, sz$nr, sz$nc,
         if (sz$dense) "dense" else "sparse",
         sz$nnz),
