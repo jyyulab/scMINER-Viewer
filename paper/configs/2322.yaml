@@ -1,0 +1,15 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/HeidataHumanCerebellumDevelopment/cp10kExp.eset.Rds
+    activity:   /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/HeidataHumanCerebellumDevelopment/Activity.eset.Rds
+    networks:   /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/HeidataHumanCerebellumDevelopment/Network.tsv
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellType
+cellGroup: CellType
+geneSymbol: GeneSymbol
+study:
+    ID: 2322
+    studyAbbr: HeidataHumanCerebellumDevelopment
+    longTitle: Single-nucleus RNA sequencing of motor cortex in human
+    shortTitle: HeidataHumanCerebellumDevelopment
+debug: FALSE
+species: Homo sapiens

@@ -1,0 +1,18 @@
+# NOTE: This study uses a raw .rds matrix + separate .genes.csv layout,
+# not a Biobase ExpressionSet. portal_studies.R skips it until a loader
+# is added; bundle these manually with prepare_study_data() for now.
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/KKYan/Data/dO_final.rds
+    genes: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/KKYan/Data/dO_final.genes.csv
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellType
+cellGroup: CellType
+geneSymbol: GeneSymbol
+cellID: CellID
+study:
+    ID: 2344
+    studyAbbr: study-mammary-gland-updated
+    longTitle: dO_final
+    shortTitle: dO_final
+debug: FALSE
+species: Mus musculus

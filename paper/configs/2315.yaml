@@ -1,0 +1,11 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/HMC76K/expression.rds
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellGroup: CellGroup
+study:
+    ID: 2315
+    studyAbbr: ground-truth-hmc76k
+    longTitle: Single-nucleus RNA sequencing of motor cortex in human
+    shortTitle: HMC76k
+debug: FALSE
+species: Homo sapiens

@@ -1,0 +1,15 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Bcell_Dev/expression.rds
+    activity:   /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Bcell_Dev/activity.rds
+    networks:   /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Bcell_Dev/networks.txt
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellGroup
+cellGroup: CellGroup
+geneSymbol: geneSymbol
+study:
+    ID: 2203
+    studyAbbr: b-cell-dev
+    longTitle: Single-cell Regulatory Network and Gene Activity Landscape during Human B-cell Development
+    shortTitle: Bcell Dev
+debug: FALSE
+species: Homo sapiens
