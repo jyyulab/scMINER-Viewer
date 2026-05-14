@@ -1,0 +1,2 @@
+bundle_path	bundle_bytes	n_cells	n_genes	n_clusters	load_seconds	load_peak_mb	fetch_median	fetch_mean	fetch_max	n_fetched	net_tf	net_sig
+data/2327/2327.scminer.h5	80484324	8464	9861	3	0.515376091003418	248.8	0.0317715406417847	0.0339828252792358	0.112406969070435	50	429516	314348
