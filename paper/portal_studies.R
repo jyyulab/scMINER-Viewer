@@ -24,6 +24,20 @@
 #
 # Sample YAML lives at data/input/2327/config.yaml.
 #
+# Each study's bundle, expression_files/, activity_files/, and graph
+# files are written to a per-study subdirectory named after study.ID
+# inside the resolved output root:
+#   1. --output-root <dir>   CLI override (a single root for all studies)
+#   2. cfg$output             from the YAML (per-study, default for HPC)
+#   3. --scratch <dir>        (default: tempfile() -- ephemeral)
+#
+# So a YAML with `output: /research/.../scMINERViewerMetrics` and
+# `study.ID: 2327` produces:
+#   /research/.../scMINERViewerMetrics/2327/2327.scminer.h5
+#   /research/.../scMINERViewerMetrics/2327/expression_files/...
+#   /research/.../scMINERViewerMetrics/2327/activity_files/...
+#   /research/.../scMINERViewerMetrics/2327/graph_files/...   (etc.)
+#
 # Per-study metrics written to paper/metrics/portal_studies.tsv:
 #
 #   Inputs (from the YAML's resolved paths):
@@ -78,7 +92,13 @@ config_one   <- get_arg("--config",      NULL)
 studies_root <- get_arg("--studies-root", NULL)
 out_tsv      <- get_arg("--out", "paper/metrics/portal_studies.tsv")
 only_csv     <- get_arg("--only", "")
-scratch_root <- get_arg("--scratch", tempfile("portal_bundle_"))
+# Where the produced bundle / expression_files / activity_files / graph
+# files for each study should land. Resolution order (highest -> lowest):
+#   1. --output-root <dir> CLI flag (forces a single root for every study)
+#   2. cfg$output from the YAML (per-study, resolved relative to YAML dir)
+#   3. --scratch <dir> (defaults to a tempfile -- ephemeral)
+output_root  <- get_arg("--output-root", NULL)
+scratch_root <- get_arg("--scratch",     tempfile("portal_bundle_"))
 verbose      <- !("--quiet" %in% args)
 
 modes_set <- sum(!is.null(configs_dir), !is.null(config_one),
@@ -173,10 +193,15 @@ spec_from_yaml <- function(yaml_path) {
       skip_reason = "input.genes (raw matrix + genes.csv layout)"
     ))
   }
+  # `output:` from the YAML names a directory on HPC where the bundle
+  # and the gene-shard tree should land. Relative paths resolve
+  # against the YAML's parent dir (same rule as input.*).
+  output_root <- .resolve_path(cfg$output, yaml_dir)
   list(
     source          = "yaml",
     yaml_path       = yaml_path,
     study_id        = study_id,
+    output_root     = output_root,
     expr_path       = .resolve_path(cfg$input$expression, input_base),
     act_path        = .resolve_path(cfg$input$activity,   input_base),
     net_path        = .resolve_path(cfg$input$networks,   input_base),
@@ -213,6 +238,7 @@ spec_from_dir <- function(study_dir) {
     source          = "convention",
     yaml_path       = NA_character_,
     study_id        = basename(study_dir),
+    output_root     = NULL,                          # falls back to --scratch
     expr_path       = file.path(study_dir, "expression.rds"),
     act_path        = {
       p <- file.path(study_dir, "activity.rds")
@@ -280,17 +306,26 @@ if (length(only_set) > 0L) {
 
 # ---- One-study benchmark ---------------------------------------------------
 
-bench_real_one <- function(spec, scratch) {
+bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
   if (!requireNamespace("Biobase", quietly = TRUE)) {
     stop("Biobase required; install via BiocManager::install('Biobase')")
   }
   study_id <- spec$study_id
-  sub_root <- file.path(scratch, study_id)
+  # Resolve the per-study output dir: CLI flag > YAML cfg$output > scratch.
+  out_root <- if (!is.null(cli_output_root) && nzchar(cli_output_root)) {
+    cli_output_root
+  } else if (!is.null(spec$output_root) && nzchar(spec$output_root)) {
+    spec$output_root
+  } else {
+    scratch
+  }
+  sub_root <- file.path(out_root, study_id)
   dir.create(sub_root, recursive = TRUE, showWarnings = FALSE)
 
   log_msg(sprintf("[%s] spec source: %s%s", study_id, spec$source,
                   if (spec$source == "yaml")
                     sprintf(" (%s)", spec$yaml_path) else ""))
+  log_msg(sprintf("[%s] output dir : %s", study_id, sub_root))
 
   # Capture input file sizes up front (before any in-memory load).
   .file_bytes <- function(p) {
@@ -379,6 +414,7 @@ bench_real_one <- function(spec, scratch) {
     n_cells            = nrow(s$cells),
     n_genes            = length(s$genes),
     n_clusters         = nrow(s$clusters),
+    out_dir            = sub_root,
     # Inputs
     expr_input_bytes   = expr_input_bytes,
     act_input_bytes    = act_input_bytes,
@@ -413,6 +449,7 @@ placeholder_row <- function(spec, status, note = "") {
     n_cells            = NA_integer_,
     n_genes            = NA_integer_,
     n_clusters         = NA_integer_,
+    out_dir            = NA_character_,
     expr_input_bytes   = NA_real_,
     act_input_bytes    = NA_real_,
     net_input_bytes    = NA_real_,
@@ -450,7 +487,8 @@ for (i in seq_along(specs)) {
     next
   }
 
-  out <- tryCatch(bench_real_one(spec, scratch_root),
+  out <- tryCatch(bench_real_one(spec, scratch_root,
+                                  cli_output_root = output_root),
                   error = function(err) {
                     message(sprintf("  ERROR: %s", conditionMessage(err)))
                     NULL

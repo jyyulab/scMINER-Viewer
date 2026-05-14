@@ -72,9 +72,21 @@ output:        /research_jude/.../scMINER_Portal/scMINERViewerMetrics
 * Path resolution: paths inside `input.*` may be absolute (most
   configs are) or relative — relative paths resolve against
   `input_root` if set, else the YAML's own parent dir.
-* `output:` is ignored by the benchmark (which writes into its own
-  scratch dir); it only matters if the YAML is invoked directly via
-  `scminerViewer::prepare_study()`.
+* `output:` is the directory where each study's bundle, gene-shard
+  tree, and graph files land. `portal_studies.R` resolves this in
+  this order (highest wins):
+    1. `--output-root <dir>` CLI flag (single root for every study)
+    2. The YAML's `output:` value (per-study, default on HPC)
+    3. `--scratch <dir>` (default: an ephemeral `tempfile()`)
+
+  With the unified `output: /research/.../scMINERViewerMetrics` set
+  in every config, a study with `study.ID: 2327` ends up at:
+  ```
+  /research/.../scMINERViewerMetrics/2327/2327.scminer.h5
+  /research/.../scMINERViewerMetrics/2327/expression_files/...
+  /research/.../scMINERViewerMetrics/2327/activity_files/...
+  /research/.../scMINERViewerMetrics/2327/graph_files/...
+  ```
 
 ### One-command HPC run
 
@@ -142,7 +154,8 @@ CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
 | `--studies-root <dir>` | — | Walk per-study subfolders (legacy mode). |
 | `--only a,b,c`        | (all) | CSV of study IDs to restrict to. |
 | `--out <tsv>`         | `paper/metrics/portal_studies.tsv` | Output TSV path. |
-| `--scratch <dir>`     | tempfile | Per-study bundle scratch root. |
+| `--output-root <dir>` | — | Force every study's bundle / shards / graph files into `<dir>/<studyID>/`, overriding the YAML's `output:` value. |
+| `--scratch <dir>`     | tempfile | Fallback when neither `--output-root` nor the YAML's `output:` is set. |
 | `--quiet`             | — | Suppress progress messages. |
 
 ### Metrics columns (`paper/metrics/portal_studies.tsv`)
