@@ -37,7 +37,7 @@ set -euo pipefail
 cd "${LS_SUBCWD:-$PWD}"
 mkdir -p paper/metrics paper/logs
 
-module load R 2>/dev/null || true
+module load R/4.2.2-rhel8 2>/dev/null || true
 
 if [[ -n "${LSB_JOBINDEX:-}" && "${LSB_JOBINDEX}" != "0" ]]; then
   # ---- Array mode: pick one entry by line number ------------------------

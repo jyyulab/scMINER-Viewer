@@ -48,7 +48,17 @@
 #   Rscript paper/portal_studies.R --studies-root /hpc/.../studies
 #   Rscript paper/portal_studies.R --studies-root <path> --only 2327
 
+.libPaths("~/R_libs")
+
 suppressPackageStartupMessages({
+  library(yaml)
+  library(dplyr)
+  library(Matrix)
+  library(scMINER)
+  library(tidyverse)
+  library(stringr)
+  library(data.table)
+  library(R.utils)
   library(scminerViewer)
 })
 

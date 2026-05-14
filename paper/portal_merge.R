@@ -8,6 +8,8 @@
 # Usage:
 #   Rscript paper/portal_merge.R <out.tsv> <in1.tsv> <in2.tsv> ...
 
+.libPaths("~/R_libs")
+
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2L) {
   stop("Usage: portal_merge.R <out.tsv> <in1.tsv> [<in2.tsv> ...]")
