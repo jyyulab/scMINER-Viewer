@@ -341,12 +341,43 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
                   basename(spec$expr_path),
                   format(expr_input_bytes, big.mark = ",")))
   expr_eset <- readRDS(spec$expr_path)
+
+  # Pre-flight: R's Matrix package caps dgCMatrix at 2^31-1 nonzero
+  # entries (sparseMatrix() throws "more than 2^31-1 nonzero entries").
+  # Check the actual nnz when the eset is already sparse, otherwise
+  # fall back to nrow * ncol (the cap a dense-to-sparse conversion
+  # would hit).
+  .nnz_cap <- .Machine$integer.max  # 2^31 - 1
+  .nnz_or_cells <- function(eset) {
+    m <- Biobase::exprs(eset)
+    if (inherits(m, "sparseMatrix")) {
+      list(nnz = length(m@x), dense = FALSE,
+           nr = nrow(m), nc = ncol(m))
+    } else {
+      list(nnz = as.numeric(nrow(m)) * as.numeric(ncol(m)),
+           dense = TRUE, nr = nrow(m), nc = ncol(m))
+    }
+  }
+  .check_size <- function(eset, label) {
+    sz <- .nnz_or_cells(eset)
+    if (sz$nnz > .nnz_cap) {
+      stop(sprintf(paste0(
+        "matrix too large for dgCMatrix: %s is %d x %d (%s), ",
+        "%.2g entries > 2^31-1 nnz cap"),
+        label, sz$nr, sz$nc,
+        if (sz$dense) "dense" else "sparse",
+        sz$nnz),
+        call. = FALSE)
+    }
+  }
+  .check_size(expr_eset, "expression matrix")
   act_eset  <- if (!is.null(spec$act_path) && file.exists(spec$act_path)) {
     log_msg(sprintf("[%s] readRDS %s (%s)", study_id,
                     basename(spec$act_path),
                     format(act_input_bytes, big.mark = ",")))
     readRDS(spec$act_path)
   } else NULL
+  if (!is.null(act_eset)) .check_size(act_eset, "activity matrix")
   log_msg(sprintf("[%s] networks: %s%s", study_id,
                   if (is.null(spec$net_path)) "(none)" else
                     basename(spec$net_path),
@@ -487,15 +518,27 @@ for (i in seq_along(specs)) {
     next
   }
 
+  err_obj <- NULL
   out <- tryCatch(bench_real_one(spec, scratch_root,
                                   cli_output_root = output_root),
                   error = function(err) {
+                    err_obj <<- err
                     message(sprintf("  ERROR: %s", conditionMessage(err)))
                     NULL
                   })
   if (is.null(out)) {
-    rows[[length(rows) + 1L]] <- placeholder_row(spec, "error",
-                                                  "bench_real_one() failed")
+    msg <- if (!is.null(err_obj)) conditionMessage(err_obj) else ""
+    # Classify the 2^31-1 sparse-matrix overflow as its own status so
+    # it shows up alongside legacy-skipped rows rather than as a generic
+    # failure -- it is a data-size limit, not a bug.
+    if (grepl("2\\^31|nnz cap|too large for dgCMatrix",
+              msg, ignore.case = TRUE)) {
+      rows[[length(rows) + 1L]] <- placeholder_row(spec,
+                                                    "skipped-too-large",
+                                                    msg)
+    } else {
+      rows[[length(rows) + 1L]] <- placeholder_row(spec, "error", msg)
+    }
   } else {
     row <- as.data.frame(out, stringsAsFactors = FALSE)
     row$status <- "ok"
@@ -516,11 +559,14 @@ rows <- lapply(rows, function(r) {
 })
 df <- do.call(rbind, rows)
 utils::write.table(df, out_tsv, sep = "\t", row.names = FALSE, quote = FALSE)
-log_msg(sprintf("\nWrote %d-row TSV to %s (%d ok, %d skipped, %d error)",
-                nrow(df), out_tsv,
-                sum(df$status == "ok",      na.rm = TRUE),
-                sum(df$status == "skipped", na.rm = TRUE),
-                sum(df$status == "error",   na.rm = TRUE)))
+log_msg(sprintf(paste0(
+  "\nWrote %d-row TSV to %s (%d ok, %d skipped, ",
+  "%d too-large, %d error)"),
+  nrow(df), out_tsv,
+  sum(df$status == "ok",                na.rm = TRUE),
+  sum(df$status == "skipped",           na.rm = TRUE),
+  sum(df$status == "skipped-too-large", na.rm = TRUE),
+  sum(df$status == "error",             na.rm = TRUE)))
 
 # ---- Console summary -------------------------------------------------------
 
