@@ -58,6 +58,15 @@ library(scminerViewer)
 ?prepare_study     # or any other exported function
 ```
 
+> If `?prepare_study` returns "No documentation found", the `man/`
+> directory wasn't generated. From the package source, run once:
+>
+> ```r
+> roxygen2::roxygenise("scminerViewer")   # regenerates NAMESPACE + man/*.Rd
+> ```
+>
+> then reinstall.
+
 ## How it works (one minute)
 
 A study on disk consists of **two co-located parts**:
@@ -115,17 +124,97 @@ For programmatic pipelines that already have matrices in memory, use
 
 ## Exported API
 
+### Orchestrators (do everything in one call)
+
 | Function | Purpose |
 | --- | --- |
 | `prepare_study(config_path, emit, verbose)`                    | YAML-driven entry. Requires `yaml` + `Biobase`. |
 | `prepare_study_from_eset(out_dir, expression_eset, ...)`       | Accepts a Biobase ExpressionSet. Splits activity rows into TF/SIG by `_TF`/`_SIG` row suffix. Requires `Biobase`. |
-| `prepare_study_data(out_dir, meta, cells, clusters, genes, expression, ..., default_genes, emit, verbose)` | Lowest-level entry — plain R structures only. |
+| `prepare_study_data(out_dir, meta, cells, clusters, genes, expression, ..., default_genes, emit, verbose)` | Lowest-level orchestrator — plain R structures only. |
+
+### Staged helpers (granular control / debugging)
+
+Call these directly when you want to inspect an intermediate before
+committing to disk. `prepare_study()` and `prepare_study_from_eset()`
+are thin wrappers over them.
+
+| Function | Purpose |
+| --- | --- |
+| `load_study_config(config_path)`                               | Parse + validate the YAML; fill in defaults. Pure parsing — does not touch the RDS / TSV files referenced in `input.*`. |
+| `extract_cells(eset, cell_id_col, cell_type_col, cell_group_col, coordinate_col)` | `pData(eset)` → cells data.frame. Errors loudly on missing columns. |
+| `extract_genes(eset, gene_symbol_col)`                         | `fData(eset)` → character vector of gene symbols. |
+| `extract_expression(eset, genes = NULL)`                       | `exprs(eset)` → sparse `Matrix` (genes × cells). Sets rownames from `genes` if provided. |
+| `extract_activity(activity_eset, master_genes)`                | Splits rows by `_TF`/`_SIG` suffix; returns `list(tf, sig)` reindexed to `master_genes`. Either element may be `NULL`. |
+| `read_networks(path)`                                          | Parse a scMINER networks TSV; returns `list(tf, sig)` data.frames. |
+
+### Bundle + Shiny
+
+| Function | Purpose |
+| --- | --- |
 | `write_bundle(bundle_path, meta, cells, clusters, genes, expression_genes, activity_tf_genes, activity_sig_genes, default_genes, network_tf, network_sig, overwrite)` | Write the `.scminer.h5` bundle. Indexes + metadata only; values stay on disk. |
 | `read_graph_study(data_dir, study_id)`                         | Reconstruct study inputs from the on-disk graph layout. Per-matrix gene **indexes** come from the manifest CSVs; shard values are never loaded eagerly. |
 | `load_study(bundle_path, shard_dir = NULL)`                    | Read a `.scminer.h5` into an S3 `scminer_study` list. `shard_dir` defaults to `dirname(bundle_path)`. |
 | `gene_values(study, gene, relationship)`                       | Lazily read one gene's row from the shard tree (`Express_normalized`, `Activity_tf`, or `Activity_sig`). Aligned to `study$cells$cellID`; cached per gene. |
 | `run_app(bundle_path, host, port, launch_browser, ...)`        | Launch the Shiny app for a bundle. |
 | `build_app(bundle_path)`                                       | Build a `shiny.appobj` without launching it (for tests / embedding). |
+
+### Debug / granular workflow
+
+The orchestrators do `parse → load → extract → write` in one call. To
+inspect or override any step, run them manually:
+
+```r
+library(scminerViewer)
+
+# 1) Parse the config without touching the RDS files
+cfg <- load_study_config("config.yml")
+str(cfg)            # see exactly what defaults got applied
+
+# 2) Load the inputs (slow — gigabyte-sized RDS files)
+expr_eset <- readRDS(cfg$input$expression)
+act_eset  <- if (!is.null(cfg$input$activity)) readRDS(cfg$input$activity)
+
+# 3) Extract each piece independently — every helper returns a plain R
+#    structure you can print, summary(), or modify before continuing
+cells <- extract_cells(
+  expr_eset,
+  cell_id_col    = cfg$cellID,
+  cell_type_col  = cfg$cellType,
+  cell_group_col = cfg$cellGroup,
+  coordinate_col = cfg$coordinate
+)
+genes <- extract_genes(expr_eset, gene_symbol_col = cfg$geneSymbol)
+expr  <- extract_expression(expr_eset, genes = genes)
+act   <- if (!is.null(act_eset)) extract_activity(act_eset, genes)
+        else list(tf = NULL, sig = NULL)
+nets  <- if (!is.null(cfg$input$networks))
+          read_networks(cfg$input$networks)
+        else list(tf = NULL, sig = NULL)
+
+# 4) Inspect / tweak before writing
+head(cells)
+dim(expr)
+table(sapply(nets, NROW))
+
+# 5) Hand the parts to prepare_study_data — it writes the graph layout,
+#    the bundle, or both
+prepare_study_data(
+  out_dir      = cfg$output,
+  meta         = list(
+    studyID    = cfg$study$ID,    studyAbbr  = cfg$study$studyAbbr,
+    longTitle  = cfg$study$longTitle, shortTitle = cfg$study$shortTitle,
+    species    = cfg$species,     coordinate = cfg$coordinate
+  ),
+  cells = cells, genes = genes,
+  expression = expr,
+  activity_tf = act$tf, activity_sig = act$sig,
+  network_tf  = nets$tf, network_sig = nets$sig,
+  emit = c("graph", "bundle"),
+  verbose = TRUE
+)
+```
+
+Use `emit = "bundle"` (or `"graph"`) to write only one of the two.
 
 ## Config YAML
 

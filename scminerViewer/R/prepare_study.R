@@ -166,6 +166,12 @@ prepare_study_data <- function(out_dir,
 #' @param cell_id_col,cell_type_col,cell_group_col,coordinate_col
 #'   Column names within `pData(expression_eset)`.
 #' @param gene_symbol_col Column name within `fData(expression_eset)`.
+#'
+#' @details Internally, `prepare_study_from_eset()` is a thin wrapper
+#' over the staged helpers [extract_cells()], [extract_genes()],
+#' [extract_expression()], [extract_activity()] and [read_networks()].
+#' Call those directly when you want to inspect or debug a single
+#' stage in isolation.
 #' @export
 prepare_study_from_eset <- function(out_dir,
                                      expression_eset,
@@ -180,11 +186,169 @@ prepare_study_from_eset <- function(out_dir,
                                      clusters         = NULL,
                                      emit             = c("graph", "bundle"),
                                      verbose          = FALSE) {
+  cells <- extract_cells(
+    expression_eset,
+    cell_id_col    = cell_id_col,
+    cell_type_col  = cell_type_col,
+    cell_group_col = cell_group_col,
+    coordinate_col = coordinate_col
+  )
+  genes <- extract_genes(expression_eset, gene_symbol_col = gene_symbol_col)
+  expr  <- extract_expression(expression_eset, genes = genes)
+  act   <- if (!is.null(activity_eset)) {
+    extract_activity(activity_eset, master_genes = genes)
+  } else list(tf = NULL, sig = NULL)
+  nets  <- if (!is.null(networks_path)) {
+    read_networks(networks_path)
+  } else list(tf = NULL, sig = NULL)
+  meta$coordinate <- meta$coordinate %||% coordinate_col
+
+  prepare_study_data(
+    out_dir      = out_dir,
+    meta         = meta,
+    cells        = cells,
+    clusters     = clusters,
+    genes        = genes,
+    expression   = expr,
+    activity_tf  = act$tf,
+    activity_sig = activity_sig,
+    network_tf   = network_tf,
+    network_sig  = network_sig,
+    emit         = emit,
+    verbose      = verbose
+  )
+}
+
+#' @rdname prepare_study
+#' @param config_path Path to a YAML config.
+#'
+#' @details `prepare_study()` is a thin wrapper that calls
+#' [load_study_config()] to parse + validate the YAML, then `readRDS()`
+#' on the input files, then [prepare_study_from_eset()]. Call those
+#' two pieces directly when you want to inspect the parsed config or
+#' the loaded ExpressionSets before writing anything to disk.
+#' @export
+prepare_study <- function(config_path,
+                           emit = c("graph", "bundle"),
+                           verbose = FALSE) {
+  cfg <- load_study_config(config_path)
+
   if (!requireNamespace("Biobase", quietly = TRUE)) {
-    stop("Biobase is required for prepare_study_from_eset(); ",
+    stop("Biobase is required for prepare_study(); ",
          "install it from Bioconductor.")
   }
+  expression_eset <- readRDS(cfg$input$expression)
+  activity_eset <- if (!is.null(cfg$input$activity)) {
+    readRDS(cfg$input$activity)
+  } else NULL
 
+  meta <- list(
+    studyID    = as.character(cfg$study$ID),
+    studyAbbr  = as.character(cfg$study$studyAbbr),
+    longTitle  = as.character(cfg$study$longTitle),
+    shortTitle = as.character(cfg$study$shortTitle),
+    species    = cfg$species,
+    coordinate = cfg$coordinate
+  )
+
+  prepare_study_from_eset(
+    out_dir          = cfg$output,
+    expression_eset  = expression_eset,
+    activity_eset    = activity_eset,
+    networks_path    = cfg$input$networks,
+    meta             = meta,
+    cell_id_col      = cfg$cellID,
+    cell_type_col    = cfg$cellType,
+    cell_group_col   = cfg$cellGroup,
+    coordinate_col   = cfg$coordinate,
+    gene_symbol_col  = cfg$geneSymbol,
+    emit             = emit,
+    verbose          = verbose
+  )
+}
+
+# ============================================================================
+# Staged helpers — call these directly for granular control / debug.
+# Each helper does one step of the pipeline and returns an inspectable R
+# structure (no side effects).
+# ============================================================================
+
+#' Parse + validate a `prepare_study` YAML config.
+#'
+#' Reads the YAML file at `config_path`, validates required keys
+#' (`output`, `study.{ID,studyAbbr,longTitle,shortTitle}`,
+#' `input.expression`), and fills in all optional keys with their
+#' defaults. Pure parsing — does not touch the RDS / TSV files
+#' referenced by `input.*`.
+#'
+#' @param config_path Path to a YAML config.
+#' @return A named list with the parsed config + defaults applied.
+#' @seealso [prepare_study()] for the full orchestration.
+#' @export
+load_study_config <- function(config_path) {
+  if (!requireNamespace("yaml", quietly = TRUE)) {
+    stop("yaml is required for load_study_config(); install.packages('yaml').")
+  }
+  if (!file.exists(config_path)) {
+    stop("Config file not found: ", config_path)
+  }
+  cfg <- yaml::yaml.load_file(config_path)
+
+  for (k in c("output", "study", "input")) {
+    if (is.null(cfg[[k]])) {
+      stop(sprintf("Config %s is missing required top-level key: '%s'",
+                   config_path, k))
+    }
+  }
+  for (k in c("ID", "studyAbbr", "longTitle", "shortTitle")) {
+    if (is.null(cfg$study[[k]])) {
+      stop(sprintf("Config %s is missing required key: study.%s",
+                   config_path, k))
+    }
+  }
+  if (is.null(cfg$input$expression)) {
+    stop(sprintf("Config %s is missing required key: input.expression",
+                 config_path))
+  }
+
+  # Fill defaults (preserving the existing values where set)
+  cfg$species    <- as.character(cfg$species    %||% "")
+  cfg$coordinate <- as.character(cfg$coordinate %||% "UMAP")
+  cfg$cellID     <- as.character(cfg$cellID     %||% "cellID")
+  cfg$cellType   <- as.character(cfg$cellType   %||% "cellGroup")
+  cfg$cellGroup  <- as.character(cfg$cellGroup  %||% cfg$cellType)
+  cfg$geneSymbol <- as.character(cfg$geneSymbol %||% "geneSymbol")
+  cfg$output     <- as.character(cfg$output)
+  cfg
+}
+
+#' Extract the cells data.frame from an `ExpressionSet`.
+#'
+#' Pulls `pData()`, coerces factor columns to character, and selects /
+#' renames the cellID, cellType, cellGroup, and coordinate columns into
+#' the canonical `cells` data.frame consumed by [prepare_study_data()].
+#'
+#' Errors loudly if any required pData column is missing — useful when
+#' debugging mis-named source columns.
+#'
+#' @param expression_eset A Biobase `ExpressionSet`.
+#' @param cell_id_col,cell_type_col,cell_group_col Column names in
+#'   `pData(expression_eset)`. `cell_id_col` defaults to the eset's
+#'   rownames if not already a column.
+#' @param coordinate_col Stem of the coord columns; the eset must have
+#'   `<coordinate_col>_1` and `<coordinate_col>_2`.
+#' @return data.frame with columns `cellID`, `cellType`, `cellGroup`,
+#'   `coord1`, `coord2`.
+#' @export
+extract_cells <- function(expression_eset,
+                           cell_id_col    = "cellID",
+                           cell_type_col  = "cellGroup",
+                           cell_group_col = cell_type_col,
+                           coordinate_col = "UMAP") {
+  if (!requireNamespace("Biobase", quietly = TRUE)) {
+    stop("Biobase is required for extract_cells(); ",
+         "install it from Bioconductor.")
+  }
   p_data <- as.data.frame(Biobase::pData(expression_eset),
                           stringsAsFactors = FALSE)
   p_data[] <- lapply(p_data, function(x) {
@@ -199,133 +363,124 @@ prepare_study_from_eset <- function(out_dir,
   if (length(miss) > 0) {
     stop("pData missing columns: ", paste(miss, collapse = ", "))
   }
-  cells <- data.frame(
+  group_vals <- p_data[[cell_group_col]] %||% p_data[[cell_type_col]]
+  data.frame(
     cellID    = as.character(p_data[[cell_id_col]]),
     cellType  = as.character(p_data[[cell_type_col]]),
-    cellGroup = as.character(p_data[[cell_group_col]] %||%
-                              p_data[[cell_type_col]]),
+    cellGroup = as.character(group_vals),
     coord1    = as.numeric(p_data[[coord1_col]]),
     coord2    = as.numeric(p_data[[coord2_col]]),
     stringsAsFactors = FALSE
   )
-  meta$coordinate <- meta$coordinate %||% coordinate_col
+}
 
+#' Extract the master gene symbol vector from an `ExpressionSet`.
+#'
+#' @param expression_eset A Biobase `ExpressionSet`.
+#' @param gene_symbol_col Column name in `fData(expression_eset)`.
+#' @return Character vector of gene symbols (length = number of rows).
+#' @export
+extract_genes <- function(expression_eset, gene_symbol_col = "geneSymbol") {
+  if (!requireNamespace("Biobase", quietly = TRUE)) {
+    stop("Biobase is required for extract_genes(); ",
+         "install it from Bioconductor.")
+  }
   f_data <- as.data.frame(Biobase::fData(expression_eset),
                           stringsAsFactors = FALSE)
   if (!gene_symbol_col %in% colnames(f_data)) {
     stop("fData missing gene-symbol column: ", gene_symbol_col)
   }
-  genes <- as.character(f_data[[gene_symbol_col]])
+  as.character(f_data[[gene_symbol_col]])
+}
 
+#' Extract the expression matrix from an `ExpressionSet`.
+#'
+#' Returns a CSC sparse `Matrix` (genes × cells). If `genes` is given,
+#' the matrix's rownames are set from it — useful when the eset's
+#' fData has more useful symbols than the matrix's existing rownames.
+#'
+#' @param expression_eset A Biobase `ExpressionSet`.
+#' @param genes Optional character vector; replaces the matrix's
+#'   rownames if `nrow(exprs(eset)) == length(genes)`.
+#' @return A `dgCMatrix` of shape `(nrow(eset), ncol(eset))`.
+#' @export
+extract_expression <- function(expression_eset, genes = NULL) {
+  if (!requireNamespace("Biobase", quietly = TRUE)) {
+    stop("Biobase is required for extract_expression(); ",
+         "install it from Bioconductor.")
+  }
   expr <- Biobase::exprs(expression_eset)
   if (!inherits(expr, "Matrix")) {
     expr <- methods::as(as.matrix(expr), "CsparseMatrix")
   }
-  rownames(expr) <- genes
-
-  activity_tf  <- NULL
-  activity_sig <- NULL
-  if (!is.null(activity_eset)) {
-    act <- Biobase::exprs(activity_eset)
-    act_rows <- rownames(act)
-    is_tf  <- grepl("[._]TF$",  act_rows)
-    is_sig <- grepl("[._]SIG$", act_rows)
-    if (!any(is_tf) && !any(is_sig)) {
-      warning("activity_eset has no rows ending in _TF/.TF or _SIG/.SIG; ",
-              "skipping activity matrices.")
+  if (!is.null(genes)) {
+    if (nrow(expr) != length(genes)) {
+      stop(sprintf("Expression rows (%d) != length(genes) (%d)",
+                   nrow(expr), length(genes)))
     }
-    strip_suffix <- function(rows) {
-      sub("[._](TF|SIG)$", "", rows)
-    }
-    if (any(is_tf)) {
-      sub_act <- act[is_tf, , drop = FALSE]
-      rownames(sub_act) <- strip_suffix(rownames(sub_act))
-      if (!inherits(sub_act, "Matrix")) {
-        sub_act <- methods::as(as.matrix(sub_act), "CsparseMatrix")
-      }
-      # Reindex rows to the master gene list (zero rows for genes absent
-      # from the activity matrix)
-      activity_tf <- .reindex_rows(sub_act, genes)
-    }
-    if (any(is_sig)) {
-      sub_act <- act[is_sig, , drop = FALSE]
-      rownames(sub_act) <- strip_suffix(rownames(sub_act))
-      if (!inherits(sub_act, "Matrix")) {
-        sub_act <- methods::as(as.matrix(sub_act), "CsparseMatrix")
-      }
-      activity_sig <- .reindex_rows(sub_act, genes)
-    }
+    rownames(expr) <- genes
   }
-
-  networks <- NULL
-  if (!is.null(networks_path)) {
-    networks <- .read_networks_file(networks_path)
-  }
-  network_tf  <- networks$tf
-  network_sig <- networks$sig
-
-  prepare_study_data(
-    out_dir      = out_dir,
-    meta         = meta,
-    cells        = cells,
-    clusters     = clusters,
-    genes        = genes,
-    expression   = expr,
-    activity_tf  = activity_tf,
-    activity_sig = activity_sig,
-    network_tf   = network_tf,
-    network_sig  = network_sig,
-    emit         = emit,
-    verbose      = verbose
-  )
+  expr
 }
 
-#' @rdname prepare_study
-#' @param config_path Path to a YAML config compatible with the original
-#'   `scMINER-portal-datapre-R/main.R`.
+#' Extract activity matrices (TF + SIG) from an `ExpressionSet`.
+#'
+#' Splits rows by suffix (`_TF` / `.TF` → TF; `_SIG` / `.SIG` → SIG),
+#' strips the suffix from row names, and reindexes both sub-matrices
+#' onto the master `genes` list (rows not present in the activity
+#' source become zero rows).
+#'
+#' @param activity_eset A Biobase `ExpressionSet` whose row names carry
+#'   the `_TF` / `_SIG` suffixes.
+#' @param master_genes Character vector — the bundle's master gene
+#'   list. Both output matrices have this many rows in this order.
+#' @return A list with elements `tf` and `sig`, each either a sparse
+#'   `Matrix` (rows in `master_genes` order) or `NULL` if no rows of
+#'   that kind were present.
 #' @export
-prepare_study <- function(config_path,
-                           emit = c("graph", "bundle"),
-                           verbose = FALSE) {
-  if (!requireNamespace("yaml", quietly = TRUE)) {
-    stop("yaml is required for prepare_study(); install.packages('yaml').")
-  }
+extract_activity <- function(activity_eset, master_genes) {
   if (!requireNamespace("Biobase", quietly = TRUE)) {
-    stop("Biobase is required for prepare_study(); ",
+    stop("Biobase is required for extract_activity(); ",
          "install it from Bioconductor.")
   }
-  cfg <- yaml::yaml.load_file(config_path)
-  study <- cfg$study
+  act <- Biobase::exprs(activity_eset)
+  act_rows <- rownames(act)
+  is_tf  <- grepl("[._]TF$",  act_rows)
+  is_sig <- grepl("[._]SIG$", act_rows)
+  if (!any(is_tf) && !any(is_sig)) {
+    warning("activity_eset has no rows ending in _TF/.TF or _SIG/.SIG; ",
+            "returning NULL for both kinds.", call. = FALSE)
+    return(list(tf = NULL, sig = NULL))
+  }
+  strip_suffix <- function(rows) sub("[._](TF|SIG)$", "", rows)
 
-  out_dir <- cfg$output
-  meta <- list(
-    studyID    = as.character(study$ID),
-    studyAbbr  = as.character(study$studyAbbr),
-    longTitle  = as.character(study$longTitle),
-    shortTitle = as.character(study$shortTitle),
-    species    = as.character(cfg$species %||% ""),
-    coordinate = as.character(cfg$coordinate %||% "UMAP")
-  )
+  build_one <- function(mask) {
+    if (!any(mask)) return(NULL)
+    sub_act <- act[mask, , drop = FALSE]
+    rownames(sub_act) <- strip_suffix(rownames(sub_act))
+    if (!inherits(sub_act, "Matrix")) {
+      sub_act <- methods::as(as.matrix(sub_act), "CsparseMatrix")
+    }
+    .reindex_rows(sub_act, master_genes)
+  }
+  list(tf = build_one(is_tf), sig = build_one(is_sig))
+}
 
-  expression_eset <- readRDS(cfg$input$expression)
-  activity_eset <- if (!is.null(cfg$input$activity)) {
-    readRDS(cfg$input$activity)
-  } else NULL
-
-  prepare_study_from_eset(
-    out_dir          = out_dir,
-    expression_eset  = expression_eset,
-    activity_eset    = activity_eset,
-    networks_path    = cfg$input$networks,
-    meta             = meta,
-    cell_id_col      = cfg$cellID    %||% "cellID",
-    cell_type_col    = cfg$cellType  %||% "cellGroup",
-    cell_group_col   = cfg$cellGroup %||% (cfg$cellType %||% "cellGroup"),
-    coordinate_col   = cfg$coordinate %||% "UMAP",
-    gene_symbol_col  = cfg$geneSymbol %||% "geneSymbol",
-    emit             = emit,
-    verbose          = verbose
-  )
+#' Read a scMINER networks TSV.
+#'
+#' Parses a tab-separated networks file with columns
+#' `source, target, NetworkType, [studyID,] CellGroup, mi, pearson,
+#' spearman, rho, pvalue` (the format consumed by the original
+#' `h_networks.R`) and splits it into the canonical TF / SIG data.frames
+#' [prepare_study_data()] expects.
+#'
+#' @param path Path to the networks TSV.
+#' @return A list with elements `tf` and `sig`, each a data.frame with
+#'   columns `source, target, cellType, mi, pearson, spearman, rho,
+#'   pvalue`, or `NULL` if that NetworkType wasn't present in the file.
+#' @export
+read_networks <- function(path) {
+  .read_networks_file(path)
 }
 
 # Reindex a matrix's rows onto a master gene list, dropping rows whose
