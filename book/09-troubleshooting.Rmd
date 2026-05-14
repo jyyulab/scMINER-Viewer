@@ -164,3 +164,42 @@ cluster (`max(1L, round(n * pct / 100))`) so no cluster vanishes
 entirely. If you see an empty cluster, the cluster has zero cells in
 the underlying study — check `study$clusters$count` (R) /
 `study.clusters['count']` (Python).
+
+## `Error: attempt to construct sparseMatrix with more than 2^31-1 nonzero entries` {-}
+
+R's `Matrix::sparseMatrix()` caps `dgCMatrix` at `.Machine$integer.max`
+non-zero entries (~2.15 billion). On a single study this only matters
+if the **actual** non-zero count of `exprs(expression_eset)` exceeds
+that limit. A 30 k-gene × 650 k-cell matrix at 100 % density has
+1.95 × 10¹⁰ entries — far over the cap; the same shape at 5 % density
+has under 10⁹ and is fine.
+
+Two layers protect against this in the portal benchmark:
+
+1. **scminerViewer is already row-streaming.** `extract_expression()`
+   and `extract_activity()` no longer cast the source matrix to
+   `dgCMatrix`. The shard writer (`.write_graph_shards`) iterates
+   genes one at a time and never materializes a full sparse copy,
+   so it works on dense (`dgeMatrix`, base `matrix`) and sparse
+   (`dgCMatrix`) inputs alike.
+
+2. **`portal_studies.R` runs a pre-flight nnz check.** Before calling
+   `prepare_study_from_eset()` it counts the actual non-zero entries
+   (`length(m@x)` if sparse, `sum(m != 0)` if dense) and skips
+   the study with `status = "skipped-too-large"` when the value
+   exceeds the cap. The bsub task still exits 0 so the job-array
+   merge dependency fires.
+
+If you hit this error from your own pipeline (not through
+`portal_studies.R`):
+
+* Confirm `exprs(eset)` is sparse — `class(exprs(e))` should report
+  `"dgCMatrix"` or `"dgeMatrix"`, not just `"matrix"`. A dense base
+  matrix gets re-allocated when any downstream code casts it.
+* Avoid `as.matrix(big_eset)` or `methods::as(..., "CsparseMatrix")`
+  on huge inputs; iterate by row instead.
+* If your data genuinely has > 2³¹ nnz, you need a different storage
+  backend (`HDF5Array`, `BPCells`, or your own gene-by-gene shard
+  pipeline). scminerViewer's bundle format already supports this in
+  spirit — the shard tree is per-gene, no single sparse matrix is
+  ever required at rest.

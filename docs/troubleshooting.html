@@ -23,7 +23,7 @@
 <meta name="author" content="scMINER Team" />
 
 
-<meta name="date" content="2026-05-13" />
+<meta name="date" content="2026-05-14" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -247,6 +247,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#a-gene-i-expect-is-missing-from-the-picker"><i class="fa fa-check"></i>A gene I expect is missing from the picker</a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#bundle-is-huge-1-gb"><i class="fa fa-check"></i>Bundle is huge (&gt;1 GB)</a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#a-specific-cluster-disappears-with-sampling-on"><i class="fa fa-check"></i>A specific cluster disappears with sampling on</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#error-attempt-to-construct-sparsematrix-with-more-than-231-1-nonzero-entries"><i class="fa fa-check"></i><code>Error: attempt to construct sparseMatrix with more than 2^31-1 nonzero entries</code></a></li>
 </ul></li>
 <li class="divider"></li>
 <li><a href="https://github.com/jyyulab/scMINER" target="blank">Built on scMINER</a></li>
@@ -401,6 +402,44 @@ cluster (<code>max(1L, round(n * pct / 100))</code>) so no cluster vanishes
 entirely. If you see an empty cluster, the cluster has zero cells in
 the underlying study — check <code>study$clusters$count</code> (R) /
 <code>study.clusters['count']</code> (Python).</p>
+</div>
+<div id="error-attempt-to-construct-sparsematrix-with-more-than-231-1-nonzero-entries" class="section level2 unnumbered hasAnchor">
+<h2><code>Error: attempt to construct sparseMatrix with more than 2^31-1 nonzero entries</code><a href="troubleshooting.html#error-attempt-to-construct-sparsematrix-with-more-than-231-1-nonzero-entries" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>R’s <code>Matrix::sparseMatrix()</code> caps <code>dgCMatrix</code> at <code>.Machine$integer.max</code>
+non-zero entries (~2.15 billion). On a single study this only matters
+if the <strong>actual</strong> non-zero count of <code>exprs(expression_eset)</code> exceeds
+that limit. A 30 k-gene × 650 k-cell matrix at 100 % density has
+1.95 × 10¹⁰ entries — far over the cap; the same shape at 5 % density
+has under 10⁹ and is fine.</p>
+<p>Two layers protect against this in the portal benchmark:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>scminerViewer is already row-streaming.</strong> <code>extract_expression()</code>
+and <code>extract_activity()</code> no longer cast the source matrix to
+<code>dgCMatrix</code>. The shard writer (<code>.write_graph_shards</code>) iterates
+genes one at a time and never materializes a full sparse copy,
+so it works on dense (<code>dgeMatrix</code>, base <code>matrix</code>) and sparse
+(<code>dgCMatrix</code>) inputs alike.</p></li>
+<li><p><strong><code>portal_studies.R</code> runs a pre-flight nnz check.</strong> Before calling
+<code>prepare_study_from_eset()</code> it counts the actual non-zero entries
+(<code>length(m@x)</code> if sparse, <code>sum(m != 0)</code> if dense) and skips
+the study with <code>status = "skipped-too-large"</code> when the value
+exceeds the cap. The bsub task still exits 0 so the job-array
+merge dependency fires.</p></li>
+</ol>
+<p>If you hit this error from your own pipeline (not through
+<code>portal_studies.R</code>):</p>
+<ul>
+<li>Confirm <code>exprs(eset)</code> is sparse — <code>class(exprs(e))</code> should report
+<code>"dgCMatrix"</code> or <code>"dgeMatrix"</code>, not just <code>"matrix"</code>. A dense base
+matrix gets re-allocated when any downstream code casts it.</li>
+<li>Avoid <code>as.matrix(big_eset)</code> or <code>methods::as(..., "CsparseMatrix")</code>
+on huge inputs; iterate by row instead.</li>
+<li>If your data genuinely has &gt; 2³¹ nnz, you need a different storage
+backend (<code>HDF5Array</code>, <code>BPCells</code>, or your own gene-by-gene shard
+pipeline). scminerViewer’s bundle format already supports this in
+spirit — the shard tree is per-gene, no single sparse matrix is
+ever required at rest.</li>
+</ul>
 
 </div>
 </div>
