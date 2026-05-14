@@ -188,6 +188,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#full-schema"><i class="fa fa-check"></i>Full schema</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#auto-generated-cluster-metadata"><i class="fa fa-check"></i>Auto-generated cluster metadata</a></li>
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
@@ -321,22 +322,29 @@ and the lazy-mode bundle in one call.</p>
 <span id="cb27-16"><a href="config-yaml.html#cb27-16" tabindex="-1"></a><span class="fu">species</span><span class="kw">:</span><span class="at">    Mus musculus</span></span>
 <span id="cb27-17"><a href="config-yaml.html#cb27-17" tabindex="-1"></a><span class="fu">coordinate</span><span class="kw">:</span><span class="at"> UMAP</span><span class="co">            # also the pData column prefix (UMAP_1, UMAP_2)</span></span>
 <span id="cb27-18"><a href="config-yaml.html#cb27-18" tabindex="-1"></a></span>
-<span id="cb27-19"><a href="config-yaml.html#cb27-19" tabindex="-1"></a><span class="co"># pData / fData column names in the source ExpressionSet</span></span>
-<span id="cb27-20"><a href="config-yaml.html#cb27-20" tabindex="-1"></a><span class="fu">cellID</span><span class="kw">:</span><span class="at">     cellID</span><span class="co">          # rownames are also assigned to this column</span></span>
-<span id="cb27-21"><a href="config-yaml.html#cb27-21" tabindex="-1"></a><span class="fu">cellType</span><span class="kw">:</span><span class="at">   cellGroup</span><span class="co">       # the cell-type / cluster label</span></span>
-<span id="cb27-22"><a href="config-yaml.html#cb27-22" tabindex="-1"></a><span class="fu">cellGroup</span><span class="kw">:</span><span class="at">  cellGroup</span><span class="co">       # falls back to cellType when omitted</span></span>
-<span id="cb27-23"><a href="config-yaml.html#cb27-23" tabindex="-1"></a><span class="fu">geneSymbol</span><span class="kw">:</span><span class="at"> geneSymbol</span><span class="co">      # column in fData carrying the gene symbol</span></span>
-<span id="cb27-24"><a href="config-yaml.html#cb27-24" tabindex="-1"></a></span>
-<span id="cb27-25"><a href="config-yaml.html#cb27-25" tabindex="-1"></a><span class="co"># Input files</span></span>
-<span id="cb27-26"><a href="config-yaml.html#cb27-26" tabindex="-1"></a><span class="fu">input</span><span class="kw">:</span></span>
-<span id="cb27-27"><a href="config-yaml.html#cb27-27" tabindex="-1"></a><span class="at">  </span><span class="fu">expression</span><span class="kw">:</span><span class="at"> inputs/2327_expression.rds</span><span class="co">   # required, Biobase ExpressionSet</span></span>
-<span id="cb27-28"><a href="config-yaml.html#cb27-28" tabindex="-1"></a><span class="at">  </span><span class="fu">activity</span><span class="kw">:</span><span class="at">   inputs/2327_activity.rds</span><span class="co">     # optional, ExpressionSet</span></span>
-<span id="cb27-29"><a href="config-yaml.html#cb27-29" tabindex="-1"></a><span class="co">                                            # rows ending in _TF / _SIG split</span></span>
-<span id="cb27-30"><a href="config-yaml.html#cb27-30" tabindex="-1"></a><span class="co">                                            # into the two activity matrices</span></span>
-<span id="cb27-31"><a href="config-yaml.html#cb27-31" tabindex="-1"></a><span class="at">  </span><span class="fu">networks</span><span class="kw">:</span><span class="at">   inputs/2327_networks.tsv</span><span class="co">     # optional, tab-separated:</span></span>
-<span id="cb27-32"><a href="config-yaml.html#cb27-32" tabindex="-1"></a><span class="co">                                            # source, target, NetworkType,</span></span>
-<span id="cb27-33"><a href="config-yaml.html#cb27-33" tabindex="-1"></a><span class="co">                                            # CellGroup, mi, pearson,</span></span>
-<span id="cb27-34"><a href="config-yaml.html#cb27-34" tabindex="-1"></a><span class="co">                                            # spearman, rho, pvalue</span></span></code></pre></div>
+<span id="cb27-19"><a href="config-yaml.html#cb27-19" tabindex="-1"></a><span class="co"># Cluster colour palette — auto-fills the study_meta.csv `Color` column</span></span>
+<span id="cb27-20"><a href="config-yaml.html#cb27-20" tabindex="-1"></a><span class="co"># and the bundle&#39;s clusters/color group. Pass any ggsci palette name:</span></span>
+<span id="cb27-21"><a href="config-yaml.html#cb27-21" tabindex="-1"></a><span class="co">#   npg, aaas, lancet, nejm, jama, jco, ucscgb, d3, locuszoom, igv,</span></span>
+<span id="cb27-22"><a href="config-yaml.html#cb27-22" tabindex="-1"></a><span class="co">#   uchicago, startrek, tron, futurama, rickandmorty, simpsons</span></span>
+<span id="cb27-23"><a href="config-yaml.html#cb27-23" tabindex="-1"></a><span class="co"># See &lt;https://cran.r-project.org/web/packages/ggsci/vignettes/ggsci.html&gt;.</span></span>
+<span id="cb27-24"><a href="config-yaml.html#cb27-24" tabindex="-1"></a><span class="fu">cluster_palette</span><span class="kw">:</span><span class="at"> npg</span><span class="co">        # default — Nature Publishing Group</span></span>
+<span id="cb27-25"><a href="config-yaml.html#cb27-25" tabindex="-1"></a></span>
+<span id="cb27-26"><a href="config-yaml.html#cb27-26" tabindex="-1"></a><span class="co"># pData / fData column names in the source ExpressionSet</span></span>
+<span id="cb27-27"><a href="config-yaml.html#cb27-27" tabindex="-1"></a><span class="fu">cellID</span><span class="kw">:</span><span class="at">     cellID</span><span class="co">          # rownames are also assigned to this column</span></span>
+<span id="cb27-28"><a href="config-yaml.html#cb27-28" tabindex="-1"></a><span class="fu">cellType</span><span class="kw">:</span><span class="at">   cellGroup</span><span class="co">       # the cell-type / cluster label</span></span>
+<span id="cb27-29"><a href="config-yaml.html#cb27-29" tabindex="-1"></a><span class="fu">cellGroup</span><span class="kw">:</span><span class="at">  cellGroup</span><span class="co">       # falls back to cellType when omitted</span></span>
+<span id="cb27-30"><a href="config-yaml.html#cb27-30" tabindex="-1"></a><span class="fu">geneSymbol</span><span class="kw">:</span><span class="at"> geneSymbol</span><span class="co">      # column in fData carrying the gene symbol</span></span>
+<span id="cb27-31"><a href="config-yaml.html#cb27-31" tabindex="-1"></a></span>
+<span id="cb27-32"><a href="config-yaml.html#cb27-32" tabindex="-1"></a><span class="co"># Input files</span></span>
+<span id="cb27-33"><a href="config-yaml.html#cb27-33" tabindex="-1"></a><span class="fu">input</span><span class="kw">:</span></span>
+<span id="cb27-34"><a href="config-yaml.html#cb27-34" tabindex="-1"></a><span class="at">  </span><span class="fu">expression</span><span class="kw">:</span><span class="at"> inputs/2327_expression.rds</span><span class="co">   # required, Biobase ExpressionSet</span></span>
+<span id="cb27-35"><a href="config-yaml.html#cb27-35" tabindex="-1"></a><span class="at">  </span><span class="fu">activity</span><span class="kw">:</span><span class="at">   inputs/2327_activity.rds</span><span class="co">     # optional, ExpressionSet</span></span>
+<span id="cb27-36"><a href="config-yaml.html#cb27-36" tabindex="-1"></a><span class="co">                                            # rows ending in _TF / _SIG split</span></span>
+<span id="cb27-37"><a href="config-yaml.html#cb27-37" tabindex="-1"></a><span class="co">                                            # into the two activity matrices</span></span>
+<span id="cb27-38"><a href="config-yaml.html#cb27-38" tabindex="-1"></a><span class="at">  </span><span class="fu">networks</span><span class="kw">:</span><span class="at">   inputs/2327_networks.tsv</span><span class="co">     # optional, tab-separated:</span></span>
+<span id="cb27-39"><a href="config-yaml.html#cb27-39" tabindex="-1"></a><span class="co">                                            # source, target, NetworkType,</span></span>
+<span id="cb27-40"><a href="config-yaml.html#cb27-40" tabindex="-1"></a><span class="co">                                            # CellGroup, mi, pearson,</span></span>
+<span id="cb27-41"><a href="config-yaml.html#cb27-41" tabindex="-1"></a><span class="co">                                            # spearman, rho, pvalue</span></span></code></pre></div>
 </div>
 <div id="field-by-field" class="section level2 unnumbered hasAnchor">
 <h2>Field-by-field<a href="config-yaml.html#field-by-field" class="anchor-section" aria-label="Anchor link to header"></a></h2>
@@ -423,18 +431,24 @@ and the lazy-mode bundle in one call.</p>
 <td>fData column carrying the gene symbol.</td>
 </tr>
 <tr class="even">
+<td><code>cluster_palette</code></td>
+<td>no</td>
+<td><code>"npg"</code></td>
+<td>ggsci palette name for auto-generated cluster colors. One of <code>npg, aaas, lancet, nejm, jama, jco, ucscgb, d3, locuszoom, igv, uchicago, startrek, tron, futurama, rickandmorty, simpsons</code> (see the <a href="https://cran.r-project.org/web/packages/ggsci/vignettes/ggsci.html">ggsci vignette</a>). Falls back to a baked-in NPG palette if <code>ggsci</code> isn’t installed.</td>
+</tr>
+<tr class="odd">
 <td><code>input.expression</code></td>
 <td>yes</td>
 <td>—</td>
 <td>Path to the expression ExpressionSet RDS.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>input.activity</code></td>
 <td>no</td>
 <td>none</td>
 <td>Path to the activity ExpressionSet RDS. Rows ending in <code>_TF</code> / <code>.TF</code> go to <code>activity_tf</code>; <code>_SIG</code> / <code>.SIG</code> go to <code>activity_sig</code>.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>input.networks</code></td>
 <td>no</td>
 <td>none</td>
@@ -453,8 +467,27 @@ custom pipeline:</p>
 <span id="cb28-2"><a href="config-yaml.html#cb28-2" tabindex="-1"></a><span class="fu">str</span>(cfg)</span></code></pre></div>
 <p>See Chapter <a href="r-api.html#r-api">6</a> for the full list of staged helpers
 (<code>load_study_config</code>, <code>extract_cells</code>, <code>extract_genes</code>,
-<code>extract_expression</code>, <code>extract_activity</code>, <code>read_networks</code>) that
-<code>prepare_study()</code> is composed of.</p>
+<code>extract_expression</code>, <code>extract_activity</code>, <code>read_networks</code>,
+<code>fill_clusters</code>) that <code>prepare_study()</code> is composed of.</p>
+</div>
+<div id="auto-generated-cluster-metadata" class="section level2 unnumbered hasAnchor">
+<h2>Auto-generated cluster metadata<a href="config-yaml.html#auto-generated-cluster-metadata" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p><code>prepare_study()</code> always emits a <code>study_meta/&lt;studyID&gt;_study_meta.csv</code>
+with full color + label-position info, even when your input
+ExpressionSet only carries <code>cellType</code> (no precomputed cluster table).
+Two pieces are auto-filled by <code>fill_clusters()</code>:</p>
+<ul>
+<li><strong><code>Color</code></strong> — <code>n_clusters</code> colours pulled from the configured ggsci
+palette (<code>cluster_palette</code> above). Default is NPG (Nature Publishing
+Group). If <code>ggsci</code> isn’t installed, a baked-in 10-colour NPG
+fallback is used.</li>
+<li><strong><code>Label_1</code>, <code>Label_2</code></strong> — per-cluster centroids: <code>mean(coord1)</code> and
+<code>mean(coord2)</code> over the cells in each cluster. The cluster plot uses
+these to place the cluster-name annotations.</li>
+</ul>
+<p>Existing values in the clusters data.frame (when one is supplied) are
+<strong>preserved</strong>; only NA / empty cells are filled in. So you can hand-pick
+a few colours and let the rest fall back to ggsci.</p>
 
 </div>
 </div>

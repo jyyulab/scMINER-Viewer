@@ -18,6 +18,7 @@ Imports:
     R.utils
 Suggests:
     Biobase,
+    ggsci,
     yaml,
     shiny (>= 1.7.0),
     bslib,

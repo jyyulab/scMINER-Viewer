@@ -48,24 +48,16 @@ prepare_study_data <- function(out_dir,
                                 network_tf = NULL,
                                 network_sig = NULL,
                                 default_genes = NULL,
+                                cluster_palette = "npg",
                                 emit = c("graph", "bundle"),
                                 verbose = FALSE) {
   emit <- match.arg(emit, c("graph", "bundle"), several.ok = TRUE)
   stopifnot(is.list(meta), is.data.frame(cells), is.character(genes))
 
-  if (is.null(clusters) || nrow(clusters) == 0) {
-    cnt <- as.data.frame(table(cells$cellType), stringsAsFactors = FALSE)
-    clusters <- data.frame(
-      cellType = cnt$Var1,
-      count    = as.integer(cnt$Freq),
-      color    = rep("#888888", nrow(cnt)),
-      stringsAsFactors = FALSE
-    )
-  } else if (is.null(clusters$count) || all(is.na(clusters$count))) {
-    cnt <- as.data.frame(table(cells$cellType), stringsAsFactors = FALSE)
-    clusters$count <- cnt$Freq[match(clusters$cellType, cnt$Var1)]
-    clusters$count[is.na(clusters$count)] <- 0L
-  }
+  # Fill in counts, colours (ggsci palette per `cluster_palette`), and
+  # label centroids (mean coord1/coord2 per cellType) for any clusters
+  # column that's missing — see fill_clusters().
+  clusters <- fill_clusters(cells, clusters, palette = cluster_palette)
 
   # Align matrix row names to the master gene list so shard writes can
   # use them directly. Callers can pass matrices without rownames as long
@@ -194,6 +186,7 @@ prepare_study_from_eset <- function(out_dir,
                                      coordinate_col   = "UMAP",
                                      gene_symbol_col  = "geneSymbol",
                                      clusters         = NULL,
+                                     cluster_palette  = "npg",
                                      emit             = c("graph", "bundle"),
                                      verbose          = FALSE) {
   cells <- extract_cells(
@@ -214,18 +207,19 @@ prepare_study_from_eset <- function(out_dir,
   meta$coordinate <- meta$coordinate %||% coordinate_col
 
   prepare_study_data(
-    out_dir      = out_dir,
-    meta         = meta,
-    cells        = cells,
-    clusters     = clusters,
-    genes        = genes,
-    expression   = expr,
-    activity_tf  = act$tf,
-    activity_sig = activity_sig,
-    network_tf   = network_tf,
-    network_sig  = network_sig,
-    emit         = emit,
-    verbose      = verbose
+    out_dir         = out_dir,
+    meta            = meta,
+    cells           = cells,
+    clusters        = clusters,
+    cluster_palette = cluster_palette,
+    genes           = genes,
+    expression      = expr,
+    activity_tf     = act$tf,
+    activity_sig    = act$sig,
+    network_tf      = nets$tf,
+    network_sig     = nets$sig,
+    emit            = emit,
+    verbose         = verbose
   )
 }
 
@@ -272,6 +266,7 @@ prepare_study <- function(config_path,
     cell_group_col   = cfg$cellGroup,
     coordinate_col   = cfg$coordinate,
     gene_symbol_col  = cfg$geneSymbol,
+    cluster_palette  = cfg$cluster_palette,
     emit             = emit,
     verbose          = verbose
   )
@@ -322,13 +317,14 @@ load_study_config <- function(config_path) {
   }
 
   # Fill defaults (preserving the existing values where set)
-  cfg$species    <- as.character(cfg$species    %||% "")
-  cfg$coordinate <- as.character(cfg$coordinate %||% "UMAP")
-  cfg$cellID     <- as.character(cfg$cellID     %||% "cellID")
-  cfg$cellType   <- as.character(cfg$cellType   %||% "cellGroup")
-  cfg$cellGroup  <- as.character(cfg$cellGroup  %||% cfg$cellType)
-  cfg$geneSymbol <- as.character(cfg$geneSymbol %||% "geneSymbol")
-  cfg$output     <- as.character(cfg$output)
+  cfg$species         <- as.character(cfg$species         %||% "")
+  cfg$coordinate      <- as.character(cfg$coordinate      %||% "UMAP")
+  cfg$cellID          <- as.character(cfg$cellID          %||% "cellID")
+  cfg$cellType        <- as.character(cfg$cellType        %||% "cellGroup")
+  cfg$cellGroup       <- as.character(cfg$cellGroup       %||% cfg$cellType)
+  cfg$geneSymbol      <- as.character(cfg$geneSymbol      %||% "geneSymbol")
+  cfg$cluster_palette <- as.character(cfg$cluster_palette %||% "npg")
+  cfg$output          <- as.character(cfg$output)
   cfg
 }
 

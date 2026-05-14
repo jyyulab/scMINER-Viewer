@@ -188,6 +188,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#full-schema"><i class="fa fa-check"></i>Full schema</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#auto-generated-cluster-metadata"><i class="fa fa-check"></i>Auto-generated cluster metadata</a></li>
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
@@ -340,6 +341,10 @@ are thin wrappers over them.</p>
 <tr class="even">
 <td><code>read_networks(path)</code></td>
 <td>Parse a scMINER networks TSV; returns <code>list(tf, sig)</code> data.frames.</td>
+</tr>
+<tr class="odd">
+<td><code>fill_clusters(cells, clusters = NULL, palette = "npg")</code></td>
+<td>Auto-populate a clusters data.frame: counts from <code>table(cells$cellType)</code>, colours from any ggsci palette, label positions from <code>mean(coord1)</code> / <code>mean(coord2)</code> per cluster. Existing non-NA values are preserved.</td>
 </tr>
 </tbody>
 </table>

@@ -164,6 +164,7 @@ committing to disk; `prepare_study()` is composed of them.
 | `extract_expression(eset, genes)`                 | `exprs(eset)` → sparse `Matrix` (genes × cells). |
 | `extract_activity(activity_eset, master_genes)`   | Splits rows by `_TF`/`_SIG` suffix; returns `list(tf, sig)` reindexed to `master_genes`. |
 | `read_networks(path)`                             | Parse a scMINER networks TSV; returns `list(tf, sig)` data.frames. |
+| `fill_clusters(cells, clusters = NULL, palette = "npg")` | Auto-populate a clusters data.frame: counts, colours (ggsci palette — default Nature/NPG), and label centroids (`mean(coord1)` / `mean(coord2)` per cluster). Existing non-NA values preserved. |
 
 #### Bundle + study handles
 
@@ -336,6 +337,7 @@ returns `NULL` for any gene in that index and the apps show
 | `read_graph_study` (manifest-derived indexes; flat + wrapped layouts) | done | `test-graph-read.R` |
 | `prepare_study*` (graph writer + bundle co-emit; `<out>/<sid>/` wrap) | done | `test-prepare-study.R` |
 | Staged helpers (`load_study_config`, `extract_*`, `read_networks`) | done | `test-staged-helpers.R` |
+| Cluster auto-fill (`fill_clusters` — ggsci colours + centroid labels) | done | `test-fill-clusters.R` |
 | R Shiny app — 6 plot tabs + cluster table + downsampling + 3-level nested per-gene panels | done | `test-app.R` |
 | Multi-study browser (`run_browser` / `discover_studies`) — R | done | `test-browser.R` |
 | Python `load_study` + `Study.gene_values` (lazy)         | done | `test_data.py` |
@@ -345,7 +347,7 @@ returns `NULL` for any gene in that index and the apps show
 | Bookdown (9 chapters, gitbook + pdf output)              | done | `bookdown::render_book` round-trip |
 | `2327.scminer.h5` deliverable                            | done | 77 MB at `data/2327/2327.scminer.h5`; 9861 expression / 925 TF / 4708 SIG indexed; values fetched lazily from shards |
 
-**Test totals**: R **169** passing in `scminerViewer/tests/testthat/`;
+**Test totals**: R **194** passing in `scminerViewer/tests/testthat/`;
 Python **22** passing in `scminer_viewer/tests/`. Python fixtures are
 built by calling `Rscript` → `prepare_study_data` (which writes both
 the shard tree and the bundle), so the Python lazy reader is verified

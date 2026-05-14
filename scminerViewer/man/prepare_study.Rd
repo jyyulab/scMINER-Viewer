@@ -18,6 +18,7 @@ prepare_study_data(
   network_tf = NULL,
   network_sig = NULL,
   default_genes = NULL,
+  cluster_palette = "npg",
   emit = c("graph", "bundle"),
   verbose = FALSE
 )
@@ -34,6 +35,7 @@ prepare_study_from_eset(
   coordinate_col = "UMAP",
   gene_symbol_col = "geneSymbol",
   clusters = NULL,
+  cluster_palette = "npg",
   emit = c("graph", "bundle"),
   verbose = FALSE
 )

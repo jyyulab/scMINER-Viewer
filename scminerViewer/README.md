@@ -297,6 +297,7 @@ are thin wrappers over them.
 | `extract_expression(eset, genes = NULL)`                       | `exprs(eset)` → sparse `Matrix` (genes × cells). Sets rownames from `genes` if provided. |
 | `extract_activity(activity_eset, master_genes)`                | Splits rows by `_TF`/`_SIG` suffix; returns `list(tf, sig)` reindexed to `master_genes`. Either element may be `NULL`. |
 | `read_networks(path)`                                          | Parse a scMINER networks TSV; returns `list(tf, sig)` data.frames. |
+| `fill_clusters(cells, clusters = NULL, palette = "npg")`       | Auto-populate a clusters data.frame: counts, ggsci colours (default Nature/NPG), and per-cluster centroid labels (`mean(coord1)` / `mean(coord2)`). Existing non-NA values preserved. |
 
 ### Bundle + Shiny
 

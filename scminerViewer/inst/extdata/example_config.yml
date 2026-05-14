@@ -27,6 +27,19 @@ study:
 species:    Mus musculus    # also written into manifests' Species column
 coordinate: UMAP            # also the pData column prefix (UMAP_1, UMAP_2)
 
+# ---- Cluster colour palette -----------------------------------------------
+# Auto-fills the Color column of study_meta.csv (and the bundle's
+# clusters/color group) with a palette from ggsci. Default is the
+# Nature Publishing Group (npg) palette. Other choices:
+#   aaas, lancet, nejm, jama, jco, ucscgb, d3, locuszoom, igv,
+#   uchicago, startrek, tron, futurama, rickandmorty, simpsons
+# See https://cran.r-project.org/web/packages/ggsci/vignettes/ggsci.html
+cluster_palette: npg
+
+# Cluster label positions (label_1 / label_2 columns) are auto-computed
+# from the centroids of each cell type — i.e. mean(coord1) /
+# mean(coord2) over the cells in that cluster. No knob needed.
+
 # ---- pData / fData column names in the source ExpressionSet ---------------
 # These tell prepare_study_from_eset() which pData columns to pull. The
 # defaults shown here match scMINER conventions.

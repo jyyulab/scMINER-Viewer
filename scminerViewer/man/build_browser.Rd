@@ -4,11 +4,19 @@
 \alias{build_browser}
 \title{Build a multi-study browser app without launching it.}
 \usage{
-build_browser(root_dir)
+build_browser(root_dir, shard_dir = NULL)
 }
 \arguments{
 \item{root_dir}{Directory containing one `<studyID>/<studyID>.scminer.h5`
 per study.}
+
+\item{shard_dir}{Directory containing the per-gene shard trees
+(`expression_files/<studyID>/...`, `activity_files/<studyID>/...`).
+If `NULL` (default), each bundle defaults to `dirname(bundle_path)`
+— appropriate when bundles and shards are co-located inside each
+study folder. Pass an explicit path when the shards live elsewhere
+(e.g. an existing `data/example/` tree alongside fresh per-study
+bundle directories).}
 }
 \value{
 A `shiny.appobj`.

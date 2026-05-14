@@ -42,6 +42,13 @@ study:
 species:    Mus musculus
 coordinate: UMAP            # also the pData column prefix (UMAP_1, UMAP_2)
 
+# Cluster colour palette — auto-fills the study_meta.csv `Color` column
+# and the bundle's clusters/color group. Pass any ggsci palette name:
+#   npg, aaas, lancet, nejm, jama, jco, ucscgb, d3, locuszoom, igv,
+#   uchicago, startrek, tron, futurama, rickandmorty, simpsons
+# See <https://cran.r-project.org/web/packages/ggsci/vignettes/ggsci.html>.
+cluster_palette: npg        # default — Nature Publishing Group
+
 # pData / fData column names in the source ExpressionSet
 cellID:     cellID          # rownames are also assigned to this column
 cellType:   cellGroup       # the cell-type / cluster label
@@ -75,6 +82,7 @@ input:
 | `cellType`          | no   | `"cellGroup"` | pData column carrying the cell-type label. |
 | `cellGroup`         | no   | `cellType`    | pData column carrying the cell-group label. |
 | `geneSymbol`        | no   | `"geneSymbol"`| fData column carrying the gene symbol. |
+| `cluster_palette`   | no   | `"npg"`       | ggsci palette name for auto-generated cluster colors. One of `npg, aaas, lancet, nejm, jama, jco, ucscgb, d3, locuszoom, igv, uchicago, startrek, tron, futurama, rickandmorty, simpsons` (see the [ggsci vignette](https://cran.r-project.org/web/packages/ggsci/vignettes/ggsci.html)). Falls back to a baked-in NPG palette if `ggsci` isn't installed. |
 | `input.expression`  | yes  | —             | Path to the expression ExpressionSet RDS. |
 | `input.activity`    | no   | none          | Path to the activity ExpressionSet RDS. Rows ending in `_TF` / `.TF` go to `activity_tf`; `_SIG` / `.SIG` go to `activity_sig`. |
 | `input.networks`    | no   | none          | Path to the networks TSV. |
@@ -93,5 +101,24 @@ str(cfg)
 
 See Chapter \@ref(r-api) for the full list of staged helpers
 (`load_study_config`, `extract_cells`, `extract_genes`,
-`extract_expression`, `extract_activity`, `read_networks`) that
-`prepare_study()` is composed of.
+`extract_expression`, `extract_activity`, `read_networks`,
+`fill_clusters`) that `prepare_study()` is composed of.
+
+## Auto-generated cluster metadata {-}
+
+`prepare_study()` always emits a `study_meta/<studyID>_study_meta.csv`
+with full color + label-position info, even when your input
+ExpressionSet only carries `cellType` (no precomputed cluster table).
+Two pieces are auto-filled by `fill_clusters()`:
+
+* **`Color`** — `n_clusters` colours pulled from the configured ggsci
+  palette (`cluster_palette` above). Default is NPG (Nature Publishing
+  Group). If `ggsci` isn't installed, a baked-in 10-colour NPG
+  fallback is used.
+* **`Label_1`, `Label_2`** — per-cluster centroids: `mean(coord1)` and
+  `mean(coord2)` over the cells in each cluster. The cluster plot uses
+  these to place the cluster-name annotations.
+
+Existing values in the clusters data.frame (when one is supplied) are
+**preserved**; only NA / empty cells are filled in. So you can hand-pick
+a few colours and let the rest fall back to ggsci.
