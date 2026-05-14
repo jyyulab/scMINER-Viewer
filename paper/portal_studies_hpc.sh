@@ -154,11 +154,14 @@ for (( q_i = 0; q_i < N_Q; q_i++ )); do
 done
 echo
 
-# Build the merge job's dependency string: done(arr1) && done(arr2) && ...
+# Build the merge job's dependency string: ended(arr1) && ended(arr2) && ...
+# We use ended() rather than done() so the merge fires even when some
+# tasks fail -- e.g. a study has an unfixable data issue -- and
+# concatenates whatever per-study TSVs landed on disk.
 MERGE_DEP=""
 for nm in "${ARRAY_NAMES[@]}"; do
   if [[ -n "$MERGE_DEP" ]]; then MERGE_DEP+=" && "; fi
-  MERGE_DEP+="done(${nm})"
+  MERGE_DEP+="ended(${nm})"
 done
 
 MERGE_CMD='Rscript paper/portal_merge.R paper/metrics/portal_studies.tsv paper/metrics/portal_studies_*.tsv'

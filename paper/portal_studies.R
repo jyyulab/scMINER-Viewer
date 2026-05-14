@@ -157,16 +157,22 @@ spec_from_yaml <- function(yaml_path) {
   input_base <- if (!is.null(cfg$input_root)) {
     .resolve_path(cfg$input_root, yaml_dir)
   } else yaml_dir
-  # `input.genes` flags the legacy raw-matrix + genes.csv layout
-  # (KKYan studies) which prepare_study_from_eset() cannot consume.
-  if (!is.null(cfg$input$genes)) {
-    stop("YAML uses input.genes (raw matrix + genes.csv layout) which ",
-         "this benchmark cannot bundle; convert to an ExpressionSet ",
-         "or skip with --only.")
-  }
   # Trim accidental whitespace in IDs (seen in older portal exports).
   study_id <- trimws(as.character(cfg$study$ID %||%
                             tools::file_path_sans_ext(basename(yaml_path))))
+  # `input.genes` flags the legacy raw-matrix + genes.csv layout
+  # (KKYan studies) which prepare_study_from_eset() cannot consume.
+  # Return a "skipped" spec so the run loop emits a placeholder row
+  # and the array task still exits 0 (otherwise the merge job's
+  # done(array) dependency would never be satisfied).
+  if (!is.null(cfg$input$genes)) {
+    return(list(
+      source    = "skipped-legacy-genes-csv",
+      yaml_path = yaml_path,
+      study_id  = study_id,
+      skip_reason = "input.genes (raw matrix + genes.csv layout)"
+    ))
+  }
   list(
     source          = "yaml",
     yaml_path       = yaml_path,
@@ -395,27 +401,82 @@ bench_real_one <- function(spec, scratch) {
 log_msg(sprintf("Benchmarking %d studies (scratch=%s)",
                 length(specs), scratch_root))
 
+placeholder_row <- function(spec, status, note = "") {
+  data.frame(
+    studyID            = spec$study_id,
+    n_cells            = NA_integer_,
+    n_genes            = NA_integer_,
+    n_clusters         = NA_integer_,
+    expr_input_bytes   = NA_real_,
+    act_input_bytes    = NA_real_,
+    net_input_bytes    = NA_real_,
+    total_input_bytes  = NA_real_,
+    bundle_bytes       = NA_real_,
+    shard_bytes        = NA_real_,
+    graph_bytes        = NA_real_,
+    total_output_bytes = NA_real_,
+    prepare_seconds    = NA_real_,
+    prepare_peak_mb    = NA_real_,
+    load_seconds       = NA_real_,
+    fetch_median       = NA_real_,
+    fetch_mean         = NA_real_,
+    fetch_max          = NA_real_,
+    n_fetched          = NA_integer_,
+    net_tf_edges       = NA_integer_,
+    net_sig_edges      = NA_integer_,
+    status             = status,
+    note               = note,
+    stringsAsFactors   = FALSE
+  )
+}
+
 rows <- list()
 for (i in seq_along(specs)) {
   spec <- specs[[i]]
   log_msg(sprintf("\n=== [%d/%d] %s ===",
                   i, length(specs), spec$study_id))
+
+  if (identical(spec$source, "skipped-legacy-genes-csv")) {
+    log_msg(sprintf("  SKIPPED: %s -- %s",
+                    spec$study_id, spec$skip_reason))
+    rows[[length(rows) + 1L]] <- placeholder_row(spec, "skipped",
+                                                  spec$skip_reason)
+    next
+  }
+
   out <- tryCatch(bench_real_one(spec, scratch_root),
                   error = function(err) {
                     message(sprintf("  ERROR: %s", conditionMessage(err)))
                     NULL
                   })
-  if (!is.null(out)) {
-    rows[[length(rows) + 1L]] <- as.data.frame(out, stringsAsFactors = FALSE)
+  if (is.null(out)) {
+    rows[[length(rows) + 1L]] <- placeholder_row(spec, "error",
+                                                  "bench_real_one() failed")
+  } else {
+    row <- as.data.frame(out, stringsAsFactors = FALSE)
+    row$status <- "ok"
+    row$note   <- ""
+    rows[[length(rows) + 1L]] <- row
   }
 }
 
 if (length(rows) == 0L) {
-  stop("No studies benchmarked successfully; see error messages above.")
+  stop("No studies processed; see error messages above.")
 }
+# Column-align with NA fill so OK / skipped / error rows merge cleanly.
+all_cols <- unique(unlist(lapply(rows, colnames), use.names = FALSE))
+rows <- lapply(rows, function(r) {
+  miss <- setdiff(all_cols, colnames(r))
+  for (m in miss) r[[m]] <- NA
+  r[, all_cols, drop = FALSE]
+})
 df <- do.call(rbind, rows)
 utils::write.table(df, out_tsv, sep = "\t", row.names = FALSE, quote = FALSE)
-log_msg(sprintf("\nWrote %d-row TSV to %s", nrow(df), out_tsv))
+log_msg(sprintf("\nWrote %d-row TSV to %s (%d ok, %d skipped, %d error)",
+                nrow(df), out_tsv,
+                sum(df$status == "ok",      na.rm = TRUE),
+                sum(df$status == "skipped", na.rm = TRUE),
+                sum(df$status == "error",   na.rm = TRUE)))
 
 # ---- Console summary -------------------------------------------------------
 
