@@ -15,7 +15,8 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | [`portal_studies.R`](portal_studies.R)           | Loads each YAML, runs `prepare_study_from_eset → load_study → gene_values`, writes per-study metrics. |
 | [`portal_studies.sh`](portal_studies.sh)         | Local / interactive wrapper around `portal_studies.R`. |
 | [`portal_studies.bsub`](portal_studies.bsub)     | LSF script: single-job mode and job-array task body. |
-| [`portal_studies_hpc.sh`](portal_studies_hpc.sh) | One-command HPC driver — submits the array + dependent merge job. |
+| [`portal_studies_hpc.sh`](portal_studies_hpc.sh) | One-command HPC driver — submits the array (one task per study) + dependent merge job. |
+| [`portal_studies_single.sh`](portal_studies_single.sh) | One-command HPC driver — submits a single sequential bsub with configurable mem/cores/wall. |
 | [`portal_merge.R`](portal_merge.R)               | Concatenates per-study TSVs into `metrics/portal_studies.tsv`. |
 | [`figures/`](figures/)                           | Generated `figure1.{pdf,png}`. |
 | [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv`, `discover_scaling.tsv`, `real_study.tsv`, `portal_studies.tsv`. |
@@ -118,9 +119,18 @@ cat  paper/metrics/portal_studies.tsv      # final merged table
 ./paper/portal_studies.sh --config       paper/configs/2327.yaml
 ./paper/portal_studies.sh --configs-dir  paper/configs --only 2327,2326
 
-# Single bsub (sequential walk, no array):
+# Single bsub (sequential walk, no array) -- wrapper with mem / wall / cores knobs:
+./paper/portal_studies_single.sh --configs-dir paper/configs
+./paper/portal_studies_single.sh --configs-dir paper/configs --mem 64000 --wall 12:00
+./paper/portal_studies_single.sh --configs-dir paper/configs --only 2327,2326
+
+# Single bsub (minimal, env-only -- defaults to mem=32000):
 CONFIGS_DIR=$(pwd)/paper/configs bsub < paper/portal_studies.bsub
 ONLY=2327,2326 CONFIGS_DIR=$(pwd)/paper/configs bsub < paper/portal_studies.bsub
+
+# Single bsub with mem override (bsub flag overrides #BSUB directive):
+CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
+    < paper/portal_studies.bsub
 ```
 
 `portal_studies.R` flags:
