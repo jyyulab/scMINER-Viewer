@@ -17,11 +17,14 @@
 #   ./paper/portal_studies_hpc.sh --configs-dir paper/configs
 #   ./paper/portal_studies_hpc.sh --studies-root /research/.../studies
 #   ./paper/portal_studies_hpc.sh --configs-dir <path> --mem 64000 -W 12:00
+#   ./paper/portal_studies_hpc.sh --configs-dir <path> --queue "standard priority compbio"
 #
 # Flags:
 #   --configs-dir <dir>    Folder of YAML configs (one per study).
 #   --studies-root <dir>   Folder of per-study subfolders (legacy mode).
-#   --queue <name>         LSF queue (default: standard).
+#   --queue "<q1 q2 ...>"  Space-separated LSF queue list; LSF picks
+#                          the first with capacity. Quote for >1 queue.
+#                          (default: "standard priority")
 #   --mem <MB>             Memory request per task (default: 32000).
 #   --cores <n>            Cores per task (default: 4).
 #   --wall <hh:mm>         Wall-clock limit per task (default: 6:00).
@@ -35,7 +38,10 @@ cd "$ROOT"
 
 CONFIGS_DIR=""
 STUDIES_ROOT=""
-QUEUE="standard"
+# Space-separated list of LSF queues. LSF dispatches each task to the
+# first queue in the list with available capacity, so listing multiple
+# queues speeds startup when one is congested.
+QUEUE="standard priority"
 MEM=32000
 CORES=4
 WALL="6:00"

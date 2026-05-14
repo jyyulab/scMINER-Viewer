@@ -93,7 +93,7 @@ Driver flags:
 | --- | --- | --- |
 | `--configs-dir <dir>` | — | Folder of YAML configs. |
 | `--studies-root <dir>` | — | Alternative: folder of per-study subfolders. |
-| `--queue <name>` | `standard` | LSF queue. |
+| `--queue "<q1 q2 ...>"` | `"standard priority"` | Space-separated LSF queue list. LSF dispatches each task to the first queue with capacity, so a list of 2–3 queues reduces start-up latency when one is congested. Quote when listing >1. |
 | `--mem <MB>` | `32000` | Memory per task. |
 | `--cores <n>` | `4` | Cores per task. |
 | `--wall <hh:mm>` | `6:00` | Wall-clock limit per task. |
