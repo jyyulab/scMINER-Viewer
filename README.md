@@ -14,8 +14,12 @@ data-prep pipeline:
 overview, installation, tutorial, YAML reference, bundle/shard
 deep-dive, R + Python API reference, Shiny app walkthrough, and
 troubleshooting.
-Build it locally with `Rscript book/render.R` (output lands in
-`book/_book/index.html`).
+
+| To view | How |
+| --- | --- |
+| Online (GitHub Pages)  | Browse `https://<user>.github.io/<repo>/` once you've enabled Pages — see [`book/README-deploy.md`](book/README-deploy.md) for the one-time setup. |
+| Locally               | `Rscript book/render.R` then open `docs/index.html`. |
+| Source                | Read the `book/*.Rmd` chapters directly on GitHub (they render as markdown — readable but unlinked). |
 
 Both apps are file-based: no Java services, no graph DB, no SQL. Drop
 a study directory on disk and either package can render it.

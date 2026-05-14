@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Chapter 4 Config YAML reference | scMINER Viewer Guide</title>
+  <meta name="description" content="Tutorial, instructions, and reference for the scMINER Viewer R and Python packages." />
+  <meta name="generator" content="bookdown 0.46 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Chapter 4 Config YAML reference | scMINER Viewer Guide" />
+  <meta property="og:type" content="book" />
+  
+  <meta property="og:description" content="Tutorial, instructions, and reference for the scMINER Viewer R and Python packages." />
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 4 Config YAML reference | scMINER Viewer Guide" />
+  
+  <meta name="twitter:description" content="Tutorial, instructions, and reference for the scMINER Viewer R and Python packages." />
+  
+
+<meta name="author" content="scMINER Team" />
+
+
+<meta name="date" content="2026-05-13" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="tutorial.html"/>
+<link rel="next" href="bundle-and-shards.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+
+
+<style type="text/css">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">scMINER Viewer Guide</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i>Welcome</a>
+<ul>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html#how-to-read-this-guide"><i class="fa fa-check"></i>How to read this guide</a></li>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html#lazy-by-design-tldr"><i class="fa fa-check"></i>Lazy by design (TL;DR)</a></li>
+</ul></li>
+<li class="chapter" data-level="1" data-path="overview.html"><a href="overview.html"><i class="fa fa-check"></i><b>1</b> Overview</a>
+<ul>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#two-packages-one-bundle-format"><i class="fa fa-check"></i>Two packages, one bundle format</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#design-decisions-locked"><i class="fa fa-check"></i>Design decisions (locked)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope-and-whats-not"><i class="fa fa-check"></i>What’s in scope (and what’s not)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#repository-layout"><i class="fa fa-check"></i>Repository layout</a></li>
+</ul></li>
+<li class="chapter" data-level="2" data-path="installation.html"><a href="installation.html"><i class="fa fa-check"></i><b>2</b> Installation</a>
+<ul>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#requirements"><i class="fa fa-check"></i>Requirements</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#r-rstudio"><i class="fa fa-check"></i>R / RStudio</a>
+<ul>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#from-the-shell"><i class="fa fa-check"></i>From the shell</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#from-r-or-rstudio"><i class="fa fa-check"></i>From R or RStudio</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#verify"><i class="fa fa-check"></i>Verify</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#python"><i class="fa fa-check"></i>Python</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#common-installation-issues"><i class="fa fa-check"></i>Common installation issues</a>
+<ul>
+<li class="chapter" data-level="2.0.1" data-path="installation.html"><a href="installation.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation"><i class="fa fa-check"></i><b>2.0.1</b> “lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="2.0.2" data-path="installation.html"><a href="installation.html#missing-system-libraries-on-macos"><i class="fa fa-check"></i><b>2.0.2</b> Missing system libraries on macOS</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="tutorial.html"><a href="tutorial.html"><i class="fa fa-check"></i><b>3</b> Tutorial: from zero to a multi-study browser</a>
+<ul>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a-prepare-one-study-from-a-yaml-config"><i class="fa fa-check"></i>A — Prepare one study from a YAML config</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#b-migrate-an-existing-on-disk-study-no-rds-needed"><i class="fa fa-check"></i>B — Migrate an existing on-disk study (no RDS needed)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#c-browse-one-or-many-studies"><i class="fa fa-check"></i>C — Browse one or many studies</a>
+<ul>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-r"><i class="fa fa-check"></i>Single study (R)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-python"><i class="fa fa-check"></i>Single study (Python)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-r"><i class="fa fa-check"></i>Multi-study browser (R)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-python"><i class="fa fa-check"></i>Multi-study browser (Python)</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#d-adding-a-second-study"><i class="fa fa-check"></i>D — Adding a second study</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#e-inspect-whats-available-without-launching-anything"><i class="fa fa-check"></i>E — Inspect what’s available without launching anything</a></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="config-yaml.html"><a href="config-yaml.html"><i class="fa fa-check"></i><b>4</b> Config YAML reference</a>
+<ul>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#full-schema"><i class="fa fa-check"></i>Full schema</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
+<ul>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-2"><i class="fa fa-check"></i>HDF5 bundle layout (<code>bundleVersion = 2</code>)</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#shard-tree"><i class="fa fa-check"></i>Shard tree</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#lazy-contract"><i class="fa fa-check"></i>Lazy contract</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#discovering-studies-under-a-multi-study-root"><i class="fa fa-check"></i>Discovering studies under a multi-study root</a></li>
+</ul></li>
+<li class="chapter" data-level="6" data-path="r-api.html"><a href="r-api.html"><i class="fa fa-check"></i><b>6</b> R API reference</a>
+<ul>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#orchestrators-one-shot-prep"><i class="fa fa-check"></i>Orchestrators (one-shot prep)</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#staged-helpers-granular-control-debug"><i class="fa fa-check"></i>Staged helpers (granular control / debug)</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#bundle-study-handles"><i class="fa fa-check"></i>Bundle + study handles</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#shiny-entry-points"><i class="fa fa-check"></i>Shiny entry points</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#debug-granular-workflow"><i class="fa fa-check"></i>Debug / granular workflow</a></li>
+</ul></li>
+<li class="chapter" data-level="7" data-path="python-api.html"><a href="python-api.html"><i class="fa fa-check"></i><b>7</b> Python API reference</a>
+<ul>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#public-symbols"><i class="fa fa-check"></i>Public symbols</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#plot-helpers"><i class="fa fa-check"></i>Plot helpers</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#cli"><i class="fa fa-check"></i>CLI</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#programmatic-example"><i class="fa fa-check"></i>Programmatic example</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#differences-vs-the-r-package"><i class="fa fa-check"></i>Differences vs the R package</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="shiny-app.html"><a href="shiny-app.html"><i class="fa fa-check"></i><b>8</b> Shiny app walkthrough</a>
+<ul>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#layout"><i class="fa fa-check"></i>Layout</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#study-info-controls"><i class="fa fa-check"></i>Study Info &amp; Controls</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#clusters"><i class="fa fa-check"></i>Clusters</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#gene-selection"><i class="fa fa-check"></i>Gene Selection</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#plot-tabs"><i class="fa fa-check"></i>Plot tabs</a>
+<ul>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#cluster-plot"><i class="fa fa-check"></i>Cluster Plot</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#heatmap"><i class="fa fa-check"></i>Heatmap</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#bubble-plot"><i class="fa fa-check"></i>Bubble Plot</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#feature-plot-3-level-nested"><i class="fa fa-check"></i>Feature Plot (3-level nested)</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#violin-plot"><i class="fa fa-check"></i>Violin Plot</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#network"><i class="fa fa-check"></i>Network</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#multi-study-browser"><i class="fa fa-check"></i>Multi-study browser</a></li>
+</ul></li>
+<li class="chapter" data-level="9" data-path="troubleshooting.html"><a href="troubleshooting.html"><i class="fa fa-check"></i><b>9</b> Troubleshooting</a>
+<ul>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#meta.csv-not-found-datasidexpression_filessidmeta.csv"><i class="fa fa-check"></i><code>meta.csv not found: data/&lt;sid&gt;/expression_files/&lt;sid&gt;/meta.csv</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#no-documentation-for-prepare_study"><i class="fa fa-check"></i><code>No documentation for 'prepare_study'</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#could-not-find-function"><i class="fa fa-check"></i><code>could not find function "%&gt;%"</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#plotly-no-trace-type-specified-setting-the-mode-to-markers"><i class="fa fa-check"></i>Plotly “No trace type specified … Setting the mode to markers”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#run_browser-shows-no-studies"><i class="fa fa-check"></i><code>run_browser</code> shows no studies</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#a-gene-i-expect-is-missing-from-the-picker"><i class="fa fa-check"></i>A gene I expect is missing from the picker</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#bundle-is-huge-1-gb"><i class="fa fa-check"></i>Bundle is huge (&gt;1 GB)</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#a-specific-cluster-disappears-with-sampling-on"><i class="fa fa-check"></i>A specific cluster disappears with sampling on</a></li>
+</ul></li>
+<li class="divider"></li>
+<li><a href="https://github.com/jyyulab/scMINER" target="blank">Built on scMINER</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">scMINER Viewer Guide</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="config-yaml" class="section level1 hasAnchor" number="4">
+<h1><span class="header-section-number">Chapter 4</span> Config YAML reference<a href="config-yaml.html#config-yaml" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<p><code>prepare_study(config_path)</code> is the YAML-driven entry point for the
+full pipeline. It points at a scMINER <code>ExpressionSet</code> RDS (and
+optional activity + networks) and writes both the graph-import layout
+and the lazy-mode bundle in one call.</p>
+<p>Two examples ship with the project:</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>scminerViewer/inst/extdata/example_config.yml</code></td>
+<td>Annotated <strong>template</strong> — every field documented inline; reachable via <code>system.file()</code>.</td>
+</tr>
+<tr class="even">
+<td><code>data/example/2327.yml</code></td>
+<td>Concrete <strong>runnable</strong> config keyed to the actual 2327 study (Tex). Edit <code>input.*</code> paths and run.</td>
+</tr>
+</tbody>
+</table>
+<p>Copy the template:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="config-yaml.html#cb26-1" tabindex="-1"></a><span class="fu">file.copy</span>(</span>
+<span id="cb26-2"><a href="config-yaml.html#cb26-2" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;example_config.yml&quot;</span>, <span class="at">package =</span> <span class="st">&quot;scminerViewer&quot;</span>),</span>
+<span id="cb26-3"><a href="config-yaml.html#cb26-3" tabindex="-1"></a>  <span class="st">&quot;config.yml&quot;</span></span>
+<span id="cb26-4"><a href="config-yaml.html#cb26-4" tabindex="-1"></a>)</span></code></pre></div>
+<div id="full-schema" class="section level2 unnumbered hasAnchor">
+<h2>Full schema<a href="config-yaml.html#full-schema" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div class="sourceCode" id="cb27"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb27-1"><a href="config-yaml.html#cb27-1" tabindex="-1"></a><span class="co"># Where to write everything — the bundle lands at</span></span>
+<span id="cb27-2"><a href="config-yaml.html#cb27-2" tabindex="-1"></a><span class="co"># &lt;output&gt;/&lt;studyID&gt;/&lt;studyID&gt;.scminer.h5 (per-study subfolder).</span></span>
+<span id="cb27-3"><a href="config-yaml.html#cb27-3" tabindex="-1"></a><span class="fu">output</span><span class="kw">:</span><span class="at"> data</span></span>
+<span id="cb27-4"><a href="config-yaml.html#cb27-4" tabindex="-1"></a></span>
+<span id="cb27-5"><a href="config-yaml.html#cb27-5" tabindex="-1"></a><span class="co"># Study identity</span></span>
+<span id="cb27-6"><a href="config-yaml.html#cb27-6" tabindex="-1"></a><span class="fu">study</span><span class="kw">:</span></span>
+<span id="cb27-7"><a href="config-yaml.html#cb27-7" tabindex="-1"></a><span class="at">  </span><span class="fu">ID</span><span class="kw">:</span><span class="at">         </span><span class="st">&quot;2327&quot;</span></span>
+<span id="cb27-8"><a href="config-yaml.html#cb27-8" tabindex="-1"></a><span class="at">  </span><span class="fu">studyAbbr</span><span class="kw">:</span><span class="at">  tex</span></span>
+<span id="cb27-9"><a href="config-yaml.html#cb27-9" tabindex="-1"></a><span class="fu">  longTitle</span><span class="kw">: </span><span class="at"> </span><span class="ch">&gt;</span></span>
+<span id="cb27-10"><a href="config-yaml.html#cb27-10" tabindex="-1"></a>    Single-cell RNA sequencing of progenitor, intermediate and</span>
+<span id="cb27-11"><a href="config-yaml.html#cb27-11" tabindex="-1"></a>    terminally exhausted CD8+ T cells from tumors and chronic viral</span>
+<span id="cb27-12"><a href="config-yaml.html#cb27-12" tabindex="-1"></a>    infection</span>
+<span id="cb27-13"><a href="config-yaml.html#cb27-13" tabindex="-1"></a><span class="at">  </span><span class="fu">shortTitle</span><span class="kw">:</span><span class="at"> Tex</span></span>
+<span id="cb27-14"><a href="config-yaml.html#cb27-14" tabindex="-1"></a></span>
+<span id="cb27-15"><a href="config-yaml.html#cb27-15" tabindex="-1"></a><span class="co"># Sample-level metadata</span></span>
+<span id="cb27-16"><a href="config-yaml.html#cb27-16" tabindex="-1"></a><span class="fu">species</span><span class="kw">:</span><span class="at">    Mus musculus</span></span>
+<span id="cb27-17"><a href="config-yaml.html#cb27-17" tabindex="-1"></a><span class="fu">coordinate</span><span class="kw">:</span><span class="at"> UMAP</span><span class="co">            # also the pData column prefix (UMAP_1, UMAP_2)</span></span>
+<span id="cb27-18"><a href="config-yaml.html#cb27-18" tabindex="-1"></a></span>
+<span id="cb27-19"><a href="config-yaml.html#cb27-19" tabindex="-1"></a><span class="co"># pData / fData column names in the source ExpressionSet</span></span>
+<span id="cb27-20"><a href="config-yaml.html#cb27-20" tabindex="-1"></a><span class="fu">cellID</span><span class="kw">:</span><span class="at">     cellID</span><span class="co">          # rownames are also assigned to this column</span></span>
+<span id="cb27-21"><a href="config-yaml.html#cb27-21" tabindex="-1"></a><span class="fu">cellType</span><span class="kw">:</span><span class="at">   cellGroup</span><span class="co">       # the cell-type / cluster label</span></span>
+<span id="cb27-22"><a href="config-yaml.html#cb27-22" tabindex="-1"></a><span class="fu">cellGroup</span><span class="kw">:</span><span class="at">  cellGroup</span><span class="co">       # falls back to cellType when omitted</span></span>
+<span id="cb27-23"><a href="config-yaml.html#cb27-23" tabindex="-1"></a><span class="fu">geneSymbol</span><span class="kw">:</span><span class="at"> geneSymbol</span><span class="co">      # column in fData carrying the gene symbol</span></span>
+<span id="cb27-24"><a href="config-yaml.html#cb27-24" tabindex="-1"></a></span>
+<span id="cb27-25"><a href="config-yaml.html#cb27-25" tabindex="-1"></a><span class="co"># Input files</span></span>
+<span id="cb27-26"><a href="config-yaml.html#cb27-26" tabindex="-1"></a><span class="fu">input</span><span class="kw">:</span></span>
+<span id="cb27-27"><a href="config-yaml.html#cb27-27" tabindex="-1"></a><span class="at">  </span><span class="fu">expression</span><span class="kw">:</span><span class="at"> inputs/2327_expression.rds</span><span class="co">   # required, Biobase ExpressionSet</span></span>
+<span id="cb27-28"><a href="config-yaml.html#cb27-28" tabindex="-1"></a><span class="at">  </span><span class="fu">activity</span><span class="kw">:</span><span class="at">   inputs/2327_activity.rds</span><span class="co">     # optional, ExpressionSet</span></span>
+<span id="cb27-29"><a href="config-yaml.html#cb27-29" tabindex="-1"></a><span class="co">                                            # rows ending in _TF / _SIG split</span></span>
+<span id="cb27-30"><a href="config-yaml.html#cb27-30" tabindex="-1"></a><span class="co">                                            # into the two activity matrices</span></span>
+<span id="cb27-31"><a href="config-yaml.html#cb27-31" tabindex="-1"></a><span class="at">  </span><span class="fu">networks</span><span class="kw">:</span><span class="at">   inputs/2327_networks.tsv</span><span class="co">     # optional, tab-separated:</span></span>
+<span id="cb27-32"><a href="config-yaml.html#cb27-32" tabindex="-1"></a><span class="co">                                            # source, target, NetworkType,</span></span>
+<span id="cb27-33"><a href="config-yaml.html#cb27-33" tabindex="-1"></a><span class="co">                                            # CellGroup, mi, pearson,</span></span>
+<span id="cb27-34"><a href="config-yaml.html#cb27-34" tabindex="-1"></a><span class="co">                                            # spearman, rho, pvalue</span></span></code></pre></div>
+</div>
+<div id="field-by-field" class="section level2 unnumbered hasAnchor">
+<h2>Field-by-field<a href="config-yaml.html#field-by-field" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>Required</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>output</code></td>
+<td>yes</td>
+<td>—</td>
+<td>Root directory for the per-study subfolder. The bundle ends up at <code>&lt;output&gt;/&lt;studyID&gt;/&lt;studyID&gt;.scminer.h5</code>.</td>
+</tr>
+<tr class="even">
+<td><code>study.ID</code></td>
+<td>yes</td>
+<td>—</td>
+<td>Numeric or string. Used as the subfolder name.</td>
+</tr>
+<tr class="odd">
+<td><code>study.studyAbbr</code></td>
+<td>yes</td>
+<td>—</td>
+<td>Short identifier (URL slug).</td>
+</tr>
+<tr class="even">
+<td><code>study.longTitle</code></td>
+<td>yes</td>
+<td>—</td>
+<td>Full study description.</td>
+</tr>
+<tr class="odd">
+<td><code>study.shortTitle</code></td>
+<td>yes</td>
+<td>—</td>
+<td>One-line label.</td>
+</tr>
+<tr class="even">
+<td><code>species</code></td>
+<td>no</td>
+<td><code>""</code></td>
+<td>e.g. <code>"Mus musculus"</code>. Also auto-filled from the manifests if missing.</td>
+</tr>
+<tr class="odd">
+<td><code>coordinate</code></td>
+<td>no</td>
+<td><code>"UMAP"</code></td>
+<td>Both the meta field and the pData column prefix — <code>&lt;coord&gt;_1</code> and <code>&lt;coord&gt;_2</code>.</td>
+</tr>
+<tr class="even">
+<td><code>cellID</code></td>
+<td>no</td>
+<td><code>"cellID"</code></td>
+<td>pData column carrying the cellID. Rownames are also written into this column.</td>
+</tr>
+<tr class="odd">
+<td><code>cellType</code></td>
+<td>no</td>
+<td><code>"cellGroup"</code></td>
+<td>pData column carrying the cell-type label.</td>
+</tr>
+<tr class="even">
+<td><code>cellGroup</code></td>
+<td>no</td>
+<td><code>cellType</code></td>
+<td>pData column carrying the cell-group label.</td>
+</tr>
+<tr class="odd">
+<td><code>geneSymbol</code></td>
+<td>no</td>
+<td><code>"geneSymbol"</code></td>
+<td>fData column carrying the gene symbol.</td>
+</tr>
+<tr class="even">
+<td><code>input.expression</code></td>
+<td>yes</td>
+<td>—</td>
+<td>Path to the expression ExpressionSet RDS.</td>
+</tr>
+<tr class="odd">
+<td><code>input.activity</code></td>
+<td>no</td>
+<td>none</td>
+<td>Path to the activity ExpressionSet RDS. Rows ending in <code>_TF</code> / <code>.TF</code> go to <code>activity_tf</code>; <code>_SIG</code> / <code>.SIG</code> go to <code>activity_sig</code>.</td>
+</tr>
+<tr class="even">
+<td><code>input.networks</code></td>
+<td>no</td>
+<td>none</td>
+<td>Path to the networks TSV.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="parsing-the-config-without-loading-the-rds-files" class="section level2 unnumbered hasAnchor">
+<h2>Parsing the config without loading the RDS files<a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p><code>load_study_config()</code> parses the YAML, validates required keys, and
+fills in defaults. It does <strong>not</strong> touch any RDS / TSV files referenced
+by <code>input.*</code> — useful for sanity-checking the config or building a
+custom pipeline:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="config-yaml.html#cb28-1" tabindex="-1"></a>cfg <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">load_study_config</span>(<span class="st">&quot;config.yml&quot;</span>)</span>
+<span id="cb28-2"><a href="config-yaml.html#cb28-2" tabindex="-1"></a><span class="fu">str</span>(cfg)</span></code></pre></div>
+<p>See Chapter <a href="r-api.html#r-api">6</a> for the full list of staged helpers
+(<code>load_study_config</code>, <code>extract_cells</code>, <code>extract_genes</code>,
+<code>extract_expression</code>, <code>extract_activity</code>, <code>read_networks</code>) that
+<code>prepare_study()</code> is composed of.</p>
+
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="tutorial.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="bundle-and-shards.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+  "sharing": {
+    "github": false,
+    "facebook": false,
+    "twitter": false,
+    "linkedin": false,
+    "weibo": false,
+    "instapaper": false,
+    "vk": false,
+    "whatsapp": false,
+    "all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+  },
+  "fontsettings": {
+    "theme": "white",
+    "family": "sans",
+    "size": 2
+  },
+  "edit": {
+    "link": null,
+    "text": null
+  },
+  "history": {
+    "link": null,
+    "text": null
+  },
+  "view": {
+    "link": null,
+    "text": null
+  },
+  "download": ["scminer-viewer-guide.pdf"],
+  "search": {
+    "engine": "fuse",
+    "options": null
+  },
+  "toc": {
+    "collapse": "subsection"
+  }
+});
+});
+</script>
+
+</body>
+
+</html>

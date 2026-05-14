@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Chapter 3 Tutorial: from zero to a multi-study browser | scMINER Viewer Guide</title>
+  <meta name="description" content="Tutorial, instructions, and reference for the scMINER Viewer R and Python packages." />
+  <meta name="generator" content="bookdown 0.46 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Chapter 3 Tutorial: from zero to a multi-study browser | scMINER Viewer Guide" />
+  <meta property="og:type" content="book" />
+  
+  <meta property="og:description" content="Tutorial, instructions, and reference for the scMINER Viewer R and Python packages." />
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 3 Tutorial: from zero to a multi-study browser | scMINER Viewer Guide" />
+  
+  <meta name="twitter:description" content="Tutorial, instructions, and reference for the scMINER Viewer R and Python packages." />
+  
+
+<meta name="author" content="scMINER Team" />
+
+
+<meta name="date" content="2026-05-13" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="installation.html"/>
+<link rel="next" href="config-yaml.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+
+
+<style type="text/css">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">scMINER Viewer Guide</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i>Welcome</a>
+<ul>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html#how-to-read-this-guide"><i class="fa fa-check"></i>How to read this guide</a></li>
+<li class="chapter" data-level="" data-path="index.html"><a href="index.html#lazy-by-design-tldr"><i class="fa fa-check"></i>Lazy by design (TL;DR)</a></li>
+</ul></li>
+<li class="chapter" data-level="1" data-path="overview.html"><a href="overview.html"><i class="fa fa-check"></i><b>1</b> Overview</a>
+<ul>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#two-packages-one-bundle-format"><i class="fa fa-check"></i>Two packages, one bundle format</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#design-decisions-locked"><i class="fa fa-check"></i>Design decisions (locked)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope-and-whats-not"><i class="fa fa-check"></i>What’s in scope (and what’s not)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#repository-layout"><i class="fa fa-check"></i>Repository layout</a></li>
+</ul></li>
+<li class="chapter" data-level="2" data-path="installation.html"><a href="installation.html"><i class="fa fa-check"></i><b>2</b> Installation</a>
+<ul>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#requirements"><i class="fa fa-check"></i>Requirements</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#r-rstudio"><i class="fa fa-check"></i>R / RStudio</a>
+<ul>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#from-the-shell"><i class="fa fa-check"></i>From the shell</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#from-r-or-rstudio"><i class="fa fa-check"></i>From R or RStudio</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#verify"><i class="fa fa-check"></i>Verify</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#python"><i class="fa fa-check"></i>Python</a></li>
+<li class="chapter" data-level="" data-path="installation.html"><a href="installation.html#common-installation-issues"><i class="fa fa-check"></i>Common installation issues</a>
+<ul>
+<li class="chapter" data-level="2.0.1" data-path="installation.html"><a href="installation.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation"><i class="fa fa-check"></i><b>2.0.1</b> “lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="2.0.2" data-path="installation.html"><a href="installation.html#missing-system-libraries-on-macos"><i class="fa fa-check"></i><b>2.0.2</b> Missing system libraries on macOS</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="tutorial.html"><a href="tutorial.html"><i class="fa fa-check"></i><b>3</b> Tutorial: from zero to a multi-study browser</a>
+<ul>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a-prepare-one-study-from-a-yaml-config"><i class="fa fa-check"></i>A — Prepare one study from a YAML config</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#b-migrate-an-existing-on-disk-study-no-rds-needed"><i class="fa fa-check"></i>B — Migrate an existing on-disk study (no RDS needed)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#c-browse-one-or-many-studies"><i class="fa fa-check"></i>C — Browse one or many studies</a>
+<ul>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-r"><i class="fa fa-check"></i>Single study (R)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-python"><i class="fa fa-check"></i>Single study (Python)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-r"><i class="fa fa-check"></i>Multi-study browser (R)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-python"><i class="fa fa-check"></i>Multi-study browser (Python)</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#d-adding-a-second-study"><i class="fa fa-check"></i>D — Adding a second study</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#e-inspect-whats-available-without-launching-anything"><i class="fa fa-check"></i>E — Inspect what’s available without launching anything</a></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="config-yaml.html"><a href="config-yaml.html"><i class="fa fa-check"></i><b>4</b> Config YAML reference</a>
+<ul>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#full-schema"><i class="fa fa-check"></i>Full schema</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
+<ul>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-2"><i class="fa fa-check"></i>HDF5 bundle layout (<code>bundleVersion = 2</code>)</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#shard-tree"><i class="fa fa-check"></i>Shard tree</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#lazy-contract"><i class="fa fa-check"></i>Lazy contract</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#discovering-studies-under-a-multi-study-root"><i class="fa fa-check"></i>Discovering studies under a multi-study root</a></li>
+</ul></li>
+<li class="chapter" data-level="6" data-path="r-api.html"><a href="r-api.html"><i class="fa fa-check"></i><b>6</b> R API reference</a>
+<ul>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#orchestrators-one-shot-prep"><i class="fa fa-check"></i>Orchestrators (one-shot prep)</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#staged-helpers-granular-control-debug"><i class="fa fa-check"></i>Staged helpers (granular control / debug)</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#bundle-study-handles"><i class="fa fa-check"></i>Bundle + study handles</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#shiny-entry-points"><i class="fa fa-check"></i>Shiny entry points</a></li>
+<li class="chapter" data-level="" data-path="r-api.html"><a href="r-api.html#debug-granular-workflow"><i class="fa fa-check"></i>Debug / granular workflow</a></li>
+</ul></li>
+<li class="chapter" data-level="7" data-path="python-api.html"><a href="python-api.html"><i class="fa fa-check"></i><b>7</b> Python API reference</a>
+<ul>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#public-symbols"><i class="fa fa-check"></i>Public symbols</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#plot-helpers"><i class="fa fa-check"></i>Plot helpers</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#cli"><i class="fa fa-check"></i>CLI</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#programmatic-example"><i class="fa fa-check"></i>Programmatic example</a></li>
+<li class="chapter" data-level="" data-path="python-api.html"><a href="python-api.html#differences-vs-the-r-package"><i class="fa fa-check"></i>Differences vs the R package</a></li>
+</ul></li>
+<li class="chapter" data-level="8" data-path="shiny-app.html"><a href="shiny-app.html"><i class="fa fa-check"></i><b>8</b> Shiny app walkthrough</a>
+<ul>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#layout"><i class="fa fa-check"></i>Layout</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#study-info-controls"><i class="fa fa-check"></i>Study Info &amp; Controls</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#clusters"><i class="fa fa-check"></i>Clusters</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#gene-selection"><i class="fa fa-check"></i>Gene Selection</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#plot-tabs"><i class="fa fa-check"></i>Plot tabs</a>
+<ul>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#cluster-plot"><i class="fa fa-check"></i>Cluster Plot</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#heatmap"><i class="fa fa-check"></i>Heatmap</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#bubble-plot"><i class="fa fa-check"></i>Bubble Plot</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#feature-plot-3-level-nested"><i class="fa fa-check"></i>Feature Plot (3-level nested)</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#violin-plot"><i class="fa fa-check"></i>Violin Plot</a></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#network"><i class="fa fa-check"></i>Network</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="shiny-app.html"><a href="shiny-app.html#multi-study-browser"><i class="fa fa-check"></i>Multi-study browser</a></li>
+</ul></li>
+<li class="chapter" data-level="9" data-path="troubleshooting.html"><a href="troubleshooting.html"><i class="fa fa-check"></i><b>9</b> Troubleshooting</a>
+<ul>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#meta.csv-not-found-datasidexpression_filessidmeta.csv"><i class="fa fa-check"></i><code>meta.csv not found: data/&lt;sid&gt;/expression_files/&lt;sid&gt;/meta.csv</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#no-documentation-for-prepare_study"><i class="fa fa-check"></i><code>No documentation for 'prepare_study'</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#could-not-find-function"><i class="fa fa-check"></i><code>could not find function "%&gt;%"</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#plotly-no-trace-type-specified-setting-the-mode-to-markers"><i class="fa fa-check"></i>Plotly “No trace type specified … Setting the mode to markers”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#run_browser-shows-no-studies"><i class="fa fa-check"></i><code>run_browser</code> shows no studies</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#a-gene-i-expect-is-missing-from-the-picker"><i class="fa fa-check"></i>A gene I expect is missing from the picker</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#bundle-is-huge-1-gb"><i class="fa fa-check"></i>Bundle is huge (&gt;1 GB)</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#a-specific-cluster-disappears-with-sampling-on"><i class="fa fa-check"></i>A specific cluster disappears with sampling on</a></li>
+</ul></li>
+<li class="divider"></li>
+<li><a href="https://github.com/jyyulab/scMINER" target="blank">Built on scMINER</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">scMINER Viewer Guide</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="tutorial" class="section level1 hasAnchor" number="3">
+<h1><span class="header-section-number">Chapter 3</span> Tutorial: from zero to a multi-study browser<a href="tutorial.html#tutorial" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<p>This chapter walks through the most common workflow end-to-end:
+prepare one study, browse it, add a second study, browse them
+together. All paths assume the project root as the working directory.</p>
+<div id="a-prepare-one-study-from-a-yaml-config" class="section level2 unnumbered hasAnchor">
+<h2>A — Prepare one study from a YAML config<a href="tutorial.html#a-prepare-one-study-from-a-yaml-config" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="tutorial.html#cb15-1" tabindex="-1"></a><span class="co"># 1) Copy the annotated template that ships with the package</span></span>
+<span id="cb15-2"><a href="tutorial.html#cb15-2" tabindex="-1"></a><span class="fu">file.copy</span>(</span>
+<span id="cb15-3"><a href="tutorial.html#cb15-3" tabindex="-1"></a>  <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;example_config.yml&quot;</span>, <span class="at">package =</span> <span class="st">&quot;scminerViewer&quot;</span>),</span>
+<span id="cb15-4"><a href="tutorial.html#cb15-4" tabindex="-1"></a>  <span class="st">&quot;config.yml&quot;</span></span>
+<span id="cb15-5"><a href="tutorial.html#cb15-5" tabindex="-1"></a>)</span></code></pre></div>
+<p>Open <code>config.yml</code> and edit:</p>
+<ul>
+<li><code>output:</code> — the <strong>root</strong> that will host all your studies (e.g. <code>"data"</code>).</li>
+<li><code>study.*</code> — ID, abbreviation, titles for this study.</li>
+<li><code>input.expression</code> — path to your expression <code>ExpressionSet</code> RDS.</li>
+<li><code>input.activity</code> (optional) — path to your activity ExpressionSet.</li>
+<li><code>input.networks</code> (optional) — path to the networks TSV.</li>
+</ul>
+<p>Then:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="tutorial.html#cb16-1" tabindex="-1"></a><span class="fu">library</span>(scminerViewer)</span>
+<span id="cb16-2"><a href="tutorial.html#cb16-2" tabindex="-1"></a><span class="fu">prepare_study</span>(<span class="st">&quot;config.yml&quot;</span>)</span></code></pre></div>
+<p>This writes <code>data/&lt;studyID&gt;/&lt;studyID&gt;.scminer.h5</code> plus the full graph
+layout (Cell/, Gene/, Network_*/, …) and the per-gene shard tree
+(<code>expression_files/&lt;studyID&gt;/&lt;letter&gt;/&lt;gene&gt;.csv.gz</code> and
+<code>activity_files/&lt;studyID&gt;/{TF,SIG}/...</code>) into <code>data/&lt;studyID&gt;/</code>.</p>
+</div>
+<div id="b-migrate-an-existing-on-disk-study-no-rds-needed" class="section level2 unnumbered hasAnchor">
+<h2>B — Migrate an existing on-disk study (no RDS needed)<a href="tutorial.html#b-migrate-an-existing-on-disk-study-no-rds-needed" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>If you already have the graph-layout TSVs + shard tree on disk
+(e.g. under <code>data/example/</code>), build the bundle directly without
+invoking the Biobase pipeline:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="tutorial.html#cb17-1" tabindex="-1"></a>study <span class="ot">&lt;-</span> <span class="fu">read_graph_study</span>(<span class="at">data_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">study_id =</span> <span class="st">&quot;2327&quot;</span>)</span>
+<span id="cb17-2"><a href="tutorial.html#cb17-2" tabindex="-1"></a><span class="fu">dir.create</span>(<span class="st">&quot;data/2327&quot;</span>, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-3"><a href="tutorial.html#cb17-3" tabindex="-1"></a><span class="fu">write_bundle</span>(</span>
+<span id="cb17-4"><a href="tutorial.html#cb17-4" tabindex="-1"></a>  <span class="at">bundle_path        =</span> <span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>,</span>
+<span id="cb17-5"><a href="tutorial.html#cb17-5" tabindex="-1"></a>  <span class="at">meta               =</span> study<span class="sc">$</span>meta,</span>
+<span id="cb17-6"><a href="tutorial.html#cb17-6" tabindex="-1"></a>  <span class="at">cells              =</span> study<span class="sc">$</span>cells,</span>
+<span id="cb17-7"><a href="tutorial.html#cb17-7" tabindex="-1"></a>  <span class="at">clusters           =</span> study<span class="sc">$</span>clusters,</span>
+<span id="cb17-8"><a href="tutorial.html#cb17-8" tabindex="-1"></a>  <span class="at">genes              =</span> study<span class="sc">$</span>genes,</span>
+<span id="cb17-9"><a href="tutorial.html#cb17-9" tabindex="-1"></a>  <span class="at">expression_genes   =</span> study<span class="sc">$</span>expression_genes,</span>
+<span id="cb17-10"><a href="tutorial.html#cb17-10" tabindex="-1"></a>  <span class="at">activity_tf_genes  =</span> study<span class="sc">$</span>activity_tf_genes,</span>
+<span id="cb17-11"><a href="tutorial.html#cb17-11" tabindex="-1"></a>  <span class="at">activity_sig_genes =</span> study<span class="sc">$</span>activity_sig_genes,</span>
+<span id="cb17-12"><a href="tutorial.html#cb17-12" tabindex="-1"></a>  <span class="at">network_tf         =</span> study<span class="sc">$</span>network_tf,</span>
+<span id="cb17-13"><a href="tutorial.html#cb17-13" tabindex="-1"></a>  <span class="at">network_sig        =</span> study<span class="sc">$</span>network_sig,</span>
+<span id="cb17-14"><a href="tutorial.html#cb17-14" tabindex="-1"></a>  <span class="at">overwrite          =</span> <span class="cn">TRUE</span></span>
+<span id="cb17-15"><a href="tutorial.html#cb17-15" tabindex="-1"></a>)</span></code></pre></div>
+<p>If you also want the shard tree co-located with the new bundle, move
+it once:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb18-1"><a href="tutorial.html#cb18-1" tabindex="-1"></a><span class="fu">mv</span> data/example/expression_files data/2327/</span>
+<span id="cb18-2"><a href="tutorial.html#cb18-2" tabindex="-1"></a><span class="fu">mv</span> data/example/activity_files   data/2327/</span></code></pre></div>
+<p>Otherwise pass <code>shard_dir =</code> to <code>run_app()</code> / <code>run_browser()</code> (see C).</p>
+</div>
+<div id="c-browse-one-or-many-studies" class="section level2 unnumbered hasAnchor">
+<h2>C — Browse one or many studies<a href="tutorial.html#c-browse-one-or-many-studies" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div id="single-study-r" class="section level3 unnumbered hasAnchor">
+<h3>Single study (R)<a href="tutorial.html#single-study-r" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="tutorial.html#cb19-1" tabindex="-1"></a><span class="co"># Bundle and shards co-located (default — auto-discovered)</span></span>
+<span id="cb19-2"><a href="tutorial.html#cb19-2" tabindex="-1"></a><span class="fu">run_app</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span>
+<span id="cb19-3"><a href="tutorial.html#cb19-3" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="tutorial.html#cb19-4" tabindex="-1"></a><span class="co"># Shards live elsewhere</span></span>
+<span id="cb19-5"><a href="tutorial.html#cb19-5" tabindex="-1"></a><span class="fu">run_app</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>,</span>
+<span id="cb19-6"><a href="tutorial.html#cb19-6" tabindex="-1"></a>        <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span></code></pre></div>
+</div>
+<div id="single-study-python" class="section level3 unnumbered hasAnchor">
+<h3>Single study (Python)<a href="tutorial.html#single-study-python" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb20"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb20-1"><a href="tutorial.html#cb20-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> run data/2327/2327.scminer.h5 <span class="at">--port</span> 8000</span>
+<span id="cb20-2"><a href="tutorial.html#cb20-2" tabindex="-1"></a><span class="ex">scminer-viewer</span> run data/2327/2327.scminer.h5 <span class="dt">\</span></span>
+<span id="cb20-3"><a href="tutorial.html#cb20-3" tabindex="-1"></a>                   <span class="at">--shard-dir</span> data/example <span class="at">--port</span> 8000</span></code></pre></div>
+</div>
+<div id="multi-study-browser-r" class="section level3 unnumbered hasAnchor">
+<h3>Multi-study browser (R)<a href="tutorial.html#multi-study-browser-r" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="tutorial.html#cb21-1" tabindex="-1"></a><span class="fu">run_browser</span>(<span class="st">&quot;data&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span>
+<span id="cb21-2"><a href="tutorial.html#cb21-2" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="tutorial.html#cb21-3" tabindex="-1"></a><span class="co"># When shards still live in the legacy data/example/ tree</span></span>
+<span id="cb21-4"><a href="tutorial.html#cb21-4" tabindex="-1"></a><span class="fu">run_browser</span>(<span class="st">&quot;data&quot;</span>, <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span></code></pre></div>
+</div>
+<div id="multi-study-browser-python" class="section level3 unnumbered hasAnchor">
+<h3>Multi-study browser (Python)<a href="tutorial.html#multi-study-browser-python" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<div class="sourceCode" id="cb22"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb22-1"><a href="tutorial.html#cb22-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> browse data <span class="at">--port</span> 8000</span>
+<span id="cb22-2"><a href="tutorial.html#cb22-2" tabindex="-1"></a><span class="ex">scminer-viewer</span> browse data <span class="at">--shard-dir</span> data/example <span class="at">--port</span> 8000</span></code></pre></div>
+<p>Inside the browser, each study is a card; clicking opens
+<code>?study=&lt;sid&gt;</code> (R) or sets a reactive value (Python) to drill in.
+A “← Back to studies” link returns to the index.</p>
+</div>
+</div>
+<div id="d-adding-a-second-study" class="section level2 unnumbered hasAnchor">
+<h2>D — Adding a second study<a href="tutorial.html#d-adding-a-second-study" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>Point <code>prepare_study()</code> at the same root with a new <code>study.ID</code>. Each
+call creates a sibling <code>&lt;sid&gt;/</code> folder:</p>
+<pre><code>data/
+├── 2327/                      # first study
+│   └── 2327.scminer.h5
+└── 9999/                      # second study
+    └── 9999.scminer.h5</code></pre>
+<p><code>run_browser("data")</code> (or <code>scminer-viewer browse data</code>) now shows two
+cards. No rebuild of the existing study is required.</p>
+</div>
+<div id="e-inspect-whats-available-without-launching-anything" class="section level2 unnumbered hasAnchor">
+<h2>E — Inspect what’s available without launching anything<a href="tutorial.html#e-inspect-whats-available-without-launching-anything" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p><code>discover_studies()</code> returns one row per bundle found under a root:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="tutorial.html#cb24-1" tabindex="-1"></a>scminerViewer<span class="sc">::</span><span class="fu">discover_studies</span>(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb24-2"><a href="tutorial.html#cb24-2" tabindex="-1"></a><span class="co">#    studyID studyAbbr shortTitle              longTitle    species n_cells n_genes n_clusters bundle_path                study_dir</span></span>
+<span id="cb24-3"><a href="tutorial.html#cb24-3" tabindex="-1"></a><span class="co"># 1     2327       tex        Tex Single-cell RNA-seq … Mus musculus    8464    9861          3 data/2327/2327.scminer.h5 data/2327</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb25-1"><a href="tutorial.html#cb25-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> list data</span>
+<span id="cb25-2"><a href="tutorial.html#cb25-2" tabindex="-1"></a><span class="co"># studyID studyAbbr shortTitle      species  n_cells  n_genes  n_clusters  bundle_path</span></span>
+<span id="cb25-3"><a href="tutorial.html#cb25-3" tabindex="-1"></a><span class="co">#    2327       tex        Tex Mus musculus     8464     9861           3  data/2327/2327.scminer.h5</span></span></code></pre></div>
+<p>Useful for sanity-checking your layout before launching a browser
+session, or for scripting (e.g. iterate over every study’s bundle in
+a batch job).</p>
+
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="installation.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="config-yaml.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+  "sharing": {
+    "github": false,
+    "facebook": false,
+    "twitter": false,
+    "linkedin": false,
+    "weibo": false,
+    "instapaper": false,
+    "vk": false,
+    "whatsapp": false,
+    "all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+  },
+  "fontsettings": {
+    "theme": "white",
+    "family": "sans",
+    "size": 2
+  },
+  "edit": {
+    "link": null,
+    "text": null
+  },
+  "history": {
+    "link": null,
+    "text": null
+  },
+  "view": {
+    "link": null,
+    "text": null
+  },
+  "download": ["scminer-viewer-guide.pdf"],
+  "search": {
+    "engine": "fuse",
+    "options": null
+  },
+  "toc": {
+    "collapse": "subsection"
+  }
+});
+});
+</script>
+
+</body>
+
+</html>

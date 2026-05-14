@@ -16,4 +16,6 @@ rmd_files:
   - 07-python-api.Rmd
   - 08-shiny-app.Rmd
   - 09-troubleshooting.Rmd
-output_dir: "_book"
+# Output to ../docs so GitHub Pages can serve it directly from the
+# /docs folder on the main branch.
+output_dir: "../docs"

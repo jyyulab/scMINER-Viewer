@@ -5,3 +5,6 @@ scminer_viewer/.pytest_cache/
 book/_book/
 book/_main.Rmd
 book/libs/
+
+# docs/ holds the rendered bookdown site for GitHub Pages — DO commit it.
+!docs/
