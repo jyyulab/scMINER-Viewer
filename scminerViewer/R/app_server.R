@@ -78,12 +78,28 @@
               formatC(nrow(study$cells), big.mark = ",", format = "d"))
     })
 
-    # Build one row of HTML: a real <input type="checkbox"> that fires a
-    # Shiny event on click. The cell type is read from a data-* attribute
-    # to avoid string-escaping pitfalls in the inline onclick handler.
-    .checkbox_html <- function(cell_type, checked = TRUE) {
+    # Per-cluster cell-index vectors. Precomputed once so the reactive
+    # count only does a cheap mask-subset on each sampling change.
+    cluster_indices <- lapply(
+      as.character(study$clusters$cellType),
+      function(ct) which(study$cells$cellType == ct)
+    )
+    names(cluster_indices) <- as.character(study$clusters$cellType)
+
+    # Visible (sampled) count per cluster, reactive on the sampling mask.
+    cluster_visible_counts <- shiny::reactive({
+      mask <- sampling_mask()
+      vapply(cluster_indices,
+             function(idx) as.integer(sum(mask[idx])),
+             integer(1))
+    })
+
+    # Build one <input type="checkbox"> that fires a Shiny event on click.
+    # Cell type is read from a data-* attribute so we don't need to
+    # escape the cellType into the JS string literal.
+    .checkbox_html <- function(cell_type, checked) {
       safe <- gsub("[^A-Za-z0-9_]", "_", cell_type)
-      sprintf(
+      shiny::HTML(sprintf(
         paste0(
           '<input type="checkbox" id="cluster_check_%s" ',
           'data-celltype="%s" %s ',
@@ -95,35 +111,51 @@
         safe,
         htmltools::htmlEscape(cell_type, attribute = TRUE),
         if (isTRUE(checked)) "checked" else ""
-      )
+      ))
     }
 
-    output$clusters_table <- DT::renderDT({
-      df <- data.frame(
-        Show    = vapply(study$clusters$cellType,
-                          function(ct) .checkbox_html(ct, TRUE),
-                          character(1)),
-        Cluster = study$clusters$cellType,
-        Cells   = formatC(study$clusters$count, big.mark = ",", format = "d"),
-        Color   = sprintf(
-          "<span style='display:inline-block;width:24px;height:14px;background:%s;border:1px solid #ccc;'></span>",
-          study$clusters$color
-        ),
-        stringsAsFactors = FALSE,
-        check.names      = FALSE
-      )
-      DT::datatable(
-        df,
-        escape    = FALSE,
-        rownames  = FALSE,
-        selection = "none",
-        options = list(
-          dom = "t", paging = FALSE, searching = FALSE, info = FALSE,
-          ordering = FALSE,
-          columnDefs = list(
-            list(className = "dt-center", targets = c(0, 2, 3))
-          )
+    # Render the clusters as a plain HTML table via renderUI. This is
+    # reactive on:
+    #   - sampling_mask()             -> updates the Cells column
+    #   - cluster_table_state$selected -> preserves checkbox `checked`
+    #                                     state across re-renders
+    output$clusters_table_ui <- shiny::renderUI({
+      counts   <- cluster_visible_counts()
+      selected <- cluster_table_state$selected
+      totals   <- as.integer(study$clusters$count)
+      colors   <- as.character(study$clusters$color)
+      cts      <- as.character(study$clusters$cellType)
+
+      rows <- lapply(seq_along(cts), function(i) {
+        ct <- cts[i]
+        cells_text <- sprintf(
+          "%s / %s",
+          formatC(counts[[ct]], big.mark = ",", format = "d"),
+          formatC(totals[i],    big.mark = ",", format = "d")
         )
+        swatch <- shiny::HTML(sprintf(
+          paste0("<span style='display:inline-block;width:24px;",
+                 "height:14px;background:%s;border:1px solid #ccc;'></span>"),
+          colors[i]
+        ))
+        shiny::tags$tr(
+          shiny::tags$td(.checkbox_html(ct, ct %in% selected),
+                          class = "ct-show"),
+          shiny::tags$td(ct, class = "ct-name"),
+          shiny::tags$td(cells_text, class = "ct-count"),
+          shiny::tags$td(swatch, class = "ct-color")
+        )
+      })
+
+      shiny::tags$table(
+        class = "cluster-table",
+        shiny::tags$thead(shiny::tags$tr(
+          shiny::tags$th("Show"),
+          shiny::tags$th("Cluster"),
+          shiny::tags$th("Cells"),
+          shiny::tags$th("Color")
+        )),
+        shiny::tags$tbody(rows)
       )
     })
 

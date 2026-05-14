@@ -150,7 +150,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#two-packages-one-bundle-format"><i class="fa fa-check"></i>Two packages, one bundle format</a></li>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#design-decisions-locked"><i class="fa fa-check"></i>Design decisions (locked)</a></li>
-<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope-and-whats-not"><i class="fa fa-check"></i>What’s in scope (and what’s not)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope"><i class="fa fa-check"></i>What’s in scope</a></li>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#repository-layout"><i class="fa fa-check"></i>Repository layout</a></li>
 </ul></li>
 <li class="chapter" data-level="2" data-path="installation.html"><a href="installation.html"><i class="fa fa-check"></i><b>2</b> Installation</a>
@@ -231,7 +231,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="9" data-path="troubleshooting.html"><a href="troubleshooting.html"><i class="fa fa-check"></i><b>9</b> Troubleshooting</a>
 <ul>
-<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a>
+<ul>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#dont-library-during-development-use-devtoolsload_all"><i class="fa fa-check"></i>1. Don’t <code>library()</code> during development — use <code>devtools::load_all()</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#rstudio-tick-restart-r-prior-to-install"><i class="fa fa-check"></i>2. RStudio: tick “Restart R prior to install”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#use-the-shipped-safe-install-helper-for-scripted-installs"><i class="fa fa-check"></i>3. Use the shipped safe-install helper for scripted installs</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#last-resort-manual-cleanup"><i class="fa fa-check"></i>Last resort: manual cleanup</a></li>
+</ul></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#meta.csv-not-found-datasidexpression_filessidmeta.csv"><i class="fa fa-check"></i><code>meta.csv not found: data/&lt;sid&gt;/expression_files/&lt;sid&gt;/meta.csv</code></a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#no-documentation-for-prepare_study"><i class="fa fa-check"></i><code>No documentation for 'prepare_study'</code></a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#could-not-find-function"><i class="fa fa-check"></i><code>could not find function "%&gt;%"</code></a></li>
@@ -327,9 +333,8 @@ top of this contract.</p>
 </tbody>
 </table>
 </div>
-<div id="whats-in-scope-and-whats-not" class="section level2 unnumbered hasAnchor">
-<h2>What’s in scope (and what’s not)<a href="overview.html#whats-in-scope-and-whats-not" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p><strong>In scope for v1</strong></p>
+<div id="whats-in-scope" class="section level2 unnumbered hasAnchor">
+<h2>What’s in scope<a href="overview.html#whats-in-scope" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <ul>
 <li>Reading scMINER ExpressionSet RDS / activity RDS / networks TSV via
 <code>prepare_study()</code> (R).</li>
@@ -340,20 +345,15 @@ per-gene CSV tree).</li>
 <code>scminer-viewer run</code> (Python).</li>
 <li>Browsing many studies under a root via <code>run_browser()</code> (R) or
 <code>scminer-viewer browse</code> (Python).</li>
-<li>Cluster table with <strong>checkbox</strong> selection and color swatches.</li>
+<li>Cluster table with <strong>checkbox</strong> selection, color swatches, and
+live-updating per-cluster cell counts that respond to the Sampling %
+control.</li>
 <li>Downsampling (<code>Sampling %</code>) — auto-applied above 65K cells.</li>
 <li>Default-gene auto-load on app startup (mirrors the Vue portal’s
 <code>preGenes</code>).</li>
 <li>Heatmap diverging blue-white-red palette.</li>
-</ul>
-<p><strong>Out of scope for v1</strong></p>
-<ul>
-<li>Private studies, authentication, user accounts.</li>
-<li>Drag-to-reorder gene tags, per-cluster color picker, dot-size
-live-redraw on feature plots.</li>
-<li>Submitting your own data through the app (the original portal’s
-<code>submitfile.vue</code> / <code>visualizeyourdata.vue</code>).</li>
-<li>Writing data back to a graph DB or any other DB.</li>
+<li>3-level nested viewer tabs (Gene → CellType → Expression/TF/SIG)
+for the Feature, Violin, and Network panels.</li>
 </ul>
 </div>
 <div id="repository-layout" class="section level2 unnumbered hasAnchor">

@@ -45,10 +45,20 @@ screenshots and labels apply to both.
 
 ## Clusters {-}
 
-A 3-column table: **Show** (checkbox / row selection), **Cluster**,
-**Cells** (count). Toggling a cluster updates every plot
-immediately. Counts come from the bundle and reflect the underlying
-study — they are NOT recomputed under sampling.
+A 4-column table: **Show** (checkbox), **Cluster**, **Cells**, **Color**.
+
+* **Show** — a per-row HTML `<input type="checkbox">`. Toggling fires
+  a Shiny event (`Shiny.setInputValue('cluster_checkbox', …)`) that
+  updates the visible cluster set. The checkbox's `checked` attribute
+  is sourced from the server state, so it survives Sampling %
+  changes (no "uncheck → change sampling → all clusters back on"
+  surprise).
+* **Cells** — `visible / total`, live-updated by the Sampling %
+  control. *Visible* counts how many of that cluster's cells survive
+  the sampling mask; *total* is the underlying study count from the
+  bundle.
+* **Color** — the per-cluster swatch (from the bundle's
+  `/clusters/color` dataset).
 
 ## Gene Selection {-}
 

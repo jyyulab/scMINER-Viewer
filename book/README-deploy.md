@@ -1,8 +1,10 @@
 # Deploying the bookdown to GitHub Pages
 
-Three ways to serve the rendered guide on GitHub; pick one.
+Two ways to serve the rendered guide on GitHub. **Option A is the
+default**; pick Option B only if you don't want the rendered HTML
+under `main`.
 
-## Option A — Commit `docs/`, serve from `main` (simplest)
+## Option A — Commit `docs/`, serve from `main` (recommended)
 
 The bookdown is already configured to output to `../docs` (see
 `book/_bookdown.yml`). To deploy:
@@ -34,31 +36,9 @@ would be hidden).
 **Rebuild on each chapter edit**: re-run `Rscript book/render.R`, then
 `git add docs && git commit && git push`.
 
-## Option B — GitHub Actions auto-deploy (recommended for active editing)
+## Option B — Build manually and push to `gh-pages`
 
-A workflow at `.github/workflows/book.yml` builds the book on every
-push to `main` that touches `book/`, `scminerViewer/R/`,
-`scminer_viewer/src/`, or the workflow itself. It deploys the
-rendered HTML to a `gh-pages` branch using
-[`peaceiris/actions-gh-pages`](https://github.com/peaceiris/actions-gh-pages).
-
-One-time setup on GitHub:
-
-1. **Push** the `.github/workflows/book.yml` file to `main`. The first
-   run creates the `gh-pages` branch.
-2. **Settings → Pages**
-3. **Source**: *Deploy from a branch*
-4. **Branch**: `gh-pages`, **Folder**: `/` (root)
-5. **Save**
-
-After that, every push that changes the book auto-rebuilds and
-publishes. You can stop committing `docs/` (and even add it to
-`.gitignore`) if you go this route.
-
-## Option C — Build manually and push to `gh-pages`
-
-If you don't want a workflow and don't want to commit `docs/` to
-`main`:
+If you don't want the rendered HTML under `main`:
 
 ```sh
 # Build the book — output goes to docs/ per _bookdown.yml.
@@ -77,22 +57,25 @@ cd -
 git worktree remove /tmp/scminer-viewer-gh-pages
 ```
 
-Then enable Pages on `gh-pages` (root) as in Option B.
+Then on GitHub:
+
+1. **Settings → Pages**
+2. **Source**: *Deploy from a branch*
+3. **Branch**: `gh-pages`, **Folder**: `/` (root)
+4. **Save**
+
+If you go this route, you can also stop committing `docs/` to `main`
+(add it back to `.gitignore`).
 
 ## Troubleshooting
 
 * **Pages serves the README, not the book.** You forgot to point Pages
-  at `/docs` (Option A) or the `gh-pages` branch (B/C). The default
-  setting serves `README.md` from the root.
+  at `/docs` (Option A) or the `gh-pages` branch (Option B). The
+  default setting serves `README.md` from the root.
 * **Underscored chapter files (e.g. `_book/...`) return 404.** GitHub
   Pages ignores files starting with `_` by default; the `.nojekyll`
-  file disables that behaviour. The build script and the workflow
-  both create `.nojekyll` for you — make sure it's committed.
-* **The book builds locally but the Action fails on
-  "Render bookdown".** Usually a missing system dependency. Add
-  `extra-packages: any::pandoc` or pin an older R version in the
-  workflow. Check the Action logs for the exact `install.packages`
-  error.
+  file disables that behaviour. The build script creates `.nojekyll`
+  for you — make sure it's committed.
 * **Pages says "404 — File not found" after enabling.** Allow 30–60
   seconds; the first build is slower. Hard-refresh (Cmd+Shift+R) once
   the green deployment notice shows on the Pages settings page.

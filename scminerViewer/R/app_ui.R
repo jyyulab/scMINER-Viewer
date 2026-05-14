@@ -12,6 +12,16 @@
                   font-size: 13px; }
       .info-label { font-weight: 600; color: #6c757d; min-width: 90px; }
       .info-value { font-family: monospace; font-size: 12px; }
+      .cluster-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+      .cluster-table thead th { font-weight: 600; color: #6c757d;
+                                 padding: 6px 8px; text-align: center;
+                                 border-bottom: 1px solid #dee2e6;
+                                 background: #fbfcfd; }
+      .cluster-table tbody td { padding: 6px 8px; vertical-align: middle;
+                                 border-bottom: 1px solid #f1f3f5; }
+      .cluster-table .ct-show, .cluster-table .ct-count,
+      .cluster-table .ct-color { text-align: center; }
+      .cluster-table .ct-count { font-family: monospace; font-size: 12px; }
       .study-title { padding: 12px 4px 0 4px; }
       .back-link { padding: 8px 4px; font-size: 13px; }
       .back-link a { color: #6c757d; text-decoration: none; }
@@ -123,7 +133,7 @@
       shiny::div(class = "panel-card",
         shiny::div(class = "panel-card-header", "Clusters"),
         shiny::div(class = "panel-card-body",
-          DT::DTOutput("clusters_table", width = "100%")
+          shiny::uiOutput("clusters_table_ui")
         )
       )
     ),

@@ -2,9 +2,10 @@
 
 ## "lazy-load database is corrupt" / "interrupted promise evaluation" {-}
 
-R memory-maps the package's `.rdb` file during `library()`. If a
-second R process reinstalls the package while the first one still has
-it loaded, you'll see one of:
+R memory-maps the package's `.rdb` file during `library()` and
+**doesn't release the handle on reinstall**. If a second R process
+reinstalls the package while the first one still has it loaded — or
+the same session reinstalls itself — you'll see one of:
 
 ```
 Error: lazy-load database '.../scminerViewer.rdb' is corrupt
@@ -12,21 +13,65 @@ Warning: restarting interrupted promise evaluation
 Error in R_decompress1
 ```
 
-**Fix** — always the same recipe:
+The crude fix is the recipe most blogs prescribe: quit every R session
+holding the package, wipe the install dir, reinstall from a fresh
+session. Three better options:
 
-1. Quit **every** R session that has the package loaded (in RStudio:
-   **Session → Quit Session**, `Cmd/Ctrl + Q`; restarting alone isn't
-   enough — the OS still has the old `.rdb` mapped until the process
-   exits).
-2. Wipe the install directory:
+### 1. Don't `library()` during development — use `devtools::load_all()` {-}
+
+`load_all()` reads the package source directly; no `.rdb` is ever
+written, so the corruption literally cannot happen.
+
+```{r load-all, eval=FALSE}
+devtools::load_all("scminerViewer")     # Cmd/Ctrl + Shift + L in RStudio
+```
+
+This is what 90% of R package developers use day-to-day. `library()`
+is for end-users.
+
+### 2. RStudio: tick "Restart R prior to install" {-}
+
+**Tools → Project Options… → Build Tools → Restart R prior to install
+and clean** — then **Build → Install Package** (`Cmd/Ctrl + Shift + B`)
+kills the R session before each install. Costs you the session state,
+but guarantees a clean `.rdb`.
+
+### 3. Use the shipped safe-install helper for scripted installs {-}
+
+`scminerViewer/inst/scripts/install.R` unloads the namespace,
+GCs to release mmap pages, wipes the install dir, then installs in a
+fresh `callr` subprocess — so the parent R never holds a stale
+handle.
+
+```{r safe-install-r, eval=FALSE}
+source(system.file("scripts", "install.R", package = "scminerViewer"))
+safe_install("scminerViewer")                # auto-detects .libPaths()[1]
+safe_install("scminerViewer", lib = "/path/to/lib")
+```
+
+Or from a shell:
+
+```sh
+Rscript scminerViewer/inst/scripts/install.R scminerViewer
+```
+
+The helper cannot unload the package from *other* R sessions on the
+same machine — those have to quit on their own first.
+
+### Last resort: manual cleanup {-}
+
+If everything's stuck:
+
+1. **Quit every R session** that has the package loaded — in RStudio
+   use **Session → Quit Session** / `Cmd/Ctrl + Q`. (Restarting alone
+   isn't enough; the OS still has the old `.rdb` mmap'd until the
+   process *exits*.)
+2. Wipe the install directory from a shell:
 
    ```sh
    rm -rf "$HOME/StJude/Research/R_lib/scMINERViewer/scminerViewer"
    ```
 3. Reinstall from a fresh R session.
-
-To avoid it: always restart R **before** reinstalling
-(`Cmd/Ctrl + Shift + F10` in RStudio).
 
 ## `meta.csv not found: data/<sid>/expression_files/<sid>/meta.csv` {-}
 

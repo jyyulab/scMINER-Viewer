@@ -8,3 +8,7 @@ book/libs/
 
 # docs/ holds the rendered bookdown site for GitHub Pages — DO commit it.
 !docs/
+IMPLEMENTATION.md
+.Rhistory
+.RData
+.Rproj.user/

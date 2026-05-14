@@ -150,7 +150,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#two-packages-one-bundle-format"><i class="fa fa-check"></i>Two packages, one bundle format</a></li>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#design-decisions-locked"><i class="fa fa-check"></i>Design decisions (locked)</a></li>
-<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope-and-whats-not"><i class="fa fa-check"></i>What’s in scope (and what’s not)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope"><i class="fa fa-check"></i>What’s in scope</a></li>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#repository-layout"><i class="fa fa-check"></i>Repository layout</a></li>
 </ul></li>
 <li class="chapter" data-level="2" data-path="installation.html"><a href="installation.html"><i class="fa fa-check"></i><b>2</b> Installation</a>
@@ -231,7 +231,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="9" data-path="troubleshooting.html"><a href="troubleshooting.html"><i class="fa fa-check"></i><b>9</b> Troubleshooting</a>
 <ul>
-<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a>
+<ul>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#dont-library-during-development-use-devtoolsload_all"><i class="fa fa-check"></i>1. Don’t <code>library()</code> during development — use <code>devtools::load_all()</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#rstudio-tick-restart-r-prior-to-install"><i class="fa fa-check"></i>2. RStudio: tick “Restart R prior to install”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#use-the-shipped-safe-install-helper-for-scripted-installs"><i class="fa fa-check"></i>3. Use the shipped safe-install helper for scripted installs</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#last-resort-manual-cleanup"><i class="fa fa-check"></i>Last resort: manual cleanup</a></li>
+</ul></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#meta.csv-not-found-datasidexpression_filessidmeta.csv"><i class="fa fa-check"></i><code>meta.csv not found: data/&lt;sid&gt;/expression_files/&lt;sid&gt;/meta.csv</code></a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#no-documentation-for-prepare_study"><i class="fa fa-check"></i><code>No documentation for 'prepare_study'</code></a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#could-not-find-function"><i class="fa fa-check"></i><code>could not find function "%&gt;%"</code></a></li>
@@ -265,44 +271,78 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h1><span class="header-section-number">Chapter 9</span> Troubleshooting<a href="troubleshooting.html#troubleshooting" class="anchor-section" aria-label="Anchor link to header"></a></h1>
 <div id="lazy-load-database-is-corrupt-interrupted-promise-evaluation-1" class="section level2 unnumbered hasAnchor">
 <h2>“lazy-load database is corrupt” / “interrupted promise evaluation”<a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>R memory-maps the package’s <code>.rdb</code> file during <code>library()</code>. If a
-second R process reinstalls the package while the first one still has
-it loaded, you’ll see one of:</p>
+<p>R memory-maps the package’s <code>.rdb</code> file during <code>library()</code> and
+<strong>doesn’t release the handle on reinstall</strong>. If a second R process
+reinstalls the package while the first one still has it loaded — or
+the same session reinstalls itself — you’ll see one of:</p>
 <pre><code>Error: lazy-load database &#39;.../scminerViewer.rdb&#39; is corrupt
 Warning: restarting interrupted promise evaluation
 Error in R_decompress1</code></pre>
-<p><strong>Fix</strong> — always the same recipe:</p>
+<p>The crude fix is the recipe most blogs prescribe: quit every R session
+holding the package, wipe the install dir, reinstall from a fresh
+session. Three better options:</p>
+<div id="dont-library-during-development-use-devtoolsload_all" class="section level3 unnumbered hasAnchor">
+<h3>1. Don’t <code>library()</code> during development — use <code>devtools::load_all()</code><a href="troubleshooting.html#dont-library-during-development-use-devtoolsload_all" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p><code>load_all()</code> reads the package source directly; no <code>.rdb</code> is ever
+written, so the corruption literally cannot happen.</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="troubleshooting.html#cb41-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">load_all</span>(<span class="st">&quot;scminerViewer&quot;</span>)     <span class="co"># Cmd/Ctrl + Shift + L in RStudio</span></span></code></pre></div>
+<p>This is what 90% of R package developers use day-to-day. <code>library()</code>
+is for end-users.</p>
+</div>
+<div id="rstudio-tick-restart-r-prior-to-install" class="section level3 unnumbered hasAnchor">
+<h3>2. RStudio: tick “Restart R prior to install”<a href="troubleshooting.html#rstudio-tick-restart-r-prior-to-install" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p><strong>Tools → Project Options… → Build Tools → Restart R prior to install
+and clean</strong> — then <strong>Build → Install Package</strong> (<code>Cmd/Ctrl + Shift + B</code>)
+kills the R session before each install. Costs you the session state,
+but guarantees a clean <code>.rdb</code>.</p>
+</div>
+<div id="use-the-shipped-safe-install-helper-for-scripted-installs" class="section level3 unnumbered hasAnchor">
+<h3>3. Use the shipped safe-install helper for scripted installs<a href="troubleshooting.html#use-the-shipped-safe-install-helper-for-scripted-installs" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p><code>scminerViewer/inst/scripts/install.R</code> unloads the namespace,
+GCs to release mmap pages, wipes the install dir, then installs in a
+fresh <code>callr</code> subprocess — so the parent R never holds a stale
+handle.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="troubleshooting.html#cb42-1" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">system.file</span>(<span class="st">&quot;scripts&quot;</span>, <span class="st">&quot;install.R&quot;</span>, <span class="at">package =</span> <span class="st">&quot;scminerViewer&quot;</span>))</span>
+<span id="cb42-2"><a href="troubleshooting.html#cb42-2" tabindex="-1"></a><span class="fu">safe_install</span>(<span class="st">&quot;scminerViewer&quot;</span>)                <span class="co"># auto-detects .libPaths()[1]</span></span>
+<span id="cb42-3"><a href="troubleshooting.html#cb42-3" tabindex="-1"></a><span class="fu">safe_install</span>(<span class="st">&quot;scminerViewer&quot;</span>, <span class="at">lib =</span> <span class="st">&quot;/path/to/lib&quot;</span>)</span></code></pre></div>
+<p>Or from a shell:</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb43-1"><a href="troubleshooting.html#cb43-1" tabindex="-1"></a><span class="ex">Rscript</span> scminerViewer/inst/scripts/install.R scminerViewer</span></code></pre></div>
+<p>The helper cannot unload the package from <em>other</em> R sessions on the
+same machine — those have to quit on their own first.</p>
+</div>
+<div id="last-resort-manual-cleanup" class="section level3 unnumbered hasAnchor">
+<h3>Last resort: manual cleanup<a href="troubleshooting.html#last-resort-manual-cleanup" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>If everything’s stuck:</p>
 <ol style="list-style-type: decimal">
-<li><p>Quit <strong>every</strong> R session that has the package loaded (in RStudio:
-<strong>Session → Quit Session</strong>, <code>Cmd/Ctrl + Q</code>; restarting alone isn’t
-enough — the OS still has the old <code>.rdb</code> mapped until the process
-exits).</p></li>
-<li><p>Wipe the install directory:</p>
-<div class="sourceCode" id="cb41"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb41-1"><a href="troubleshooting.html#cb41-1" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> <span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/StJude/Research/R_lib/scMINERViewer/scminerViewer&quot;</span></span></code></pre></div></li>
+<li><p><strong>Quit every R session</strong> that has the package loaded — in RStudio
+use <strong>Session → Quit Session</strong> / <code>Cmd/Ctrl + Q</code>. (Restarting alone
+isn’t enough; the OS still has the old <code>.rdb</code> mmap’d until the
+process <em>exits</em>.)</p></li>
+<li><p>Wipe the install directory from a shell:</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb44-1"><a href="troubleshooting.html#cb44-1" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> <span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/StJude/Research/R_lib/scMINERViewer/scminerViewer&quot;</span></span></code></pre></div></li>
 <li><p>Reinstall from a fresh R session.</p></li>
 </ol>
-<p>To avoid it: always restart R <strong>before</strong> reinstalling
-(<code>Cmd/Ctrl + Shift + F10</code> in RStudio).</p>
+</div>
 </div>
 <div id="meta.csv-not-found-datasidexpression_filessidmeta.csv" class="section level2 unnumbered hasAnchor">
 <h2><code>meta.csv not found: data/&lt;sid&gt;/expression_files/&lt;sid&gt;/meta.csv</code><a href="troubleshooting.html#meta.csv-not-found-datasidexpression_filessidmeta.csv" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>The bundle resolved its <code>shard_dir</code> to its parent directory but the
 shards live somewhere else. Either move the shards into the bundle’s
 parent:</p>
-<div class="sourceCode" id="cb42"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb42-1"><a href="troubleshooting.html#cb42-1" tabindex="-1"></a><span class="fu">mv</span> data/example/expression_files data/2327/</span>
-<span id="cb42-2"><a href="troubleshooting.html#cb42-2" tabindex="-1"></a><span class="fu">mv</span> data/example/activity_files   data/2327/</span></code></pre></div>
+<div class="sourceCode" id="cb45"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb45-1"><a href="troubleshooting.html#cb45-1" tabindex="-1"></a><span class="fu">mv</span> data/example/expression_files data/2327/</span>
+<span id="cb45-2"><a href="troubleshooting.html#cb45-2" tabindex="-1"></a><span class="fu">mv</span> data/example/activity_files   data/2327/</span></code></pre></div>
 <p>…or tell the app where they are at launch time:</p>
-<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="troubleshooting.html#cb43-1" tabindex="-1"></a><span class="fu">run_app</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>,</span>
-<span id="cb43-2"><a href="troubleshooting.html#cb43-2" tabindex="-1"></a>        <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span>
-<span id="cb43-3"><a href="troubleshooting.html#cb43-3" tabindex="-1"></a></span>
-<span id="cb43-4"><a href="troubleshooting.html#cb43-4" tabindex="-1"></a><span class="fu">run_browser</span>(<span class="st">&quot;data&quot;</span>, <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb44"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb44-1"><a href="troubleshooting.html#cb44-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> run data/2327/2327.scminer.h5 <span class="at">--shard-dir</span> data/example</span>
-<span id="cb44-2"><a href="troubleshooting.html#cb44-2" tabindex="-1"></a><span class="ex">scminer-viewer</span> browse data <span class="at">--shard-dir</span> data/example</span></code></pre></div>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="troubleshooting.html#cb46-1" tabindex="-1"></a><span class="fu">run_app</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>,</span>
+<span id="cb46-2"><a href="troubleshooting.html#cb46-2" tabindex="-1"></a>        <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span>
+<span id="cb46-3"><a href="troubleshooting.html#cb46-3" tabindex="-1"></a></span>
+<span id="cb46-4"><a href="troubleshooting.html#cb46-4" tabindex="-1"></a><span class="fu">run_browser</span>(<span class="st">&quot;data&quot;</span>, <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb47"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb47-1"><a href="troubleshooting.html#cb47-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> run data/2327/2327.scminer.h5 <span class="at">--shard-dir</span> data/example</span>
+<span id="cb47-2"><a href="troubleshooting.html#cb47-2" tabindex="-1"></a><span class="ex">scminer-viewer</span> browse data <span class="at">--shard-dir</span> data/example</span></code></pre></div>
 </div>
 <div id="no-documentation-for-prepare_study" class="section level2 unnumbered hasAnchor">
 <h2><code>No documentation for 'prepare_study'</code><a href="troubleshooting.html#no-documentation-for-prepare_study" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>The package was installed without man pages. Regenerate via roxygen2:</p>
-<div class="sourceCode" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="troubleshooting.html#cb45-1" tabindex="-1"></a>roxygen2<span class="sc">::</span><span class="fu">roxygenise</span>(<span class="st">&quot;scminerViewer&quot;</span>)    <span class="co"># writes NAMESPACE + man/*.Rd</span></span></code></pre></div>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="troubleshooting.html#cb48-1" tabindex="-1"></a>roxygen2<span class="sc">::</span><span class="fu">roxygenise</span>(<span class="st">&quot;scminerViewer&quot;</span>)    <span class="co"># writes NAMESPACE + man/*.Rd</span></span></code></pre></div>
 <p>…then reinstall.</p>
 </div>
 <div id="could-not-find-function" class="section level2 unnumbered hasAnchor">

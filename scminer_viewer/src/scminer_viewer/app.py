@@ -44,6 +44,18 @@ def _ui_factory(study: Study):
           .info-label { font-weight: 600; color: #6c757d; min-width: 90px; }
           .info-value { font-family: monospace; font-size: 12px; }
           .no-data-msg { padding: 30px; text-align: center; color: #6c757d; }
+          .cluster-table { width: 100%; font-size: 13px;
+                            border-collapse: collapse; }
+          .cluster-table thead th { font-weight: 600; color: #6c757d;
+                                     padding: 6px 8px; text-align: center;
+                                     border-bottom: 1px solid #dee2e6;
+                                     background: #fbfcfd; }
+          .cluster-table tbody td { padding: 6px 8px; vertical-align: middle;
+                                     border-bottom: 1px solid #f1f3f5; }
+          .cluster-table .ct-show, .cluster-table .ct-count,
+          .cluster-table .ct-color { text-align: center; }
+          .cluster-table .ct-count { font-family: monospace;
+                                      font-size: 12px; }
         """),
         ui.div(
             {"class": "study-title"},
@@ -131,7 +143,7 @@ def _ui_factory(study: Study):
                 ui.div({"class": "panel-card-header"}, "Clusters"),
                 ui.div(
                     {"class": "panel-card-body"},
-                    ui.output_data_frame("clusters_table"),
+                    ui.output_ui("clusters_table_ui"),
                 ),
             ),
             col_widths=[8, 4],
@@ -200,25 +212,87 @@ def _server_factory(study: Study):
                 out[idx[:n_keep]] = True
             return out
 
-        @render.data_frame
-        def clusters_table():
-            return render.DataGrid(
-                clusters_df,
-                selection_mode="rows",
-                height="320px",
-                width="100%",
+        # Per-cluster cell-index vectors. Precomputed once so the
+        # reactive count below only does a cheap mask-subset per sampling
+        # change.
+        _cluster_indices: dict[str, _np.ndarray] = {
+            str(ct): _np.flatnonzero(_cell_types == ct)
+            for ct in study.clusters.index
+        }
+
+        @reactive.calc
+        def cluster_visible_counts() -> dict[str, int]:
+            mask = sampling_mask()
+            return {ct: int(mask[idx].sum())
+                    for ct, idx in _cluster_indices.items()}
+
+        @render.ui
+        def clusters_table_ui():
+            counts = cluster_visible_counts()
+            sel = set(active_clusters())
+            rows = []
+            for ct, color, total in zip(
+                study.clusters.index,
+                study.clusters["color"],
+                study.clusters["count"],
+            ):
+                ct_str = str(ct)
+                safe = _safe_id(ct_str)
+                # Inline checkbox + onclick that fires a Shiny event.
+                # The cellType is read from a data-* attribute so we
+                # don't have to escape it into the JS string literal.
+                checkbox = ui.tags.input(
+                    type="checkbox",
+                    id=f"cluster_check_{safe}",
+                    **{"data-celltype": ct_str},
+                    checked=("checked" if ct_str in sel else None),
+                    onclick=(
+                        "Shiny.setInputValue('cluster_checkbox', "
+                        "{ct: this.dataset.celltype, "
+                        "checked: this.checked, t: Date.now()}, "
+                        "{priority: 'event'});"
+                    ),
+                )
+                swatch = ui.tags.span(
+                    style=(f"display:inline-block;width:24px;height:14px;"
+                           f"background:{color};border:1px solid #ccc;"),
+                )
+                cells_text = f"{counts.get(ct_str, 0):,} / {int(total):,}"
+                rows.append(
+                    ui.tags.tr(
+                        ui.tags.td(checkbox,    class_="ct-show"),
+                        ui.tags.td(ct_str,      class_="ct-name"),
+                        ui.tags.td(cells_text,  class_="ct-count"),
+                        ui.tags.td(swatch,      class_="ct-color"),
+                    )
+                )
+            return ui.tags.table(
+                ui.tags.thead(ui.tags.tr(
+                    ui.tags.th("Show"),
+                    ui.tags.th("Cluster"),
+                    ui.tags.th("Cells"),
+                    ui.tags.th("Color"),
+                )),
+                ui.tags.tbody(*rows),
+                class_="cluster-table",
             )
 
         @reactive.effect
-        def _track_cluster_selection():
-            sel = clusters_table.cell_selection()
-            rows = sel.get("rows", ()) if sel else ()
-            if not rows:
-                active_clusters.set(list(study.clusters.index))
+        @reactive.event(input.cluster_checkbox, ignore_init=True)
+        def _track_cluster_checkbox():
+            msg = input.cluster_checkbox()
+            if not isinstance(msg, dict):
+                return
+            ct = msg.get("ct")
+            if ct is None:
+                return
+            cur = list(active_clusters())
+            if msg.get("checked"):
+                if ct not in cur:
+                    cur.append(ct)
             else:
-                active_clusters.set(
-                    [study.clusters.index[i] for i in rows]
-                )
+                cur = [c for c in cur if c != ct]
+            active_clusters.set(cur)
 
         @render.text
         def cell_count():

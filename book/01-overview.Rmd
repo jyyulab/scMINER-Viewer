@@ -26,9 +26,7 @@ top of this contract.
 | UI tabs | Six core panels (Cluster / Heatmap / Bubble / Feature / Violin / Network) with nested per-gene → per-cell-type → per-relationship pickers | Mirrors the layout at <https://scminer.stjude.org/study/Tregs>. |
 | Python UI framework | Shiny for Python | Same reactive model as R Shiny; minimises divergence between the two packages. |
 
-## What's in scope (and what's not) {-}
-
-**In scope for v1**
+## What's in scope {-}
 
 * Reading scMINER ExpressionSet RDS / activity RDS / networks TSV via
   `prepare_study()` (R).
@@ -39,20 +37,15 @@ top of this contract.
   `scminer-viewer run` (Python).
 * Browsing many studies under a root via `run_browser()` (R) or
   `scminer-viewer browse` (Python).
-* Cluster table with **checkbox** selection and color swatches.
+* Cluster table with **checkbox** selection, color swatches, and
+  live-updating per-cluster cell counts that respond to the Sampling %
+  control.
 * Downsampling (`Sampling %`) — auto-applied above 65K cells.
 * Default-gene auto-load on app startup (mirrors the Vue portal's
   `preGenes`).
 * Heatmap diverging blue-white-red palette.
-
-**Out of scope for v1**
-
-* Private studies, authentication, user accounts.
-* Drag-to-reorder gene tags, per-cluster color picker, dot-size
-  live-redraw on feature plots.
-* Submitting your own data through the app (the original portal's
-  `submitfile.vue` / `visualizeyourdata.vue`).
-* Writing data back to a graph DB or any other DB.
+* 3-level nested viewer tabs (Gene → CellType → Expression/TF/SIG)
+  for the Feature, Violin, and Network panels.
 
 ## Repository layout {-}
 

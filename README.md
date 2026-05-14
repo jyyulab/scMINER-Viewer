@@ -170,11 +170,3 @@ Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:
   indexed; 743K total network edges; values fetched lazily from the
   shard tree.
 
-## Out of scope for v1
-
-- Private studies, authentication, user accounts.
-- Drag-to-reorder gene tags, per-cluster color picker, dot-size
-  live-redraw on feature plots.
-- Submitting your own data through the app
-  (`submitfile.vue`, `visualizeyourdata.vue` in the original portal).
-- Writing data back to a graph DB or any other DB.

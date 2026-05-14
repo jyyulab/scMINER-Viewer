@@ -288,13 +288,3 @@ against the same on-disk layout the R apps consume.
 - Deeper cross-language parity tests: identical top-3 expressed genes
   per cluster, identical network neighbour counts.
 
----
-
-## Out of scope for v1
-
-- Private studies, authentication, user accounts.
-- Downsampling slider, drag-to-reorder gene tags, per-cluster color
-  picker, dot-size live-redraw on feature plots.
-- Multi-nest-study tabs (one bundle = one study).
-- Submitting your own data (`submitfile.vue`, `visualizeyourdata.vue`).
-- Writing data back to a graph DB or any other DB.

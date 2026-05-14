@@ -150,7 +150,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#two-packages-one-bundle-format"><i class="fa fa-check"></i>Two packages, one bundle format</a></li>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#design-decisions-locked"><i class="fa fa-check"></i>Design decisions (locked)</a></li>
-<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope-and-whats-not"><i class="fa fa-check"></i>What’s in scope (and what’s not)</a></li>
+<li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#whats-in-scope"><i class="fa fa-check"></i>What’s in scope</a></li>
 <li class="chapter" data-level="" data-path="overview.html"><a href="overview.html#repository-layout"><i class="fa fa-check"></i>Repository layout</a></li>
 </ul></li>
 <li class="chapter" data-level="2" data-path="installation.html"><a href="installation.html"><i class="fa fa-check"></i><b>2</b> Installation</a>
@@ -231,7 +231,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="9" data-path="troubleshooting.html"><a href="troubleshooting.html"><i class="fa fa-check"></i><b>9</b> Troubleshooting</a>
 <ul>
-<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#lazy-load-database-is-corrupt-interrupted-promise-evaluation-1"><i class="fa fa-check"></i>“lazy-load database is corrupt” / “interrupted promise evaluation”</a>
+<ul>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#dont-library-during-development-use-devtoolsload_all"><i class="fa fa-check"></i>1. Don’t <code>library()</code> during development — use <code>devtools::load_all()</code></a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#rstudio-tick-restart-r-prior-to-install"><i class="fa fa-check"></i>2. RStudio: tick “Restart R prior to install”</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#use-the-shipped-safe-install-helper-for-scripted-installs"><i class="fa fa-check"></i>3. Use the shipped safe-install helper for scripted installs</a></li>
+<li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#last-resort-manual-cleanup"><i class="fa fa-check"></i>Last resort: manual cleanup</a></li>
+</ul></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#meta.csv-not-found-datasidexpression_filessidmeta.csv"><i class="fa fa-check"></i><code>meta.csv not found: data/&lt;sid&gt;/expression_files/&lt;sid&gt;/meta.csv</code></a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#no-documentation-for-prepare_study"><i class="fa fa-check"></i><code>No documentation for 'prepare_study'</code></a></li>
 <li class="chapter" data-level="" data-path="troubleshooting.html"><a href="troubleshooting.html#could-not-find-function"><i class="fa fa-check"></i><code>could not find function "%&gt;%"</code></a></li>
@@ -307,10 +313,21 @@ to <code>floor(65_000 / n_cells * 100)</code> when the study has more than
 </div>
 <div id="clusters" class="section level2 unnumbered hasAnchor">
 <h2>Clusters<a href="shiny-app.html#clusters" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>A 3-column table: <strong>Show</strong> (checkbox / row selection), <strong>Cluster</strong>,
-<strong>Cells</strong> (count). Toggling a cluster updates every plot
-immediately. Counts come from the bundle and reflect the underlying
-study — they are NOT recomputed under sampling.</p>
+<p>A 4-column table: <strong>Show</strong> (checkbox), <strong>Cluster</strong>, <strong>Cells</strong>, <strong>Color</strong>.</p>
+<ul>
+<li><strong>Show</strong> — a per-row HTML <code>&lt;input type="checkbox"&gt;</code>. Toggling fires
+a Shiny event (<code>Shiny.setInputValue('cluster_checkbox', …)</code>) that
+updates the visible cluster set. The checkbox’s <code>checked</code> attribute
+is sourced from the server state, so it survives Sampling %
+changes (no “uncheck → change sampling → all clusters back on”
+surprise).</li>
+<li><strong>Cells</strong> — <code>visible / total</code>, live-updated by the Sampling %
+control. <em>Visible</em> counts how many of that cluster’s cells survive
+the sampling mask; <em>total</em> is the underlying study count from the
+bundle.</li>
+<li><strong>Color</strong> — the per-cluster swatch (from the bundle’s
+<code>/clusters/color</code> dataset).</li>
+</ul>
 </div>
 <div id="gene-selection" class="section level2 unnumbered hasAnchor">
 <h2>Gene Selection<a href="shiny-app.html#gene-selection" class="anchor-section" aria-label="Anchor link to header"></a></h2>

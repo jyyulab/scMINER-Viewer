@@ -58,8 +58,52 @@ library(scminerViewer)
 ?prepare_study     # or any other exported function
 ```
 
-> If `?prepare_study` returns "No documentation found", the `man/`
-> directory wasn't generated. From the package source, run once:
+### Avoiding the "lazy-load database is corrupt" trap
+
+R memory-maps the package's `.rdb` file at `library()` time and
+**doesn't release the handle on reinstall**. If a second R session has
+the package loaded when you run `R CMD INSTALL` (or even the same
+session), the next promise evaluation reads stale bytes and crashes
+with one of:
+
+```
+Error: lazy-load database '.../scminerViewer.rdb' is corrupt
+Warning: restarting interrupted promise evaluation
+Error in R_decompress1
+```
+
+Three ways to avoid it:
+
+1. **For development, never `library()` — use `devtools::load_all()`**
+   instead. It reads the source directly; no `.rdb` is ever written:
+
+   ```r
+   devtools::load_all("scminerViewer")   # Cmd/Ctrl + Shift + L in RStudio
+   ```
+
+2. **In RStudio, tick "Restart R prior to install"** under
+   **Tools → Project Options… → Build Tools**, or use **Build →
+   Install Package** which restarts R automatically.
+
+3. **For scripted installs, use the safe-install helper that ships
+   with this package** — it unloads the namespace, GCs, wipes the
+   install dir, then re-installs in a fresh `callr` subprocess so the
+   parent never holds a stale handle:
+
+   ```r
+   source(system.file("scripts", "install.R", package = "scminerViewer"))
+   safe_install("scminerViewer")          # auto-detects libPath
+   ```
+
+   Or from a shell:
+
+   ```sh
+   Rscript scminerViewer/inst/scripts/install.R scminerViewer
+   ```
+
+> If `?prepare_study` still returns "No documentation found" after a
+> fresh install, the `man/` directory wasn't generated. From the
+> package source, run once:
 >
 > ```r
 > roxygen2::roxygenise("scminerViewer")   # regenerates NAMESPACE + man/*.Rd
