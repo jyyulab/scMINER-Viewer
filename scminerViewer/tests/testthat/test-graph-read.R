@@ -1,16 +1,29 @@
 test_that("read_graph_study loads 2327 from the project data folder", {
   data_dir <- Sys.getenv("SCMINER_DATA_DIR", unset = "")
-  if (!nzchar(data_dir) || !dir.exists(data_dir)) {
-    candidates <- c(
+  resolve_dir <- function(d) {
+    if (!nzchar(d) || !dir.exists(d)) return("")
+    # Look for the Study/<studyID>_study.tsv at d, d/example, or d/output
+    for (sub in c("", "example", "output")) {
+      cand <- if (nzchar(sub)) file.path(d, sub) else d
+      if (file.exists(file.path(cand, "Study", "2327_study.tsv"))) {
+        return(cand)
+      }
+    }
+    ""
+  }
+  data_dir <- resolve_dir(data_dir)
+  if (!nzchar(data_dir)) {
+    for (root in c(
       file.path(testthat::test_path(), "..", "..", "..", "data"),
-      file.path(getwd(), "..", "..", "..", "data")
-    )
-    for (cand in candidates) {
-      if (dir.exists(cand)) { data_dir <- cand; break }
+      file.path(getwd(), "..", "..", "..", "data"),
+      file.path(getwd(), "data")
+    )) {
+      data_dir <- resolve_dir(root)
+      if (nzchar(data_dir)) break
     }
   }
-  skip_if(!nzchar(data_dir) || !dir.exists(data_dir),
-          "data/ folder not found; set SCMINER_DATA_DIR")
+  skip_if(!nzchar(data_dir),
+          "2327 study folder not found; set SCMINER_DATA_DIR")
 
   s <- read_graph_study(data_dir, "2327")
   expect_equal(s$meta$studyID, "2327")
@@ -33,17 +46,30 @@ test_that("read_graph_study loads 2327 from the project data folder", {
 
 test_that("read_graph_study output writes and reads back through the bundle", {
   data_dir <- Sys.getenv("SCMINER_DATA_DIR", unset = "")
-  if (!nzchar(data_dir) || !dir.exists(data_dir)) {
-    candidates <- c(
+  resolve_dir <- function(d) {
+    if (!nzchar(d) || !dir.exists(d)) return("")
+    # Look for the Study/<studyID>_study.tsv at d, d/example, or d/output
+    for (sub in c("", "example", "output")) {
+      cand <- if (nzchar(sub)) file.path(d, sub) else d
+      if (file.exists(file.path(cand, "Study", "2327_study.tsv"))) {
+        return(cand)
+      }
+    }
+    ""
+  }
+  data_dir <- resolve_dir(data_dir)
+  if (!nzchar(data_dir)) {
+    for (root in c(
       file.path(testthat::test_path(), "..", "..", "..", "data"),
-      file.path(getwd(), "..", "..", "..", "data")
-    )
-    for (cand in candidates) {
-      if (dir.exists(cand)) { data_dir <- cand; break }
+      file.path(getwd(), "..", "..", "..", "data"),
+      file.path(getwd(), "data")
+    )) {
+      data_dir <- resolve_dir(root)
+      if (nzchar(data_dir)) break
     }
   }
-  skip_if(!nzchar(data_dir) || !dir.exists(data_dir),
-          "data/ folder not found; set SCMINER_DATA_DIR")
+  skip_if(!nzchar(data_dir),
+          "2327 study folder not found; set SCMINER_DATA_DIR")
 
   s <- read_graph_study(data_dir, "2327")
   tmp <- tempfile(fileext = ".scminer.h5")

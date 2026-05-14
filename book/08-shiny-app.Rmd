@@ -1,0 +1,133 @@
+# Shiny app walkthrough {#shiny-app}
+
+This chapter walks through every panel and control in the
+single-study viewer. The R and Python apps are visually equivalent;
+screenshots and labels apply to both.
+
+## Layout {-}
+
+```
++-----------------------------------------------------------+
+|  Study title (long title + species + n_cells + n_genes)   |
++-----------------------------------------------------------+
+|  Study Info & Controls  |  Clusters                        |
+|  - Cells:    8,464/8,464|  ☑ TEX_intermediate  ▮▮▮  count |
+|  - Coordinate: UMAP     |  ☑ TEX_progenitor    ▮▮   count |
+|  - Dot Size:  [4]       |  ☑ TEX_terminally    ▮▮▮▮ count |
+|  - Show Labels: [on]    |                                  |
+|  - Sampling %: [100]    |                                  |
+|                          |                                 |
+|  Gene Selection         |                                  |
+|  [Type to add gene(s)…] |                                  |
++-----------------------------------------------------------+
+|  Cluster Plot | Heatmap | Bubble | Feature | Violin | Net.|
+|                                                            |
+|  (active tab content here)                                 |
+|                                                            |
++-----------------------------------------------------------+
+```
+
+## Study Info & Controls {-}
+
+* **Cells** — displayed live as `visible / total`. Visible cells
+  honour both the cluster table checkboxes and the Sampling %.
+* **Coordinate** — read-only; shows the coordinate system (e.g. UMAP).
+* **Dot Size** — affects cluster + feature plots.
+* **Show Labels** — toggles cluster-name annotations on the cluster
+  plot (positions come from the `label_1` / `label_2` columns in
+  `study$clusters`).
+* **Sampling %** — per-cluster proportional downsampling. The session
+  shuffles each cluster's cell indices once; the reactive then takes
+  the first `pct%` from each shuffled vector. Deterministic for a
+  given `(cluster, pct)` so plots don't flicker between tabs. Auto-set
+  to `floor(65_000 / n_cells * 100)` when the study has more than
+  65K cells.
+
+## Clusters {-}
+
+A 3-column table: **Show** (checkbox / row selection), **Cluster**,
+**Cells** (count). Toggling a cluster updates every plot
+immediately. Counts come from the bundle and reflect the underlying
+study — they are NOT recomputed under sampling.
+
+## Gene Selection {-}
+
+Server-side `selectizeInput` (R) / `input_selectize` (Python) keyed
+off the bundle's `genes/symbol` master list. Type-ahead is debounced;
+only the first ~200 matches are sent to the browser per query.
+
+If the bundle has a `/defaults/genes` group, those genes are
+pre-selected on startup. Genes can be removed with the `×` button on
+each chip (R) or by clicking the chip (Python).
+
+## Plot tabs {-}
+
+### Cluster Plot {-}
+
+A 2D scatter of all cells (after sampling + cluster filter), colored
+by `cellType`. Optionally annotated with cluster labels positioned at
+the `label_1` / `label_2` coordinates from the bundle.
+
+### Heatmap {-}
+
+Gene × cluster mean of values across each cluster's sampled cells.
+Diverging **blue-white-red** palette (ColorBrewer RdBu reversed,
+`zmid = 0`) so positive values lean red and negative (e.g. z-scored
+activity) lean blue.
+
+### Bubble Plot {-}
+
+Gene × cluster: dot size encodes pct expressing (fraction of cells
+with non-zero value), dot color encodes the mean.
+
+### Feature Plot (3-level nested) {-}
+
+```
+Feature Plot
+├── Gene tab: Mrpl15
+│   ├── Cell Type pill: All
+│   │   └── Card: Expression | TF | SIG    (each is a per-cell scatter)
+│   ├── Cell Type pill: TEX_intermediate
+│   │   └── Card: Expression | TF | SIG
+│   ├── Cell Type pill: TEX_progenitor
+│   │   └── Card: Expression | TF | SIG
+│   └── Cell Type pill: TEX_terminally
+│       └── Card: Expression | TF | SIG
+├── Gene tab: Stat1
+│   └── ...
+```
+
+* Outermost: per-gene tabs from the gene selectize.
+* Middle: cell-type pills (`All` + every cluster). `All` shows the
+  full UMAP coloured by gene value; picking a single cluster shows
+  only those cells.
+* Innermost: a card-pill switcher for **Expression** / **TF** / **SIG**.
+
+### Violin Plot {-}
+
+Same 3-level nesting as Feature Plot. With `All` selected, every
+cluster gets its own violin side-by-side; picking a single cluster
+shows a single violin (useful for comparing Expression vs TF vs SIG
+within one cluster).
+
+### Network {-}
+
+Same nesting, except the relationship card has only **TF** / **SIG**
+(there is no expression network). Each edge in the bundle is
+associated with a `cellType`; selecting a cell-type pill filters the
+network to just those edges.
+
+The network is rendered with `visNetwork` (R) or `networkx` +
+`plotly` (Python). Up to 60 edges around the focal gene are shown,
+sorted by `|mi|`.
+
+## Multi-study browser {-}
+
+`run_browser(root_dir)` (R) and `scminer-viewer browse <root_dir>`
+(Python) render a card-grid index — one card per study found by
+`discover_studies()`. Each card shows the shortTitle, studyAbbr,
+species, n_cells × n_genes × n_clusters, and the longTitle (clamped
+with a `title=` hover-tooltip for the full text).
+
+Clicking a card opens the standard single-study layout above, with a
+"← Back to studies" link in the top-left.

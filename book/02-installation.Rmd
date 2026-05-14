@@ -1,0 +1,130 @@
+# Installation {#installation}
+
+## Requirements {-}
+
+* **R ≥ 4.x** with hard dependencies: `hdf5r`, `Matrix`, `methods`,
+  `data.table`, `R.utils`.
+* **Python ≥ 3.9** with hard dependencies: `shiny`, `shinywidgets`,
+  `h5py`, `numpy`, `scipy`, `pandas`, `plotly`.
+
+Optional R Suggests (needed only when you exercise certain code paths):
+
+* `Biobase` (Bioconductor) — for ExpressionSet inputs to
+  `prepare_study()` / `prepare_study_from_eset()`.
+* `yaml` — for `prepare_study()`'s YAML config entry point.
+* `shiny`, `bslib`, `plotly`, `DT`, `visNetwork`, `htmlwidgets` — for
+  the Shiny app.
+* `roxygen2` — only needed if you edit source comments and want to
+  regenerate man pages.
+
+## R / RStudio {-}
+
+### From the shell {-}
+
+```sh
+R CMD build scminerViewer
+R CMD INSTALL scminerViewer_0.1.0.tar.gz
+```
+
+### From R or RStudio {-}
+
+```{r install-r, eval=FALSE}
+# devtools / pak / remotes all work — choose whichever you already have
+install.packages("devtools")
+devtools::install("scminerViewer")     # run from the project root
+```
+
+In **RStudio**:
+
+1. **File → Open Project…** and pick `scminerViewer/` (it ships a
+   `.Rproj`).
+2. **Build → Install Package** (`Cmd/Ctrl + Shift + B`).
+3. To install all Suggests too:
+
+   ```{r install-suggests, eval=FALSE}
+   install.packages(c("yaml", "shiny", "bslib", "plotly", "DT",
+                       "visNetwork", "htmlwidgets"))
+   if (!requireNamespace("BiocManager", quietly = TRUE))
+     install.packages("BiocManager")
+   BiocManager::install("Biobase")
+   ```
+
+### Verify {-}
+
+```{r verify-r, eval=FALSE}
+library(scminerViewer)
+?prepare_study      # opens the man page
+```
+
+If `?prepare_study` returns "No documentation found", the man pages
+weren't generated. From the package source:
+
+```{r roxy, eval=FALSE}
+roxygen2::roxygenise("scminerViewer")  # writes NAMESPACE + man/*.Rd
+```
+
+then reinstall.
+
+## Python {-}
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e "scminer_viewer[dev]"
+```
+
+This installs the runtime deps plus `pytest` / `pytest-cov`. The CLI
+is available as `scminer-viewer`:
+
+```sh
+scminer-viewer --help
+```
+
+Verify:
+
+```sh
+scminer-viewer list data
+scminer-viewer info data/2327/2327.scminer.h5
+```
+
+## Common installation issues {-}
+
+### "lazy-load database is corrupt" / "interrupted promise evaluation"
+
+R memory-maps the package's `.rdb` file during `library()`. If a second
+R process reinstalls the package while the first one still has it
+loaded, the offsets go stale and you'll see one of:
+
+```
+Error: lazy-load database '.../scminerViewer.rdb' is corrupt
+Warning: restarting interrupted promise evaluation
+Error in R_decompress1
+```
+
+The cure is always:
+
+1. **Quit all R sessions** that have the package loaded (`Cmd/Ctrl + Q`
+   in RStudio; this exits the R process — restarting alone isn't
+   enough).
+2. **Wipe the install directory** from the shell:
+
+   ```sh
+   rm -rf "$HOME/StJude/Research/R_lib/scMINERViewer/scminerViewer"
+   ```
+3. **Reinstall from a fresh R session**:
+
+   ```{r reinstall, eval=FALSE}
+   .libPaths(c("$HOME/StJude/Research/R_lib/scMINERViewer", .libPaths()))
+   devtools::install("scminerViewer", upgrade = "never")
+   ```
+
+### Missing system libraries on macOS
+
+`hdf5r` needs HDF5; if `install.packages("hdf5r")` fails, install
+HDF5 with Homebrew first:
+
+```sh
+brew install hdf5
+```
+
+then retry the R install.

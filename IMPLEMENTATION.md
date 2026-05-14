@@ -8,7 +8,7 @@ and standalone (no Java services, no graph DB, no MySQL):
 | `scminerViewer`  | R      | [`scminerViewer/`](scminerViewer/)   | Refactor of `scMINER-portal-datapre-R/`. Emits the existing graph-import layout *and* an HDF5 study bundle. Ships a Shiny app reading the bundle. |
 | `scminer_viewer` | Python | [`scminer_viewer/`](scminer_viewer/) | Loads the same HDF5 bundle and serves a Shiny-for-Python webui mirroring the Vue layout at <https://scminer.stjude.org/study/Tregs>. |
 
-Deliverable: [`data-bundles/2327.scminer.h5`](data-bundles/) — 76 MB.
+Deliverable: [`data/2327/2327.scminer.h5`](data/2327/) — ~77 MB (lazy-mode, v2 bundle).
 
 ---
 
@@ -130,8 +130,11 @@ scminerViewer/                              scminer_viewer/
 | `load_study(bundle_path, shard_dir = NULL)`                   | Read a `.scminer.h5` into an S3 `scminer_study` list. `shard_dir` defaults to `dirname(bundle_path)`. |
 | `gene_values(study, gene, relationship)`                      | Lazily read one gene's row from the on-disk shard tree, aligned to `study$cells$cellID`. Cached per gene. |
 | `read_graph_study(data_dir, study_id)`                        | Reconstruct bundle inputs (cells, clusters, gene indexes from manifests, networks) from the on-disk graph layout. Does **not** read shard values. |
-| `run_app(bundle_path, host, port, launch_browser, ...)`       | Launch the Shiny app for a bundle. |
-| `build_app(bundle_path)`                                      | Build a `shiny.appobj` without launching (for tests / embedding). |
+| `run_app(bundle_path, shard_dir = NULL, host, port, launch_browser, ...)` | Launch the single-study Shiny app for a bundle. |
+| `build_app(bundle_path, shard_dir = NULL)`                    | Build a single-study `shiny.appobj` without launching (for tests / embedding). |
+| `discover_studies(root_dir)`                                  | Return a data.frame describing every `<studyID>/<studyID>.scminer.h5` bundle found under `root_dir`. |
+| `run_browser(root_dir, shard_dir = NULL, host, port, launch_browser, ...)` | Launch the **multi-study** browser — card-grid landing page; click → `?study=<id>` opens the standard viewer with a "← Back" link. |
+| `build_browser(root_dir, shard_dir = NULL)`                   | Build the multi-study `shiny.appobj` without launching. |
 
 ### `scminer_viewer` (Python)
 
@@ -227,7 +230,11 @@ Rscript -e 'testthat::test_dir("scminerViewer/tests/testthat")'
 Rscript scminerViewer/inst/scripts/build_2327_bundle.R
 
 # Launch the R Shiny app
-Rscript -e 'scminerViewer::run_app("data/2327.scminer.h5", port=8000)'
+Rscript -e 'scminerViewer::run_app("data/2327/2327.scminer.h5", port=8000)'
+
+# OR launch the multi-study browser (card-grid index of every
+# <studyID>/<studyID>.scminer.h5 found under the root)
+Rscript -e 'scminerViewer::run_browser("data", port=8000)'
 
 # ----- Python side ----------------------------------------------------------
 python3 -m venv .venv && source .venv/bin/activate
@@ -237,8 +244,8 @@ pip install -e "scminer_viewer[dev]"
 pytest scminer_viewer/tests -q
 
 # Inspect or launch
-scminer-viewer info data/2327.scminer.h5
-scminer-viewer run  data/2327.scminer.h5 --port 8000
+scminer-viewer info data/2327/2327.scminer.h5
+scminer-viewer run  data/2327/2327.scminer.h5 --port 8000
 ```
 
 The bundle is small (~80 MB for 2327 — mostly networks) because the
@@ -262,9 +269,10 @@ returns `NULL` for any gene in that index (the app gracefully shows
 | R Shiny app (UI + 6 plot tabs, lazy plots)               | done | `test-app.R` (construction + helpers) |
 | Python `load_study` + `Study.gene_values` (lazy)         | done | `test_data.py` |
 | Python Shiny app (UI + 6 plot tabs)                      | done | `test_plots.py` (helpers) |
-| `2327.scminer.h5` deliverable                            | done | 77 MB at `data/2327.scminer.h5`; 9861 expression / 925 TF / 4708 SIG indexed; matrix values fetched lazily from shards |
+| `2327.scminer.h5` deliverable                            | done | 77 MB at `data/2327/2327.scminer.h5`; 9861 expression / 925 TF / 4708 SIG indexed; matrix values fetched lazily from shards |
+| Multi-study browser (`run_browser` / `discover_studies`) | done | `test-browser.R` |
 
-**Test totals**: R 122 passing in `scminerViewer/tests/testthat/`;
+**Test totals**: R 169 passing in `scminerViewer/tests/testthat/`;
 Python 17 passing in `scminer_viewer/tests/`. Python fixtures are
 built by calling `Rscript` → `prepare_study_data` (which writes both
 the shard tree and the bundle), so the Python lazy reader is verified

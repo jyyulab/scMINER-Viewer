@@ -23,12 +23,24 @@ def cluster_color_map(study: Study) -> dict[str, str]:
     return dict(zip(study.clusters.index, colors))
 
 
-def cells_mask(study: Study,
-               active_clusters: Optional[Iterable[str]]) -> np.ndarray:
+def cells_mask(
+    study: Study,
+    active_clusters: Optional[Iterable[str]],
+    cell_mask: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """Intersect the cluster filter with an optional per-cell mask.
+
+    `cell_mask` (boolean ndarray of length n_cells) is typically supplied
+    by the downsampling reactive.
+    """
     if active_clusters is None:
-        return np.ones(study.n_cells, dtype=bool)
-    active = set(active_clusters)
-    return study.cells["cellType"].isin(active).to_numpy()
+        base = np.ones(study.n_cells, dtype=bool)
+    else:
+        active = set(active_clusters)
+        base = study.cells["cellType"].isin(active).to_numpy()
+    if cell_mask is not None:
+        base = base & np.asarray(cell_mask, dtype=bool)
+    return base
 
 
 def aggregate_by_cluster(
@@ -36,10 +48,13 @@ def aggregate_by_cluster(
     genes: list[str],
     relationship: str,
     active_clusters: Optional[list[str]] = None,
+    cell_mask: Optional[np.ndarray] = None,
 ) -> Optional[tuple[pd.DataFrame, pd.DataFrame]]:
     """Return (mean, pct_expressing) per gene per cluster (lazy reads).
 
     Each gene's row is loaded from disk via `study.gene_values(...)`.
+    Optional `cell_mask` restricts the per-cluster aggregation to the
+    sampled subset of cells (used by the Sampling % control).
     """
     if not genes:
         return None
@@ -56,11 +71,14 @@ def aggregate_by_cluster(
 
     clusters = active_clusters or list(study.clusters.index)
     cell_types = study.cells["cellType"].to_numpy()
+    sample = (np.asarray(cell_mask, dtype=bool)
+              if cell_mask is not None
+              else np.ones(len(cell_types), dtype=bool))
     means = np.zeros((len(present_genes), len(clusters)), dtype=np.float64)
     pcts = np.zeros_like(means)
     for i, vals in enumerate(rows):
         for j, cluster in enumerate(clusters):
-            mask = cell_types == cluster
+            mask = (cell_types == cluster) & sample
             sub = vals[mask]
             sub = sub[~np.isnan(sub)]
             n = sub.size

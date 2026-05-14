@@ -1,0 +1,70 @@
+---
+title: "scMINER Viewer Guide"
+author: "scMINER Team"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+output:
+  bookdown::gitbook:
+    css: style.css
+description: "Tutorial, instructions, and reference for the scMINER Viewer R and Python packages."
+---
+
+# Welcome {-}
+
+**scMINER Viewer** is a pair of sibling packages — one R, one Python —
+for browsing scMINER single-cell studies offline, with no Java services,
+no graph database, and no SQL backing.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, eval = FALSE, comment = "#>",
+  fig.align = "center", message = FALSE, warning = FALSE
+)
+```
+
+| Package | Language | Path | Role |
+| --- | --- | --- | --- |
+| `scminerViewer`  | R      | [`scminerViewer/`](../scminerViewer/)   | Prepare scMINER studies (write graph-import layout + `.scminer.h5` bundle); serve a Shiny app and the multi-study browser. |
+| `scminer_viewer` | Python | [`scminer_viewer/`](../scminer_viewer/) | Read the same `.scminer.h5` bundle; serve a Shiny-for-Python single-study viewer and multi-study browser. |
+
+## How to read this guide {-}
+
+* **Chapter 1** — high-level architecture: bundle format, shard tree,
+  multi-study layout, lazy-mode contract.
+* **Chapter 2** — installation in shell, R, RStudio, and Python.
+* **Chapter 3** — end-to-end tutorial: prepare a study, build a bundle,
+  serve it, add a second study, browse them.
+* **Chapter 4** — full schema of the `prepare_study()` YAML config.
+* **Chapter 5** — deep-dive on the `.scminer.h5` bundle and the
+  sharded matrix tree.
+* **Chapter 6** — R API reference (orchestrators, staged helpers,
+  bundle + Shiny entry points).
+* **Chapter 7** — Python API reference (`Study` dataclass, lazy
+  `gene_values`, browser).
+* **Chapter 8** — Shiny app walkthrough: every panel, every tab,
+  every control.
+* **Chapter 9** — troubleshooting: lazy-load corruption,
+  `shard_dir` mismatches, missing genes, etc.
+
+## Lazy by design (TL;DR) {-}
+
+Each study lives in its own subfolder under a shared root:
+
+```
+data/
+├── 2327/                              <- one studyID per folder
+│   ├── 2327.scminer.h5                <- ~80 MB bundle (metadata + indexes)
+│   ├── Cell/, Gene/, Network_*/, study_meta/, study_gene_*/
+│   ├── expression_files/2327/<letter>/<gene>.csv.gz
+│   └── activity_files/2327/{meta.csv, TF/, SIG/}
+├── 9999/
+│   └── ...
+```
+
+At app startup, only the bundle is read. When the user picks a gene,
+exactly one `<gene>.csv.gz` is decompressed and cached. The Heatmap,
+Bubble, Feature, and Violin tabs all use this lazy accessor;
+the Cluster Plot and the Clusters table need no shard reads at all.
+`run_browser(root_dir)` scans the root and presents every study as a
+card; clicking a card opens that study's viewer.

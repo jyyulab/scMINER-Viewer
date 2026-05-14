@@ -1,0 +1,97 @@
+# Python API reference {#python-api}
+
+The Python package exposes the same lazy-mode + multi-study contract
+as the R package. Single-study and multi-study viewers are both built
+on top of `Study` + `gene_values()`.
+
+## Public symbols {-}
+
+| Symbol | Purpose |
+| --- | --- |
+| `load_study(bundle_path, shard_dir=None) -> Study` | Read a `.scminer.h5` into a `Study` dataclass. `shard_dir` defaults to `Path(bundle_path).parent`. |
+| `Study`                                            | Dataclass: `meta`, `cells` (pandas, indexed by cellID), `clusters` (pandas, indexed by cellType), `genes` (numpy), `expression_index` / `activity_tf_index` / `activity_sig_index` (numpy or None), `default_genes` (numpy or None), `network_tf` / `network_sig` (pandas or None), `shard_dir`. |
+| `Study.gene_values(gene, relationship)`            | Lazily read one gene's row from the shard tree; numpy ndarray aligned to `Study.cells.index`, or `None` if missing. Cached per gene. |
+| `Study.has_gene(gene, relationship)`               | True if `gene` is in the corresponding bundle index. |
+| `build_app(bundle_path, shard_dir=None) -> shiny.App` | Build a single-study Shiny app. |
+| `run_app(bundle_path, shard_dir=None, host, port, launch_browser)` | Build and serve the single-study Shiny app via uvicorn (blocking). |
+| `discover_studies(root_dir) -> pandas.DataFrame`   | One row per `<studyID>/<studyID>.scminer.h5` under `root_dir`. |
+| `build_browser(root_dir, shard_dir=None) -> shiny.App` | Build a multi-study browser app. |
+| `run_browser(root_dir, shard_dir=None, host, port, launch_browser)` | Serve the multi-study browser. |
+
+## Plot helpers {-}
+
+| Function | Purpose |
+| --- | --- |
+| `plots.cluster_plot(study, active_clusters, dot_size, show_labels, cell_mask)` | Plotly cluster scatter (coord1 / coord2 colored by cellType). |
+| `plots.feature_plot(study, gene, relationship, active_clusters, dot_size, cell_mask)` | Per-cell scatter colored by gene values. |
+| `plots.violin_plot(study, gene, relationship, active_clusters, cell_mask)` | Per-cluster violin of gene values. |
+| `plots.heatmap_plot(study, genes, relationship, active_clusters, cell_mask)` | Gene × cluster mean heatmap (blue-white-red diverging palette). |
+| `plots.bubble_plot(study, genes, relationship, active_clusters, cell_mask)` | Gene × cluster, dot size = pct expressing, color = mean. |
+| `plots.network_plot(study, gene, network_type, active_clusters)` | TF/SIG neighbourhood of one gene rendered with `networkx` spring layout. |
+
+Every helper accepts an optional `cell_mask` parameter (boolean
+ndarray of length `n_cells`) that intersects with the `active_clusters`
+filter — used by the app's Sampling % control.
+
+## CLI {-}
+
+```text
+scminer-viewer info <bundle> [--shard-dir DIR]
+  Print a one-line Study summary.
+
+scminer-viewer list <root_dir>
+  Tabular listing of every <sid>/<sid>.scminer.h5 found under <root_dir>.
+
+scminer-viewer run <bundle> [options]
+  Launch the single-study Shiny webui.
+  --shard-dir DIR     Directory containing the shard tree if not co-located.
+  --host HOST         default 127.0.0.1
+  --port PORT         default 8000
+  --no-browser        don't open a browser window
+
+scminer-viewer browse <root_dir> [options]
+  Launch the multi-study browser.
+  --shard-dir DIR     Override the per-study shard root for every bundle.
+  --host HOST, --port PORT, --no-browser as above.
+```
+
+## Programmatic example {-}
+
+```python
+import scminer_viewer
+
+# Single study
+study = scminer_viewer.load_study("data/2327/2327.scminer.h5")
+print(study)
+# <Study tex (2327) cells=8464 genes=9861 clusters=3 ...>
+
+expr = study.gene_values("Mrpl15", "Express_normalized")
+print(expr.shape)            # (8464,)
+print((expr != 0).sum())     # number of cells with non-zero expression
+
+# Multi-study browser
+studies = scminer_viewer.discover_studies("data")
+print(studies[["studyID", "studyAbbr", "n_cells"]])
+
+# Build but don't launch (e.g. for embedding)
+app = scminer_viewer.build_browser("data")
+
+# Launch (blocking)
+scminer_viewer.run_browser("data", port=8000)
+```
+
+## Differences vs the R package {-}
+
+The Python and R packages are deliberately kept feature-equivalent.
+A few small differences that arise from the underlying frameworks:
+
+* **Navigation between studies in the browser**: R uses URL routing
+  (`?study=<sid>`); Python uses an in-app reactive value plus a
+  JS-fired Shiny event. Both render the standard single-study viewer
+  with a "← Back to studies" link.
+* **Cluster table**: R uses a custom HTML `<input type="checkbox">`
+  column wired via JS; Python uses `render.DataGrid(selection_mode="rows")`
+  (clicking a row toggles cluster visibility — functionally the same,
+  visually slightly different).
+* **`prepare_study()` / writing bundles is R-only.** Use R to author
+  bundles; use either package to read them.

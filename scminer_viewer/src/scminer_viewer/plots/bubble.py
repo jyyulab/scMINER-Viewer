@@ -14,12 +14,14 @@ def bubble_plot(
     genes: list[str],
     relationship: str = "Express_normalized",
     active_clusters: Optional[Iterable[str]] = None,
+    cell_mask: Optional["np.ndarray"] = None,
 ) -> go.Figure:
     if not genes:
         return empty_figure("Add gene(s) to build bubble plot")
     agg = aggregate_by_cluster(
         study, list(genes), relationship,
         list(active_clusters) if active_clusters is not None else None,
+        cell_mask=cell_mask,
     )
     if agg is None:
         return empty_figure("No data available for the selected genes")

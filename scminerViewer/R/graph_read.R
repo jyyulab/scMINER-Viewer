@@ -21,9 +21,21 @@
 read_graph_study <- function(data_dir, study_id) {
   study_id <- as.character(study_id)
 
+  # Support both layouts:
+  #   (A) flat:    <data_dir>/Study/<sid>_study.tsv
+  #   (B) wrapped: <data_dir>/<sid>/Study/<sid>_study.tsv
+  # (B) is what prepare_study_data() writes since the multi-study refactor.
   study_file <- file.path(data_dir, "Study", paste0(study_id, "_study.tsv"))
   if (!file.exists(study_file)) {
-    stop("Study file not found: ", study_file)
+    wrapped <- file.path(data_dir, study_id, "Study",
+                         paste0(study_id, "_study.tsv"))
+    if (file.exists(wrapped)) {
+      data_dir <- file.path(data_dir, study_id)
+      study_file <- wrapped
+    } else {
+      stop("Study file not found: ", study_file,
+           " (also tried ", wrapped, ")")
+    }
   }
   study_row <- strsplit(readLines(study_file, n = 1, warn = FALSE),
                         "\t", fixed = TRUE)[[1]]

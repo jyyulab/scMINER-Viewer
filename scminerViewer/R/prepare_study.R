@@ -83,21 +83,27 @@ prepare_study_data <- function(out_dir,
   activity_tf  <- attach_rownames(activity_tf,  "activity_tf")
   activity_sig <- attach_rownames(activity_sig, "activity_sig")
 
-  if ("graph" %in% emit) {
-    if (isTRUE(verbose)) message("Writing graph-import layout to ", out_dir)
-    .ensure_graph_tree(out_dir)
-    .write_graph_study(out_dir, meta)
-    .write_graph_clusters(out_dir, meta, clusters)
-    .write_graph_genes(out_dir, meta, genes)
-    .write_graph_cells(out_dir, meta, cells)
-    .write_graph_networks(out_dir, meta, network_tf, network_sig)
+  # Every study gets its own directory inside out_dir, so multiple
+  # studies under one root never collide (and run_browser() can find
+  # them via the <studyID>/<studyID>.scminer.h5 convention).
+  study_id  <- as.character(meta$studyID)
+  study_out <- file.path(out_dir, study_id)
+  dir.create(study_out, showWarnings = FALSE, recursive = TRUE)
 
-    study_id <- as.character(meta$studyID)
+  if ("graph" %in% emit) {
+    if (isTRUE(verbose)) message("Writing graph-import layout to ", study_out)
+    .ensure_graph_tree(study_out)
+    .write_graph_study(study_out, meta)
+    .write_graph_clusters(study_out, meta, clusters)
+    .write_graph_genes(study_out, meta, genes)
+    .write_graph_cells(study_out, meta, cells)
+    .write_graph_networks(study_out, meta, network_tf, network_sig)
+
     exp_root <- file.path("expression_files", study_id)
     act_root <- file.path("activity_files",   study_id)
 
     if (!is.null(expression)) {
-      .write_graph_shards(out_dir, meta, expression,
+      .write_graph_shards(study_out, meta, expression,
                           kind          = exp_root,
                           meta_kind     = exp_root,
                           manifest_dir  = "study_gene_expression",
@@ -107,7 +113,7 @@ prepare_study_data <- function(out_dir,
                           verbose       = verbose)
     }
     if (!is.null(activity_tf)) {
-      .write_graph_shards(out_dir, meta, activity_tf,
+      .write_graph_shards(study_out, meta, activity_tf,
                           kind          = file.path(act_root, "TF"),
                           meta_kind     = act_root,
                           manifest_dir  = "study_gene_tf",
@@ -117,7 +123,7 @@ prepare_study_data <- function(out_dir,
                           verbose       = verbose)
     }
     if (!is.null(activity_sig)) {
-      .write_graph_shards(out_dir, meta, activity_sig,
+      .write_graph_shards(study_out, meta, activity_sig,
                           kind          = file.path(act_root, "SIG"),
                           meta_kind     = act_root,
                           manifest_dir  = "study_gene_sig",
@@ -130,8 +136,8 @@ prepare_study_data <- function(out_dir,
 
   bundle_path <- NULL
   if ("bundle" %in% emit) {
-    bundle_path <- file.path(out_dir,
-                             paste0(meta$studyID, ".scminer.h5"))
+    bundle_path <- file.path(study_out,
+                             paste0(study_id, ".scminer.h5"))
     if (isTRUE(verbose)) message("Writing bundle to ", bundle_path)
     write_bundle(
       bundle_path        = bundle_path,
@@ -149,7 +155,11 @@ prepare_study_data <- function(out_dir,
     )
   }
 
-  invisible(list(out_dir = out_dir, bundle_path = bundle_path))
+  invisible(list(
+    out_dir     = study_out,    # the per-study subdir actually written to
+    root_dir    = out_dir,      # the root the user passed
+    bundle_path = bundle_path
+  ))
 }
 
 #' @rdname prepare_study

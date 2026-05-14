@@ -1,0 +1,121 @@
+# Troubleshooting {#troubleshooting}
+
+## "lazy-load database is corrupt" / "interrupted promise evaluation" {-}
+
+R memory-maps the package's `.rdb` file during `library()`. If a
+second R process reinstalls the package while the first one still has
+it loaded, you'll see one of:
+
+```
+Error: lazy-load database '.../scminerViewer.rdb' is corrupt
+Warning: restarting interrupted promise evaluation
+Error in R_decompress1
+```
+
+**Fix** — always the same recipe:
+
+1. Quit **every** R session that has the package loaded (in RStudio:
+   **Session → Quit Session**, `Cmd/Ctrl + Q`; restarting alone isn't
+   enough — the OS still has the old `.rdb` mapped until the process
+   exits).
+2. Wipe the install directory:
+
+   ```sh
+   rm -rf "$HOME/StJude/Research/R_lib/scMINERViewer/scminerViewer"
+   ```
+3. Reinstall from a fresh R session.
+
+To avoid it: always restart R **before** reinstalling
+(`Cmd/Ctrl + Shift + F10` in RStudio).
+
+## `meta.csv not found: data/<sid>/expression_files/<sid>/meta.csv` {-}
+
+The bundle resolved its `shard_dir` to its parent directory but the
+shards live somewhere else. Either move the shards into the bundle's
+parent:
+
+```sh
+mv data/example/expression_files data/2327/
+mv data/example/activity_files   data/2327/
+```
+
+…or tell the app where they are at launch time:
+
+```{r shard-dir-r, eval=FALSE}
+run_app("data/2327/2327.scminer.h5",
+        shard_dir = "data/example", port = 8000)
+
+run_browser("data", shard_dir = "data/example", port = 8000)
+```
+
+```sh
+scminer-viewer run data/2327/2327.scminer.h5 --shard-dir data/example
+scminer-viewer browse data --shard-dir data/example
+```
+
+## `No documentation for 'prepare_study'` {-}
+
+The package was installed without man pages. Regenerate via roxygen2:
+
+```{r roxy-rebuild, eval=FALSE}
+roxygen2::roxygenise("scminerViewer")    # writes NAMESPACE + man/*.Rd
+```
+
+…then reinstall.
+
+## `could not find function "%>%"` {-}
+
+Older versions of the package used magrittr's pipe in plot helpers
+without importing `magrittr`. The current version uses base R 4.1+
+`|>` throughout, so reinstall to get the fix.
+
+## Plotly "No trace type specified … Setting the mode to markers" {-}
+
+These warnings used to come from `plotly::plotly_empty()` placeholders.
+The current version uses an explicit empty scatter trace
+(`.empty_plot()`) and the warnings should be gone — if they still
+appear, reinstall.
+
+## `run_browser` shows no studies {-}
+
+Run `discover_studies(root)` from R (or `scminer-viewer list <root>`
+in Python) to see what the browser would find. Each study must:
+
+* be in its own subfolder named exactly the studyID, and
+* contain a file named `<studyID>.scminer.h5` (matching the folder name).
+
+A study folder produced before the multi-study refactor sits **flat**
+under the root (`<root>/Cell/`, `<root>/Gene/`, etc.); it must be
+wrapped in `<root>/<studyID>/` to be picked up. The
+`build_2327_bundle.R` script does this automatically.
+
+## A gene I expect is missing from the picker {-}
+
+The picker is populated from the bundle's `genes/symbol` group, which
+is the **master** gene list (every gene in the study, regardless of
+which matrices have shards). If a gene is missing here, regenerate
+the bundle.
+
+If a gene is in the picker but `gene_values()` returns NULL for a
+particular relationship, the gene isn't in that matrix's index —
+check `study$expression_index` / `$activity_tf_index` /
+`$activity_sig_index` (R) or `study.expression_index` etc. (Python).
+Activity matrices typically have a smaller index than expression
+(only TFs / SIGs are computed).
+
+## Bundle is huge (>1 GB) {-}
+
+`bundleVersion == 2` stores **indexes only** — no matrix values — so
+a healthy bundle is tens of MB even for studies with hundreds of
+thousands of cells. If your bundle is >1 GB, you're probably looking
+at a stale `bundleVersion == 1` artifact from before the lazy-mode
+refactor. Rebuild via `prepare_study()` or the migration recipe in
+Chapter \@ref(tutorial).
+
+## A specific cluster disappears with sampling on {-}
+
+The per-cluster proportional sampling keeps at least one cell per
+cluster (`max(1L, round(n * pct / 100))`) so no cluster vanishes
+entirely. If you see an empty cluster, the cluster has zero cells in
+the underlying study — check `study$clusters$count` (R) /
+`study.clusters['count']` (Python).

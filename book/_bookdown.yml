@@ -1,0 +1,19 @@
+book_filename: "scminer-viewer-guide"
+chapter_name: "Chapter "
+delete_merged_file: true
+language:
+  ui:
+    chapter_name: "Chapter "
+new_session: no
+rmd_files:
+  - index.Rmd
+  - 01-overview.Rmd
+  - 02-installation.Rmd
+  - 03-tutorial.Rmd
+  - 04-config-yaml.Rmd
+  - 05-bundle-and-shards.Rmd
+  - 06-r-api.Rmd
+  - 07-python-api.Rmd
+  - 08-shiny-app.Rmd
+  - 09-troubleshooting.Rmd
+output_dir: "_book"

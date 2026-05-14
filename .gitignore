@@ -2,3 +2,6 @@ data/
 .DS_Store
 scminer_viewer/.pytest_cache/
 .claude
+book/_book/
+book/_main.Rmd
+book/libs/

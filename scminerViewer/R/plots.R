@@ -17,11 +17,36 @@
   stats::setNames(cols, clusters$cellType)
 }
 
-.cells_in_active_clusters <- function(study, active_clusters) {
-  if (is.null(active_clusters) || length(active_clusters) == 0) {
-    return(rep(TRUE, nrow(study$cells)))
+.cells_in_active_clusters <- function(study, active_clusters,
+                                       cell_mask = NULL) {
+  base <- if (is.null(active_clusters) || length(active_clusters) == 0) {
+    rep(TRUE, nrow(study$cells))
+  } else {
+    study$cells$cellType %in% active_clusters
   }
-  study$cells$cellType %in% active_clusters
+  if (!is.null(cell_mask)) base <- base & as.logical(cell_mask)
+  base
+}
+
+# A no-data plotly figure that doesn't emit the "no trace type specified"
+# warning that plotly::plotly_empty() does. We give plotly a real (but
+# empty) scatter trace plus an annotation as the placeholder message.
+.empty_plot <- function(title = NULL) {
+  fig <- plotly::plot_ly(
+    x = numeric(0), y = numeric(0),
+    type = "scatter", mode = "markers", hoverinfo = "skip"
+  )
+  fig <- plotly::layout(
+    fig,
+    xaxis = list(visible = FALSE),
+    yaxis = list(visible = FALSE),
+    margin = list(l = 20, r = 20, t = 40, b = 20),
+    showlegend = FALSE
+  )
+  if (!is.null(title) && nzchar(title)) {
+    fig <- plotly::layout(fig, title = list(text = title, x = 0.5))
+  }
+  fig
 }
 
 .relationship_index <- function(study, relationship) {
@@ -40,11 +65,11 @@
 # --- Cluster plot -----------------------------------------------------------
 
 .cluster_plot <- function(study, active_clusters, dot_size,
-                          show_labels) {
+                          show_labels, cell_mask = NULL) {
   if (!requireNamespace("plotly", quietly = TRUE)) {
-    return(plotly::plotly_empty())
+    return(.empty_plot())
   }
-  mask <- .cells_in_active_clusters(study, active_clusters)
+  mask <- .cells_in_active_clusters(study, active_clusters, cell_mask)
   cells <- study$cells[mask, , drop = FALSE]
   color_map <- .cluster_color_map(study$clusters)
 
@@ -99,17 +124,15 @@
 # --- Feature plot -----------------------------------------------------------
 
 .feature_plot <- function(study, gene, relationship, active_clusters,
-                          dot_size) {
+                          dot_size, cell_mask = NULL) {
   if (!requireNamespace("plotly", quietly = TRUE)) {
-    return(plotly::plotly_empty())
+    return(.empty_plot())
   }
   vals <- .gene_row_values(study, gene, relationship)
   if (is.null(vals)) {
-    return(plotly::plotly_empty() %>%
-             plotly::layout(title = paste0("No ", relationship,
-                                           " data for ", gene)))
+    return(.empty_plot(paste0("No ", relationship, " data for ", gene)))
   }
-  mask <- .cells_in_active_clusters(study, active_clusters)
+  mask <- .cells_in_active_clusters(study, active_clusters, cell_mask)
   cells <- study$cells[mask, , drop = FALSE]
   v <- vals[mask]
 
@@ -146,17 +169,16 @@
 
 # --- Violin plot ------------------------------------------------------------
 
-.violin_plot <- function(study, gene, relationship, active_clusters) {
+.violin_plot <- function(study, gene, relationship, active_clusters,
+                         cell_mask = NULL) {
   if (!requireNamespace("plotly", quietly = TRUE)) {
-    return(plotly::plotly_empty())
+    return(.empty_plot())
   }
   vals <- .gene_row_values(study, gene, relationship)
   if (is.null(vals)) {
-    return(plotly::plotly_empty() %>%
-             plotly::layout(title = paste0("No ", relationship,
-                                           " data for ", gene)))
+    return(.empty_plot(paste0("No ", relationship, " data for ", gene)))
   }
-  mask <- .cells_in_active_clusters(study, active_clusters)
+  mask <- .cells_in_active_clusters(study, active_clusters, cell_mask)
   df <- data.frame(
     cellType = study$cells$cellType[mask],
     value    = vals[mask],
@@ -183,13 +205,15 @@
 # --- Heatmap (mean per cluster) --------------------------------------------
 
 .cluster_aggregate_pair <- function(study, genes, relationship,
-                                     active_clusters) {
+                                     active_clusters, cell_mask = NULL) {
   # Returns list(mean = matrix, pct = matrix), both gene x cluster.
   index <- .relationship_index(study, relationship)
   if (is.null(index) || length(genes) == 0) return(NULL)
   present <- genes[genes %in% index]
   if (length(present) == 0) return(NULL)
   ct <- study$cells$cellType
+  sample_mask <- if (is.null(cell_mask)) rep(TRUE, length(ct))
+                 else as.logical(cell_mask)
   clusters <- active_clusters %||% unique(ct)
   means <- matrix(0, nrow = length(present), ncol = length(clusters),
                   dimnames = list(present, clusters))
@@ -199,9 +223,9 @@
     vals <- gene_values(study, present[i], relationship)
     if (is.null(vals)) next
     for (j in seq_along(clusters)) {
-      cell_mask <- ct == clusters[j]
-      if (!any(cell_mask)) next
-      sub <- vals[cell_mask]
+      mask <- (ct == clusters[j]) & sample_mask
+      if (!any(mask)) next
+      sub <- vals[mask]
       sub <- sub[!is.na(sub)]
       n <- length(sub)
       if (n == 0) next
@@ -212,23 +236,27 @@
   list(mean = means, pct = pcts)
 }
 
-.heatmap_plot <- function(study, genes, relationship, active_clusters) {
+.heatmap_plot <- function(study, genes, relationship, active_clusters,
+                          cell_mask = NULL) {
   if (!requireNamespace("plotly", quietly = TRUE)) {
-    return(plotly::plotly_empty())
+    return(.empty_plot())
   }
-  agg <- .cluster_aggregate_pair(study, genes, relationship, active_clusters)
+  agg <- .cluster_aggregate_pair(study, genes, relationship,
+                                  active_clusters, cell_mask)
   if (is.null(agg)) {
-    return(plotly::plotly_empty() %>%
-             plotly::layout(title = "Select gene(s) to build heatmap"))
+    return(.empty_plot("Select gene(s) to build heatmap"))
   }
   m <- agg$mean
+  # Blue-white-red diverging palette. zmid centres white at 0 so positive
+  # values lean red and negative values (e.g. z-scored activity) lean blue.
   plotly::plot_ly(
     z = m,
     x = colnames(m), y = rownames(m),
     type = "heatmap",
-    colorscale = list(c(0, "#f7f7f7"),
-                       c(0.5, "#7c9fd1"),
-                       c(1, "#1f3a72")),
+    colorscale = list(c(0,   "#2166ac"),
+                       c(0.5, "#ffffff"),
+                       c(1,   "#b2182b")),
+    zmid = 0,
     colorbar = list(title = list(text = "mean"))
   ) |>
     plotly::layout(
@@ -240,14 +268,15 @@
 
 # --- Bubble plot ------------------------------------------------------------
 
-.bubble_plot <- function(study, genes, relationship, active_clusters) {
+.bubble_plot <- function(study, genes, relationship, active_clusters,
+                         cell_mask = NULL) {
   if (!requireNamespace("plotly", quietly = TRUE)) {
-    return(plotly::plotly_empty())
+    return(.empty_plot())
   }
-  agg <- .cluster_aggregate_pair(study, genes, relationship, active_clusters)
+  agg <- .cluster_aggregate_pair(study, genes, relationship,
+                                  active_clusters, cell_mask)
   if (is.null(agg)) {
-    return(plotly::plotly_empty() %>%
-             plotly::layout(title = "Select gene(s) to build bubble plot"))
+    return(.empty_plot("Select gene(s) to build bubble plot"))
   }
   means <- agg$mean
   pcts  <- agg$pct

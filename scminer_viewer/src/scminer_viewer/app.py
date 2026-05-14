@@ -95,6 +95,14 @@ def _ui_factory(study: Study):
                                 ui.span({"class": "info-label"}, "Show Labels"),
                                 ui.input_switch("show_labels", None, value=True),
                             ),
+                            ui.div(
+                                {"class": "info-row"},
+                                ui.span({"class": "info-label"}, "Sampling %"),
+                                ui.input_numeric(
+                                    "sampling_percent", None,
+                                    value=100, min=1, max=100, step=1,
+                                ),
+                            ),
                         ),
                     ),
                 ),
@@ -105,7 +113,10 @@ def _ui_factory(study: Study):
                         {"class": "panel-card-body"},
                         ui.input_selectize(
                             "gene_select", label=None,
-                            choices=list(study.genes), selected=[],
+                            choices=list(study.genes),
+                            selected=(list(study.default_genes)
+                                      if study.default_genes is not None
+                                      else []),
                             multiple=True,
                             options={
                                 "placeholder": "Type to add gene(s)...",
@@ -154,6 +165,41 @@ def _server_factory(study: Study):
         # All clusters selected initially.
         active_clusters = reactive.value(list(study.clusters.index))
 
+        # --- Downsampling --------------------------------------------------
+        # Shuffle each cluster's cells once per session; the reactive
+        # then takes the first `pct%` from each shuffled vector. The
+        # result is deterministic for a given (cluster, pct), so plots
+        # don't flicker when the user navigates between tabs.
+        import numpy as _np  # local import to keep top-level imports lean
+        _rng = _np.random.default_rng(42)
+        _cell_types = study.cells["cellType"].to_numpy()
+        _sampling_order: dict[str, _np.ndarray] = {}
+        for _ct in study.clusters.index:
+            _idx = _np.flatnonzero(_cell_types == _ct)
+            _rng.shuffle(_idx)
+            _sampling_order[_ct] = _idx
+
+        _MAX_CELLS = 65_000
+        if study.n_cells > _MAX_CELLS:
+            initial_pct = max(1, int(_MAX_CELLS / study.n_cells * 100))
+        else:
+            initial_pct = 100
+        if initial_pct < 100:
+            ui.update_numeric("sampling_percent", value=initial_pct,
+                              session=session)
+
+        @reactive.calc
+        def sampling_mask() -> _np.ndarray:
+            pct = int(input.sampling_percent() or 100)
+            pct = max(1, min(100, pct))
+            if pct >= 100:
+                return _np.ones(study.n_cells, dtype=bool)
+            out = _np.zeros(study.n_cells, dtype=bool)
+            for _ct, idx in _sampling_order.items():
+                n_keep = max(1, round(len(idx) * pct / 100))
+                out[idx[:n_keep]] = True
+            return out
+
         @render.data_frame
         def clusters_table():
             return render.DataGrid(
@@ -177,10 +223,9 @@ def _server_factory(study: Study):
         @render.text
         def cell_count():
             ac = set(active_clusters())
-            n_visible = int(
-                study.cells["cellType"].isin(ac).sum()
-            )
-            return f"{n_visible:,} / {study.n_cells:,}"
+            visible = (study.cells["cellType"].isin(ac).to_numpy()
+                       & sampling_mask())
+            return f"{int(visible.sum()):,} / {study.n_cells:,}"
 
         @render_widget
         def cluster_plot_widget():
@@ -189,6 +234,7 @@ def _server_factory(study: Study):
                 active_clusters=active_clusters(),
                 dot_size=input.dot_size() or 4,
                 show_labels=bool(input.show_labels()),
+                cell_mask=sampling_mask(),
             )
 
         # Bind by output id used in the UI
@@ -200,6 +246,7 @@ def _server_factory(study: Study):
                 study,
                 genes=list(input.gene_select() or []),
                 active_clusters=active_clusters(),
+                cell_mask=sampling_mask(),
             )
 
         output("heatmap_plot")(heatmap_widget)
@@ -210,110 +257,199 @@ def _server_factory(study: Study):
                 study,
                 genes=list(input.gene_select() or []),
                 active_clusters=active_clusters(),
+                cell_mask=sampling_mask(),
             )
 
         output("bubble_plot")(bubble_widget)
 
-        # --- Dynamic per-gene nested panels --------------------------------
-        def _nested_panels(genes: list[str], kind: str) -> ui.TagChild:
+        # --- 3-level nested panels: Gene → CellType → Relationship --------
+        _cell_types_all = [str(c) for c in study.clusters.index]
+        _REL_LABELS_VALUE = ["Expression", "TF", "SIG"]
+        _REL_LABELS_NETWORK = ["TF", "SIG"]
+        _REL_KEY = {"Expression": "Express_normalized",
+                    "TF":         "Activity_tf",
+                    "SIG":        "Activity_sig"}
+
+        def _out_id(kind: str, gene: str, ct: str, rel: str) -> str:
+            return (f"{kind}_{_safe_id(gene)}__{_safe_id(ct)}"
+                    f"__{_safe_id(rel)}")
+
+        def _effective_clusters(global_sel, ct):
+            if ct == "All":
+                return list(global_sel)
+            return [ct] if ct in global_sel else []
+
+        def _three_level_panels(genes: list[str], kind: str) -> ui.TagChild:
             if not genes:
                 return ui.div(
                     {"class": "no-data-msg"},
                     "Add gene(s) to view this plot.",
                 )
-            panels = []
+            rels = (_REL_LABELS_NETWORK if kind == "network"
+                    else _REL_LABELS_VALUE)
+            cell_options = ["All"] + _cell_types_all
+            gene_panels = []
             for g in genes:
-                gid = _safe_id(g)
-                if kind == "feature":
-                    panel_content = output_widget(f"feature_{gid}")
-                elif kind == "violin":
-                    panel_content = output_widget(f"violin_{gid}")
-                else:  # network
-                    panel_content = ui.div(
-                        ui.input_radio_buttons(
-                            f"netkind_{gid}", label=None,
-                            choices=["TF", "SIG"], selected="TF",
-                            inline=True,
-                        ),
-                        output_widget(f"network_{gid}"),
+                ct_panels = []
+                for ct in cell_options:
+                    rel_panels = []
+                    for rel in rels:
+                        oid = _out_id(kind, g, ct, rel)
+                        rel_panels.append(
+                            ui.nav_panel(rel, output_widget(oid))
+                        )
+                    ct_panels.append(
+                        ui.nav_panel(
+                            ct,
+                            ui.navset_card_pill(
+                                *rel_panels,
+                                id=f"{kind}_rel_{_safe_id(g)}_{_safe_id(ct)}",
+                            ),
+                        )
                     )
-                panels.append(ui.nav_panel(g, panel_content))
-            return ui.navset_tab(*panels, id=f"{kind}_subtabs")
+                gene_panels.append(
+                    ui.nav_panel(
+                        g,
+                        ui.navset_pill(
+                            *ct_panels,
+                            id=f"{kind}_ct_{_safe_id(g)}",
+                        ),
+                    )
+                )
+            return ui.navset_tab(*gene_panels, id=f"{kind}_tabs")
 
         @render.ui
         def feature_panel():
-            return _nested_panels(list(input.gene_select() or []), "feature")
+            return _three_level_panels(
+                list(input.gene_select() or []), "feature"
+            )
 
         @render.ui
         def violin_panel():
-            return _nested_panels(list(input.gene_select() or []), "violin")
+            return _three_level_panels(
+                list(input.gene_select() or []), "violin"
+            )
 
         @render.ui
         def network_panel():
-            return _nested_panels(list(input.gene_select() or []), "network")
+            return _three_level_panels(
+                list(input.gene_select() or []), "network"
+            )
 
-        # Per-gene plot renderers — registered dynamically as the gene list
-        # changes.
+        # Per-(gene, ct, rel) plot renderers — registered dynamically.
+        # Shiny only evaluates outputs that are actually visible, so the
+        # combinatorial output count doesn't translate to upfront work.
         _registered: set[str] = set()
 
         @reactive.effect
         def _wire_dynamic_outputs():
             genes = list(input.gene_select() or [])
+            cell_options = ["All"] + _cell_types_all
+
             for g in genes:
-                gid = _safe_id(g)
-                if gid in _registered:
-                    continue
-                _registered.add(gid)
-
-                def _make_feature(gene_local: str, gid_local: str):
-                    @render_widget
-                    def _fp():
-                        return feature_plot(
-                            study,
-                            gene=gene_local,
-                            active_clusters=active_clusters(),
-                            dot_size=input.dot_size() or 4,
-                        )
-                    output(f"feature_{gid_local}")(_fp)
-                _make_feature(g, gid)
-
-                def _make_violin(gene_local: str, gid_local: str):
-                    @render_widget
-                    def _vp():
-                        return violin_plot(
-                            study,
-                            gene=gene_local,
-                            active_clusters=active_clusters(),
-                        )
-                    output(f"violin_{gid_local}")(_vp)
-                _make_violin(g, gid)
-
-                def _make_network(gene_local: str, gid_local: str):
-                    @render_widget
-                    def _np():
-                        kind = input[f"netkind_{gid_local}"]() if (
-                            f"netkind_{gid_local}" in dir(input)
-                        ) else "TF"
-                        return network_plot(
-                            study,
-                            gene=gene_local,
-                            network_type=kind or "TF",
-                            active_clusters=active_clusters(),
-                        )
-                    output(f"network_{gid_local}")(_np)
-                _make_network(g, gid)
+                for ct in cell_options:
+                    for rel in _REL_LABELS_VALUE:
+                        oid = _out_id("feature", g, ct, rel)
+                        if oid not in _registered:
+                            _registered.add(oid)
+                            _register_value(
+                                output, study,
+                                kind="feature", gene=g, ct=ct, rel=rel,
+                                rel_key=_REL_KEY[rel],
+                                input=input,
+                                active_clusters=active_clusters,
+                                sampling_mask=sampling_mask,
+                                effective_fn=_effective_clusters,
+                            )
+                        oid = _out_id("violin", g, ct, rel)
+                        if oid not in _registered:
+                            _registered.add(oid)
+                            _register_value(
+                                output, study,
+                                kind="violin", gene=g, ct=ct, rel=rel,
+                                rel_key=_REL_KEY[rel],
+                                input=input,
+                                active_clusters=active_clusters,
+                                sampling_mask=sampling_mask,
+                                effective_fn=_effective_clusters,
+                            )
+                    for rel in _REL_LABELS_NETWORK:
+                        oid = _out_id("network", g, ct, rel)
+                        if oid not in _registered:
+                            _registered.add(oid)
+                            _register_network(
+                                output, study,
+                                gene=g, ct=ct, rel=rel,
+                                active_clusters=active_clusters,
+                                effective_fn=_effective_clusters,
+                            )
 
     return server
 
 
-def build_app(bundle_path: str | Path) -> App:
-    """Build a Shiny App from a bundle file."""
-    study = load_study(bundle_path)
+def _register_value(output, study, *, kind, gene, ct, rel, rel_key,
+                    input, active_clusters, sampling_mask, effective_fn):
+    """Bind a single (gene, ct, rel) feature/violin output."""
+    gene_l, ct_l = gene, ct
+    oid = (f"{kind}_{_safe_id(gene_l)}__{_safe_id(ct_l)}"
+           f"__{_safe_id(rel)}")
+
+    if kind == "feature":
+        @render_widget
+        def _w():
+            eff = effective_fn(active_clusters(), ct_l)
+            return feature_plot(
+                study, gene=gene_l, relationship=rel_key,
+                active_clusters=eff,
+                dot_size=input.dot_size() or 4,
+                cell_mask=sampling_mask(),
+            )
+    else:
+        @render_widget
+        def _w():
+            eff = effective_fn(active_clusters(), ct_l)
+            return violin_plot(
+                study, gene=gene_l, relationship=rel_key,
+                active_clusters=eff,
+                cell_mask=sampling_mask(),
+            )
+    output(oid)(_w)
+
+
+def _register_network(output, study, *, gene, ct, rel,
+                       active_clusters, effective_fn):
+    gene_l, ct_l, rel_l = gene, ct, rel
+    oid = (f"network_{_safe_id(gene_l)}__{_safe_id(ct_l)}"
+           f"__{_safe_id(rel_l)}")
+
+    @render_widget
+    def _w():
+        eff = effective_fn(active_clusters(), ct_l)
+        return network_plot(
+            study, gene=gene_l, network_type=rel_l,
+            active_clusters=eff,
+        )
+    output(oid)(_w)
+
+
+def build_app(
+    bundle_path: str | Path, shard_dir: str | Path | None = None
+) -> App:
+    """Build a Shiny App from a bundle file.
+
+    Args:
+        bundle_path: Path to a `.scminer.h5` bundle.
+        shard_dir: Directory containing the per-gene shard tree
+            (`expression_files/<sid>/...`, `activity_files/<sid>/...`).
+            ``None`` (default) uses `Path(bundle_path).parent`.
+    """
+    study = load_study(bundle_path, shard_dir=shard_dir)
     return App(_ui_factory(study), _server_factory(study))
 
 
 def run_app(
     bundle_path: str | Path,
+    shard_dir: str | Path | None = None,
     host: str = "127.0.0.1",
     port: int = 8000,
     launch_browser: bool = True,
@@ -321,7 +457,7 @@ def run_app(
     """Build and run the Shiny app, blocking until interrupted."""
     import uvicorn
 
-    app = build_app(bundle_path)
+    app = build_app(bundle_path, shard_dir=shard_dir)
     if launch_browser:
         import webbrowser
 

@@ -7,49 +7,69 @@ data-prep pipeline:
 
 | Package | Lang. | What it does |
 | --- | --- | --- |
-| [`scminerViewer/`](scminerViewer/)   | R      | Prepares scMINER studies (writes the graph-import layout + the `.scminer.h5` bundle) and serves a Shiny app that mirrors the layout at <https://scminer.stjude.org/study/Tregs>. |
-| [`scminer_viewer/`](scminer_viewer/) | Python | Reads the same `.scminer.h5` bundle and serves a Shiny-for-Python webui with the same six-tab layout. |
+| [`scminerViewer/`](scminerViewer/)   | R      | Prepares scMINER studies (writes the graph-import layout + the `.scminer.h5` bundle) and serves a Shiny app + multi-study browser. |
+| [`scminer_viewer/`](scminer_viewer/) | Python | Reads the same `.scminer.h5` bundle; serves a Shiny-for-Python single-study viewer and the same multi-study browser. |
+
+📖 **Full guide**: [`book/`](book/) — a complete bookdown with
+overview, installation, tutorial, YAML reference, bundle/shard
+deep-dive, R + Python API reference, Shiny app walkthrough, and
+troubleshooting.
+Build it locally with `Rscript book/render.R` (output lands in
+`book/_book/index.html`).
 
 Both apps are file-based: no Java services, no graph DB, no SQL. Drop
 a study directory on disk and either package can render it.
 
-## Lazy by design
+## Lazy by design + multi-study by default
 
-A study consists of two co-located parts:
+Each study lives in **its own subfolder** under a shared root so one
+root can host many studies side-by-side:
 
-1. **Bundle** — `data/<studyID>.scminer.h5`. ~80 MB for the 8464-cell
-   2327 study. Holds study metadata, cell + cluster info, the master
-   gene list, per-matrix gene **indexes** (which genes exist in
-   expression / activity_tf / activity_sig), optional default genes,
-   and the networks. **No matrix values.**
-2. **Shard tree** — gzipped per-gene CSVs under
-   `data/expression_files/<studyID>/<letter>/<gene>.csv.gz` and
-   `data/activity_files/<studyID>/{TF,SIG}/<letter>/<gene>.csv.gz`.
-   This is the bulk of the data.
+```
+data/                              # multi-study root → pass to run_browser()
+├── 2327/
+│   ├── 2327.scminer.h5            # ~80 MB bundle (metadata + gene indexes)
+│   ├── Cell/, Gene/, Network_*/, study_meta/, study_gene_*/
+│   ├── expression_files/2327/<letter>/<gene>.csv.gz   # sharded values
+│   └── activity_files/2327/{meta.csv, TF/, SIG/}
+├── 9999/
+│   └── …
+```
+
+Inside each study folder:
+
+1. **Bundle** — `<studyID>/<studyID>.scminer.h5`. Holds study metadata,
+   cell + cluster info, master gene list, per-matrix gene **indexes**
+   (which genes exist in expression / activity_tf / activity_sig),
+   optional default genes, networks. **No matrix values.**
+2. **Shard tree** — gzipped per-gene CSVs. The bulk of the data.
 
 At startup the apps load only the bundle. When the user selects a gene
 (or for default genes), the relevant `<gene>.csv.gz` is read once and
 cached. Heatmap / Bubble / Feature / Violin tabs all use this lazy
 accessor; the Cluster Plot and the Clusters table need no shard reads
-at all.
+at all. `run_browser(root_dir)` discovers every study under the root
+and presents them as a card grid; clicking a card drills into that
+study's viewer (back link to return).
 
 ## Repository layout
 
 ```
 scMINER-Viewer/
-├── IMPLEMENTATION.md              # full architecture & status doc
-├── README.md                      # you are here
-├── data/                          # the source study tree
-│   ├── 2327.scminer.h5            # 77 MB bundle (lazy-mode, v2)
-│   ├── Cell/, Gene/, Network_*/   # graph-import metadata TSVs
-│   ├── study_meta/<studyID>_study_meta.csv
-│   ├── study_gene_{expression,tf,sig}/<studyID>_*.csv  (manifests)
-│   ├── expression_files/<studyID>/{meta.csv, <letter>/<gene>.csv.gz}
-│   └── activity_files/<studyID>/{meta.csv, TF/<letter>/..., SIG/<letter>/...}
-├── scminerViewer/                 # R package
+├── IMPLEMENTATION.md                  # architecture & status doc
+├── README.md                          # you are here
+├── data/                              # multi-study root
+│   └── 2327/                          # per-study subfolder
+│       ├── 2327.scminer.h5
+│       ├── Cell/, Gene/, Network_*/
+│       ├── study_meta/2327_study_meta.csv
+│       ├── study_gene_{expression,tf,sig}/2327_*.csv
+│       ├── expression_files/2327/{meta.csv, <letter>/<gene>.csv.gz}
+│       └── activity_files/2327/{meta.csv, TF/<letter>/..., SIG/<letter>/...}
+├── scminerViewer/                     # R package
 │   ├── R/, tests/, inst/extdata/example_config.yml
 │   └── inst/scripts/build_2327_bundle.R
-└── scminer_viewer/                # Python package
+└── scminer_viewer/                    # Python package
     └── src/scminer_viewer/{data,app,cli}.py + plots/
 ```
 
@@ -73,15 +93,36 @@ devtools::install("scminerViewer")     # run from the project root
 In RStudio, you can also **File → Open Project…** the `scminerViewer/`
 folder and use **Build → Install Package** (`Cmd/Ctrl + Shift + B`).
 
-**Use it**:
+**Use it** — three things you can do:
 
 ```sh
-# Build the 2327 bundle from the data/ tree
+# (A) Build the 2327 bundle from an on-disk graph layout (no RDS needed)
 Rscript scminerViewer/inst/scripts/build_2327_bundle.R
+# → writes data/2327/2327.scminer.h5
 
-# Launch the Shiny app
-Rscript -e 'scminerViewer::run_app("data/2327.scminer.h5", port = 8000)'
+# (B) Full prepare_study pipeline driven by a YAML config (needs the
+#     scMINER ExpressionSet RDS / networks TSV; see data/example/2327.yml)
+Rscript -e 'scminerViewer::prepare_study("data/example/2327.yml")'
+
+# (C1) Multi-study browser — one URL per study, card-grid index
+Rscript -e 'scminerViewer::run_browser("data", port = 8000)'
+
+# (C2) Same, but shards still live in the legacy data/example/ tree
+Rscript -e 'scminerViewer::run_browser("data", shard_dir = "data/example", port = 8000)'
+
+# (D) Single-study app
+Rscript -e 'scminerViewer::run_app("data/2327/2327.scminer.h5", port = 8000)'
 ```
+
+Full multi-study walkthrough (prep → browse → add another) is in
+[`scminerViewer/README.md → Tutorial`](scminerViewer/README.md#tutorial-from-zero-to-a-multi-study-browser).
+
+A concrete, runnable YAML for the 2327 study lives at
+[`data/example/2327.yml`](data/example/2327.yml) — copy it as a starting
+point for new studies and edit the `input.*` paths to point at your
+ExpressionSet RDS files. The package also ships a fully-annotated
+template at
+`system.file("extdata", "example_config.yml", package = "scminerViewer")`.
 
 See [`scminerViewer/README.md`](scminerViewer/README.md) for the YAML
 config schema, the full exported API, and how to prepare a fresh study
@@ -116,21 +157,20 @@ Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:
 
 ## Status
 
-- **R**: 122/122 tests pass (`scminerViewer/tests/testthat/`).
+- **R**: 169/169 tests pass (`scminerViewer/tests/testthat/`).
 - **Python**: 17/17 tests pass (`scminer_viewer/tests/`). Fixtures are
   built by shelling out to `Rscript`, so the Python reader is verified
   against bytes produced by the R writer.
-- **2327 bundle**: 77 MB at `data/2327.scminer.h5`. 8464 cells × 9861
-  genes × 3 clusters; 9861 expression / 925 TF / 4708 SIG genes
+- **2327 bundle**: 77 MB at `data/2327/2327.scminer.h5`. 8464 cells ×
+  9861 genes × 3 clusters; 9861 expression / 925 TF / 4708 SIG genes
   indexed; 743K total network edges; values fetched lazily from the
   shard tree.
 
 ## Out of scope for v1
 
 - Private studies, authentication, user accounts.
-- Downsampling slider, drag-to-reorder gene tags, per-cluster color
-  picker, dot-size live-redraw on feature plots.
-- Multi-nest-study tabs (one bundle = one study).
+- Drag-to-reorder gene tags, per-cluster color picker, dot-size
+  live-redraw on feature plots.
 - Submitting your own data through the app
   (`submitfile.vue`, `visualizeyourdata.vue` in the original portal).
 - Writing data back to a graph DB or any other DB.

@@ -14,8 +14,9 @@ def cluster_plot(
     active_clusters: Optional[Iterable[str]] = None,
     dot_size: float = 4,
     show_labels: bool = True,
+    cell_mask: Optional[np.ndarray] = None,
 ) -> go.Figure:
-    mask = cells_mask(study, active_clusters)
+    mask = cells_mask(study, active_clusters, cell_mask)
     cells = study.cells.loc[mask]
     colors = cluster_color_map(study)
 

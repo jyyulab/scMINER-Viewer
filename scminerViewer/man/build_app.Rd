@@ -4,11 +4,16 @@
 \alias{build_app}
 \title{Build a Shiny app object without launching it.}
 \usage{
-build_app(bundle_path)
+build_app(bundle_path, shard_dir = NULL)
 }
 \arguments{
 \item{bundle_path}{Path to a `.scminer.h5` bundle (produced by
 [write_bundle()] or [prepare_study_data()]).}
+
+\item{shard_dir}{Directory containing the per-gene shard tree
+(`expression_files/<studyID>/`, `activity_files/<studyID>/`). If
+`NULL` (default), uses `dirname(bundle_path)`. Pass an explicit
+path when the bundle is not co-located with its shards.}
 }
 \value{
 A `shiny.appobj`.

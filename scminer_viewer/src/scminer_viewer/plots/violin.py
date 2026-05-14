@@ -15,12 +15,13 @@ def violin_plot(
     gene: str,
     relationship: str = "Express_normalized",
     active_clusters: Optional[Iterable[str]] = None,
+    cell_mask: Optional[np.ndarray] = None,
 ) -> go.Figure:
     vals = study.gene_values(gene, relationship)
     if vals is None:
         return empty_figure(f"No {relationship} data for {gene}")
 
-    mask = cells_mask(study, active_clusters)
+    mask = cells_mask(study, active_clusters, cell_mask)
     cell_types = study.cells["cellType"].to_numpy()[mask]
     values = vals[mask]
     colors = cluster_color_map(study)

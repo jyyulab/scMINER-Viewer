@@ -6,6 +6,7 @@
 \usage{
 run_app(
   bundle_path,
+  shard_dir = NULL,
   host = "127.0.0.1",
   port = NULL,
   launch_browser = interactive(),
@@ -15,6 +16,11 @@ run_app(
 \arguments{
 \item{bundle_path}{Path to a `.scminer.h5` bundle (produced by
 [write_bundle()] or [prepare_study_data()]).}
+
+\item{shard_dir}{Directory containing the per-gene shard tree
+(`expression_files/<studyID>/`, `activity_files/<studyID>/`). If
+`NULL` (default), uses `dirname(bundle_path)`. Pass an explicit
+path when the bundle is not co-located with its shards.}
 
 \item{host}{Host interface to bind to. Defaults to `"127.0.0.1"`.}
 

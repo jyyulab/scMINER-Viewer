@@ -84,6 +84,40 @@ scminer-viewer run  <bundle> [options]  # launch the Shiny app
   --no-browser         don't open a browser window
 ```
 
+### Multi-study workflow
+
+This Python package is **single-study** in v1 — pass the path to one
+`.scminer.h5` bundle and the app serves that study. The companion R
+package adds a multi-study card-grid landing page via
+`scminerViewer::run_browser(root_dir)`; the same bundles work for both,
+so you can use the R browser as the index and link out to either
+package's single-study viewer.
+
+Per-study bundles are co-located with their shard trees under a
+`<root>/<studyID>/` subfolder:
+
+```
+data/
+├── 2327/
+│   ├── 2327.scminer.h5
+│   ├── Cell/, Gene/, Network_*/, study_meta/, study_gene_*/
+│   ├── expression_files/2327/
+│   └── activity_files/2327/
+├── 9999/
+│   └── …
+```
+
+To launch a specific study from the multi-study root:
+
+```sh
+scminer-viewer run data/2327/2327.scminer.h5 --port 8000
+```
+
+`load_study(bundle_path)` defaults `shard_dir = Path(bundle_path).parent`,
+so no extra config is needed when bundles are co-located with shards.
+Pass `shard_dir=` (or `--shard-dir` on a future CLI release) when the
+shards live elsewhere.
+
 ## Bundle format
 
 The HDF5 bundle layout is the R↔Python contract described in

@@ -1,5 +1,23 @@
+#' Single-study server logic, callable with the standard Shiny signature.
+#'
+#' Returns a function suitable for `shiny::shinyApp(server = ...)`. The
+#' browser app (`run_browser()`) reuses [`.app_server_logic()`] directly
+#' so it can swap studies without rebuilding the whole app.
+#'
+#' @noRd
 .app_server <- function(study) {
   function(input, output, session) {
+    .app_server_logic(study, input, output, session)
+  }
+}
+
+#' Body of the single-study server logic, decoupled from the closure.
+#'
+#' Splitting this out lets [run_browser()] call it for a study chosen
+#' at session start.
+#'
+#' @noRd
+.app_server_logic <- function(study, input, output, session) {
     if (!requireNamespace("shiny", quietly = TRUE)) return(invisible())
 
     # Server-side gene autocomplete keyed off the study's full gene list.
@@ -20,41 +38,104 @@
       selected = study$clusters$cellType
     )
 
+    # --- Downsampling ----------------------------------------------------
+    # Shuffle each cluster's cell indices once per session; the reactive
+    # mask then takes the first `pct%` from each shuffled vector. This is
+    # deterministic for a given (cluster, pct) pair, so plots don't flicker
+    # when the user switches tabs.
+    .MAX_CELLS_DEFAULT <- 65000L
+    set.seed(42L)
+    sampling_order <- lapply(
+      stats::setNames(study$clusters$cellType, study$clusters$cellType),
+      function(ct) sample(which(study$cells$cellType == ct))
+    )
+    total_cells <- nrow(study$cells)
+    initial_sampling_pct <- if (total_cells > .MAX_CELLS_DEFAULT) {
+      max(1L, floor(.MAX_CELLS_DEFAULT / total_cells * 100))
+    } else 100L
+    if (initial_sampling_pct < 100L) {
+      shiny::updateNumericInput(session, "sampling_percent",
+                                value = initial_sampling_pct)
+    }
+
+    sampling_mask <- shiny::reactive({
+      pct <- input$sampling_percent %||% 100
+      pct <- max(1L, min(100L, as.integer(pct)))
+      if (pct >= 100L) return(rep(TRUE, total_cells))
+      out <- logical(total_cells)
+      for (ord in sampling_order) {
+        n_keep <- max(1L, round(length(ord) * pct / 100))
+        out[ord[seq_len(n_keep)]] <- TRUE
+      }
+      out
+    })
+
     output$cell_count <- shiny::renderText({
-      mask <- .cells_in_active_clusters(study, cluster_table_state$selected)
+      mask <- .cells_in_active_clusters(study, cluster_table_state$selected,
+                                         cell_mask = sampling_mask())
       sprintf("%s / %s",
               formatC(sum(mask),       big.mark = ",", format = "d"),
               formatC(nrow(study$cells), big.mark = ",", format = "d"))
     })
 
+    # Build one row of HTML: a real <input type="checkbox"> that fires a
+    # Shiny event on click. The cell type is read from a data-* attribute
+    # to avoid string-escaping pitfalls in the inline onclick handler.
+    .checkbox_html <- function(cell_type, checked = TRUE) {
+      safe <- gsub("[^A-Za-z0-9_]", "_", cell_type)
+      sprintf(
+        paste0(
+          '<input type="checkbox" id="cluster_check_%s" ',
+          'data-celltype="%s" %s ',
+          'onclick="Shiny.setInputValue(',
+          "'cluster_checkbox', ",
+          '{ct: this.dataset.celltype, checked: this.checked, t: Date.now()}, ',
+          "{priority: 'event'});\" />"
+        ),
+        safe,
+        htmltools::htmlEscape(cell_type, attribute = TRUE),
+        if (isTRUE(checked)) "checked" else ""
+      )
+    }
+
     output$clusters_table <- DT::renderDT({
       df <- data.frame(
+        Show    = vapply(study$clusters$cellType,
+                          function(ct) .checkbox_html(ct, TRUE),
+                          character(1)),
         Cluster = study$clusters$cellType,
         Cells   = formatC(study$clusters$count, big.mark = ",", format = "d"),
         Color   = sprintf(
           "<span style='display:inline-block;width:24px;height:14px;background:%s;border:1px solid #ccc;'></span>",
           study$clusters$color
         ),
-        stringsAsFactors = FALSE
+        stringsAsFactors = FALSE,
+        check.names      = FALSE
       )
       DT::datatable(
         df,
         escape    = FALSE,
         rownames  = FALSE,
-        selection = list(mode = "multiple", selected = seq_len(nrow(df))),
+        selection = "none",
         options = list(
           dom = "t", paging = FALSE, searching = FALSE, info = FALSE,
-          ordering = TRUE
+          ordering = FALSE,
+          columnDefs = list(
+            list(className = "dt-center", targets = c(0, 2, 3))
+          )
         )
       )
     })
 
-    shiny::observeEvent(input$clusters_table_rows_selected, ignoreNULL = FALSE, {
-      rows <- input$clusters_table_rows_selected
-      if (is.null(rows) || length(rows) == 0) {
-        cluster_table_state$selected <- character(0)
+    # Listen for checkbox toggles fired by the inline onclick handler.
+    shiny::observeEvent(input$cluster_checkbox, ignoreNULL = TRUE, {
+      msg <- input$cluster_checkbox
+      if (is.null(msg) || is.null(msg$ct)) return()
+      cur <- cluster_table_state$selected
+      if (isTRUE(msg$checked)) {
+        cluster_table_state$selected <- unique(c(cur, msg$ct))
       } else {
-        cluster_table_state$selected <- study$clusters$cellType[rows]
+        cluster_table_state$selected <- setdiff(cur, msg$ct)
       }
     })
 
@@ -67,7 +148,8 @@
         study           = study,
         active_clusters = active_clusters(),
         dot_size        = input$dot_size %||% 4,
-        show_labels     = isTRUE(input$show_labels)
+        show_labels     = isTRUE(input$show_labels),
+        cell_mask       = sampling_mask()
       )
     })
 
@@ -77,7 +159,8 @@
         study           = study,
         genes           = selected_genes(),
         relationship    = "Express_normalized",
-        active_clusters = active_clusters()
+        active_clusters = active_clusters(),
+        cell_mask       = sampling_mask()
       )
     })
 
@@ -87,106 +170,132 @@
         study           = study,
         genes           = selected_genes(),
         relationship    = "Express_normalized",
-        active_clusters = active_clusters()
+        active_clusters = active_clusters(),
+        cell_mask       = sampling_mask()
       )
     })
 
-    # ---- Per-gene nested tabs (Feature / Violin / Network) --------------
-    .nested_tabs <- function(genes, panel_fn, ns_prefix) {
+    # ---- Per-gene 3-level nested tabs (Gene -> CellType -> Relationship)
+    # The innermost level is a `navset_card_pill` "slide card" toggling
+    # between Expression / TF / SIG (or just TF / SIG for the Network
+    # panel, which has no expression network).
+    cell_types_all <- as.character(study$clusters$cellType)
+    rel_labels_value <- c("Expression", "TF", "SIG")
+    rel_labels_network <- c("TF", "SIG")
+    .rel_key <- function(rel) {
+      switch(rel,
+        Expression = "Express_normalized",
+        TF         = "Activity_tf",
+        SIG        = "Activity_sig",
+        rel
+      )
+    }
+    .out_id <- function(plot_kind, gene, ct, rel) {
+      sprintf("%s_%s__%s__%s", plot_kind,
+              make.names(gene), make.names(ct), make.names(rel))
+    }
+
+    .three_level_tabs <- function(genes, plot_kind) {
       if (length(genes) == 0) {
         return(shiny::div(class = "no-data-msg",
                           "Add gene(s) to view this plot."))
       }
-      tabs <- lapply(genes, function(g) {
+      cell_options <- c("All", cell_types_all)
+      rels <- if (plot_kind == "network") rel_labels_network
+              else rel_labels_value
+      gene_panels <- lapply(genes, function(g) {
+        ct_panels <- lapply(cell_options, function(ct) {
+          rel_panels <- lapply(rels, function(rel) {
+            oid <- .out_id(plot_kind, g, ct, rel)
+            inner <- if (plot_kind == "network") {
+              visNetwork::visNetworkOutput(oid, height = "620px")
+            } else {
+              plotly::plotlyOutput(oid, height = "620px")
+            }
+            bslib::nav_panel(rel, inner)
+          })
+          ct_id <- sprintf("%s_rel_%s_%s", plot_kind,
+                           make.names(g), make.names(ct))
+          bslib::nav_panel(
+            ct,
+            do.call(bslib::navset_card_pill,
+                    c(list(id = ct_id), rel_panels))
+          )
+        })
+        g_id <- sprintf("%s_ct_%s", plot_kind, make.names(g))
         bslib::nav_panel(
           g,
-          panel_fn(g)
+          do.call(bslib::navset_pill,
+                  c(list(id = g_id), ct_panels))
         )
       })
-      do.call(bslib::navset_tab, c(list(id = ns_prefix), tabs))
+      do.call(bslib::navset_tab,
+              c(list(id = paste0(plot_kind, "_tabs")), gene_panels))
     }
 
     output$feature_tabs_ui <- shiny::renderUI({
-      genes <- selected_genes()
-      .nested_tabs(genes,
-        panel_fn = function(g) {
-          plotly::plotlyOutput(paste0("feature_", make.names(g)),
-                               height = "640px")
-        },
-        ns_prefix = "feature_tabs"
-      )
+      .three_level_tabs(selected_genes(), "feature")
     })
-
     output$violin_tabs_ui <- shiny::renderUI({
-      genes <- selected_genes()
-      .nested_tabs(genes,
-        panel_fn = function(g) {
-          plotly::plotlyOutput(paste0("violin_", make.names(g)),
-                               height = "640px")
-        },
-        ns_prefix = "violin_tabs"
-      )
+      .three_level_tabs(selected_genes(), "violin")
     })
-
     output$network_tabs_ui <- shiny::renderUI({
-      genes <- selected_genes()
-      .nested_tabs(genes,
-        panel_fn = function(g) {
-          shiny::tagList(
-            shiny::radioButtons(paste0("netkind_", make.names(g)),
-                                label = NULL,
-                                choices = c("TF", "SIG"),
-                                selected = "TF", inline = TRUE),
-            visNetwork::visNetworkOutput(paste0("network_", make.names(g)),
-                                          height = "640px")
-          )
-        },
-        ns_prefix = "network_tabs"
-      )
+      .three_level_tabs(selected_genes(), "network")
     })
 
-    # Render per-gene plots dynamically. Each iteration generates an
-    # observer that wires output$feature_<g> / violin_<g> / network_<g>.
+    # Effective clusters for a (global_selection, tab_ct) pair: "All" =
+    # respect the global selection; specific cell type = only that one,
+    # but empty if globally hidden.
+    .effective_clusters <- function(global, ct) {
+      if (identical(ct, "All")) return(global)
+      if (ct %in% global) ct else character(0)
+    }
+
+    # Dynamically register an output for every (gene, cell_type, rel)
+    # combination as the gene list changes. Shiny only evaluates
+    # outputs that are actually visible, so even if the combinatorial
+    # count is large, only the focused tab does work.
     shiny::observe({
       genes <- selected_genes()
-      for (g in genes) local({
-        gene_local <- g
-        oid <- make.names(gene_local)
-        output[[paste0("feature_", oid)]] <- plotly::renderPlotly({
-          .feature_plot(
-            study           = study,
-            gene            = gene_local,
-            relationship    = "Express_normalized",
-            active_clusters = active_clusters(),
-            dot_size        = input$dot_size %||% 4
-          )
+      cell_options <- c("All", cell_types_all)
+      for (g in genes) for (ct in cell_options) {
+        for (rel in rel_labels_value) local({
+          g_l <- g; ct_l <- ct; rel_l <- rel
+          rel_k <- .rel_key(rel_l)
+          output[[.out_id("feature", g_l, ct_l, rel_l)]] <-
+            plotly::renderPlotly({
+              eff <- .effective_clusters(active_clusters(), ct_l)
+              .feature_plot(study = study, gene = g_l,
+                            relationship = rel_k,
+                            active_clusters = eff,
+                            dot_size = input$dot_size %||% 4,
+                            cell_mask = sampling_mask())
+            })
+          output[[.out_id("violin", g_l, ct_l, rel_l)]] <-
+            plotly::renderPlotly({
+              eff <- .effective_clusters(active_clusters(), ct_l)
+              .violin_plot(study = study, gene = g_l,
+                           relationship = rel_k,
+                           active_clusters = eff,
+                           cell_mask = sampling_mask())
+            })
         })
-        output[[paste0("violin_", oid)]] <- plotly::renderPlotly({
-          .violin_plot(
-            study           = study,
-            gene            = gene_local,
-            relationship    = "Express_normalized",
-            active_clusters = active_clusters()
-          )
+        for (rel in rel_labels_network) local({
+          g_l <- g; ct_l <- ct; rel_l <- rel
+          output[[.out_id("network", g_l, ct_l, rel_l)]] <-
+            visNetwork::renderVisNetwork({
+              eff <- .effective_clusters(active_clusters(), ct_l)
+              plt <- .network_plot(study = study, gene = g_l,
+                                    network_type = rel_l,
+                                    active_clusters = eff)
+              if (is.null(plt) || is.data.frame(plt)) {
+                visNetwork::visNetwork(
+                  data.frame(id = integer(0)),
+                  data.frame(from = integer(0), to = integer(0))
+                )
+              } else plt
+            })
         })
-        output[[paste0("network_", oid)]] <- visNetwork::renderVisNetwork({
-          kind <- input[[paste0("netkind_", oid)]] %||% "TF"
-          plt <- .network_plot(
-            study           = study,
-            gene            = gene_local,
-            network_type    = kind,
-            active_clusters = active_clusters()
-          )
-          if (is.null(plt) || is.data.frame(plt)) {
-            visNetwork::visNetwork(
-              data.frame(id = integer(0)),
-              data.frame(from = integer(0), to = integer(0))
-            )
-          } else {
-            plt
-          }
-        })
-      })
+      }
     })
-  }
 }

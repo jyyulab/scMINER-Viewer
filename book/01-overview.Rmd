@@ -1,0 +1,80 @@
+# Overview {#overview}
+
+## Two packages, one bundle format {-}
+
+scMINER Viewer is intentionally split into two co-equal packages so
+that:
+
+* the **R** package owns data preparation (writing the bundle + graph
+  layout) plus a Shiny single-study viewer and the multi-study
+  browser;
+* the **Python** package owns a Shiny-for-Python viewer + multi-study
+  browser that consumes the same `.scminer.h5` bundle.
+
+The shared contract is a single HDF5 file — `<studyID>.scminer.h5` —
+written by R and read by either package. Every other feature lives on
+top of this contract.
+
+## Design decisions (locked) {-}
+
+| Question | Choice | Why |
+| --- | --- | --- |
+| Backend | Standalone, file-based | No Java services, no graph DB, no MySQL. Drop a study tree on disk and either package can render it. |
+| Storage | HDF5 bundle alongside the graph-import shard tree | One file the apps load in one shot; preserves compatibility with the original Neo4j-import pipeline. |
+| Lazy values | Bundle stores **indexes only** (which genes have shards); matrix values stay on disk | Bundles stay ~80 MB even when matrices are hundreds of MB. The app reads exactly one shard per gene-selection event. |
+| Multi-study | One subfolder per study under a shared root | `prepare_study()` writes to `<root>/<studyID>/...`; `run_browser(root)` discovers every study. |
+| UI tabs | Six core panels (Cluster / Heatmap / Bubble / Feature / Violin / Network) with nested per-gene → per-cell-type → per-relationship pickers | Mirrors the layout at <https://scminer.stjude.org/study/Tregs>. |
+| Python UI framework | Shiny for Python | Same reactive model as R Shiny; minimises divergence between the two packages. |
+
+## What's in scope (and what's not) {-}
+
+**In scope for v1**
+
+* Reading scMINER ExpressionSet RDS / activity RDS / networks TSV via
+  `prepare_study()` (R).
+* Writing the graph-import layout (the existing Neo4j-style TSV +
+  per-gene CSV tree).
+* Writing the lazy-mode `.scminer.h5` bundle.
+* Browsing one study at a time via `run_app()` (R) or
+  `scminer-viewer run` (Python).
+* Browsing many studies under a root via `run_browser()` (R) or
+  `scminer-viewer browse` (Python).
+* Cluster table with **checkbox** selection and color swatches.
+* Downsampling (`Sampling %`) — auto-applied above 65K cells.
+* Default-gene auto-load on app startup (mirrors the Vue portal's
+  `preGenes`).
+* Heatmap diverging blue-white-red palette.
+
+**Out of scope for v1**
+
+* Private studies, authentication, user accounts.
+* Drag-to-reorder gene tags, per-cluster color picker, dot-size
+  live-redraw on feature plots.
+* Submitting your own data through the app (the original portal's
+  `submitfile.vue` / `visualizeyourdata.vue`).
+* Writing data back to a graph DB or any other DB.
+
+## Repository layout {-}
+
+```
+scMINER-Viewer/
+├── IMPLEMENTATION.md             architecture & status doc
+├── README.md                     top-level entry point
+├── book/                         this guide (bookdown)
+├── data/                         multi-study root
+│   └── 2327/
+│       ├── 2327.scminer.h5
+│       ├── Cell/, Gene/, Network_*/
+│       ├── study_meta/, study_gene_*/
+│       ├── expression_files/2327/
+│       └── activity_files/2327/
+├── scminerViewer/                R package
+│   ├── R/, tests/
+│   ├── inst/extdata/example_config.yml
+│   └── inst/scripts/build_2327_bundle.R
+└── scminer_viewer/               Python package
+    └── src/scminer_viewer/{data,app,browser,cli}.py + plots/
+```
+
+Continue to Chapter \@ref(installation) for setup, or jump to
+Chapter \@ref(tutorial) for the end-to-end walkthrough.

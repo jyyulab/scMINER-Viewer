@@ -1,0 +1,97 @@
+# Config YAML reference {#config-yaml}
+
+`prepare_study(config_path)` is the YAML-driven entry point for the
+full pipeline. It points at a scMINER `ExpressionSet` RDS (and
+optional activity + networks) and writes both the graph-import layout
+and the lazy-mode bundle in one call.
+
+Two examples ship with the project:
+
+| File | Role |
+| --- | --- |
+| `scminerViewer/inst/extdata/example_config.yml` | Annotated **template** — every field documented inline; reachable via `system.file()`. |
+| `data/example/2327.yml`                          | Concrete **runnable** config keyed to the actual 2327 study (Tex). Edit `input.*` paths and run. |
+
+Copy the template:
+
+```{r copy-template, eval=FALSE}
+file.copy(
+  system.file("extdata", "example_config.yml", package = "scminerViewer"),
+  "config.yml"
+)
+```
+
+## Full schema {-}
+
+```yaml
+# Where to write everything — the bundle lands at
+# <output>/<studyID>/<studyID>.scminer.h5 (per-study subfolder).
+output: data
+
+# Study identity
+study:
+  ID:         "2327"
+  studyAbbr:  tex
+  longTitle:  >
+    Single-cell RNA sequencing of progenitor, intermediate and
+    terminally exhausted CD8+ T cells from tumors and chronic viral
+    infection
+  shortTitle: Tex
+
+# Sample-level metadata
+species:    Mus musculus
+coordinate: UMAP            # also the pData column prefix (UMAP_1, UMAP_2)
+
+# pData / fData column names in the source ExpressionSet
+cellID:     cellID          # rownames are also assigned to this column
+cellType:   cellGroup       # the cell-type / cluster label
+cellGroup:  cellGroup       # falls back to cellType when omitted
+geneSymbol: geneSymbol      # column in fData carrying the gene symbol
+
+# Input files
+input:
+  expression: inputs/2327_expression.rds   # required, Biobase ExpressionSet
+  activity:   inputs/2327_activity.rds     # optional, ExpressionSet
+                                            # rows ending in _TF / _SIG split
+                                            # into the two activity matrices
+  networks:   inputs/2327_networks.tsv     # optional, tab-separated:
+                                            # source, target, NetworkType,
+                                            # CellGroup, mi, pearson,
+                                            # spearman, rho, pvalue
+```
+
+## Field-by-field {-}
+
+| Key | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `output`            | yes  | —             | Root directory for the per-study subfolder. The bundle ends up at `<output>/<studyID>/<studyID>.scminer.h5`. |
+| `study.ID`          | yes  | —             | Numeric or string. Used as the subfolder name. |
+| `study.studyAbbr`   | yes  | —             | Short identifier (URL slug). |
+| `study.longTitle`   | yes  | —             | Full study description. |
+| `study.shortTitle`  | yes  | —             | One-line label. |
+| `species`           | no   | `""`          | e.g. `"Mus musculus"`. Also auto-filled from the manifests if missing. |
+| `coordinate`        | no   | `"UMAP"`      | Both the meta field and the pData column prefix — `<coord>_1` and `<coord>_2`. |
+| `cellID`            | no   | `"cellID"`    | pData column carrying the cellID. Rownames are also written into this column. |
+| `cellType`          | no   | `"cellGroup"` | pData column carrying the cell-type label. |
+| `cellGroup`         | no   | `cellType`    | pData column carrying the cell-group label. |
+| `geneSymbol`        | no   | `"geneSymbol"`| fData column carrying the gene symbol. |
+| `input.expression`  | yes  | —             | Path to the expression ExpressionSet RDS. |
+| `input.activity`    | no   | none          | Path to the activity ExpressionSet RDS. Rows ending in `_TF` / `.TF` go to `activity_tf`; `_SIG` / `.SIG` go to `activity_sig`. |
+| `input.networks`    | no   | none          | Path to the networks TSV. |
+
+## Parsing the config without loading the RDS files {-}
+
+`load_study_config()` parses the YAML, validates required keys, and
+fills in defaults. It does **not** touch any RDS / TSV files referenced
+by `input.*` — useful for sanity-checking the config or building a
+custom pipeline:
+
+```{r parse-config, eval=FALSE}
+cfg <- scminerViewer::load_study_config("config.yml")
+str(cfg)
+```
+
+See Chapter \@ref(r-api) for the full list of staged helpers
+(`load_study_config`, `extract_cells`, `extract_genes`,
+`extract_expression`, `extract_activity`, `read_networks`) that
+`prepare_study()` is composed of.

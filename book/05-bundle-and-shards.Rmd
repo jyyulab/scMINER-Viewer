@@ -1,0 +1,119 @@
+# Bundle format & shard tree {#bundle-and-shards}
+
+The `.scminer.h5` bundle is the R↔Python contract. It's a small HDF5
+file (~80 MB for an 8K-cell study) that contains everything the apps
+need at startup — except the matrix values, which stay on disk in the
+shard tree and are read lazily.
+
+## HDF5 bundle layout (`bundleVersion = 2`) {-}
+
+```
+/meta/
+  studyID, studyAbbr, longTitle, shortTitle, species, coordinate  (string)
+  bundleVersion                                                   (int, = 2)
+
+/cells/
+  cellID    (N,)   string
+  cellType  (N,)   string
+  cellGroup (N,)   string
+  coord1    (N,)   float64
+  coord2    (N,)   float64
+
+/clusters/
+  cellType  (K,)   string
+  count     (K,)   int32
+  color     (K,)   string  (hex)
+  label_1   (K,)   float64    optional — x for cluster label placement
+  label_2   (K,)   float64    optional — y for cluster label placement
+
+/genes/
+  symbol    (G,)   string     master picker list
+
+/index/                       optional, "which genes are available"
+  expression   (G_e,) string  present iff expression shards exist
+  activity_tf  (G_t,) string
+  activity_sig (G_s,) string
+
+/defaults/                    optional, "load these on app startup"
+  genes        (D,)   string
+
+/network_tf/                  optional
+  source, target, cellType                       string
+  mi, pearson, spearman, rho, pvalue             float64
+/network_sig/                 optional, same columns
+```
+
+Strings are UTF-8 variable-length. Scalar string datasets are stored
+as 1-element arrays by the R writer; the Python reader unwraps them
+automatically.
+
+**Compatibility rules** (both packages MUST honour):
+
+* Unknown groups → treat as future-bundle-versions; ignore.
+* Any optional group may be absent.
+* Scalar string datasets may be either 1-element arrays or true
+  scalars.
+
+## Shard tree {-}
+
+Sharded by the first lowercase letter of each gene name (or `nm` for
+non-alphabetic), with a single cell-ID header per matrix type:
+
+```
+<shard_dir>/
+├── expression_files/<studyID>/
+│   ├── meta.csv                  one line, comma-separated cellIDs
+│   └── <letter>/<gene>.csv.gz    gzipped 1-row CSV of N values
+└── activity_files/<studyID>/
+    ├── meta.csv                  shared by TF and SIG (may be a cell subset)
+    ├── TF/<letter>/<gene>.csv.gz
+    └── SIG/<letter>/<gene>.csv.gz
+```
+
+* `<letter>` is `tolower(substr(gene, 1, 1))` if alphabetic, else `nm`.
+* Path is derived from the gene name, not the manifest's `File` column.
+* Cell-ID column order is read once per matrix type from `meta.csv`;
+  a permutation index aligns shard columns to `cells$cellID`, so
+  missing cells become zero columns automatically.
+* The activity `meta.csv` is **shared** between TF and SIG and may
+  list a subset of the cells in the expression meta (activity is
+  computed only for cells passing some upstream filter).
+
+## Lazy contract {-}
+
+`load_study(bundle_path)` reads the bundle and returns a thin handle
+that knows where the shards are. No matrix values are loaded.
+`gene_values(study, gene, relationship)` (R) /
+`study.gene_values(gene, relationship)` (Python) reads exactly one
+shard from disk, caches the aligned vector on the study handle, and
+returns it.
+
+```{r lazy-r, eval=FALSE}
+study <- scminerViewer::load_study("data/2327/2327.scminer.h5")
+vals  <- scminerViewer::gene_values(study, "Mrpl15", "Express_normalized")
+length(vals)   # nrow(study$cells)
+```
+
+```python
+import scminer_viewer
+study = scminer_viewer.load_study("data/2327/2327.scminer.h5")
+vals  = study.gene_values("Mrpl15", "Express_normalized")
+vals.shape  # (n_cells,)
+```
+
+## Discovering studies under a multi-study root {-}
+
+`discover_studies(root_dir)` scans for `<studyID>/<studyID>.scminer.h5`
+patterns and returns a row-per-study data frame. Useful for scripting
+or as the data source for the browser's card-grid index page.
+
+```{r discover-r, eval=FALSE}
+df <- scminerViewer::discover_studies("data")
+nrow(df)   # number of studies the browser will list
+```
+
+```python
+import scminer_viewer
+df = scminer_viewer.discover_studies("data")
+df.shape[0]
+```

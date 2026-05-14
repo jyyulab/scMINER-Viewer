@@ -6,6 +6,10 @@
 #'
 #' @param bundle_path Path to a `.scminer.h5` bundle (produced by
 #'   [write_bundle()] or [prepare_study_data()]).
+#' @param shard_dir Directory containing the per-gene shard tree
+#'   (`expression_files/<studyID>/`, `activity_files/<studyID>/`). If
+#'   `NULL` (default), uses `dirname(bundle_path)`. Pass an explicit
+#'   path when the bundle is not co-located with its shards.
 #' @param host Host interface to bind to. Defaults to `"127.0.0.1"`.
 #' @param port Port to bind to. Defaults to a random free port (NULL).
 #' @param launch_browser Logical; open the system browser. Default is
@@ -16,6 +20,7 @@
 #'   `invisible(NULL)`.
 #' @export
 run_app <- function(bundle_path,
+                    shard_dir = NULL,
                     host = "127.0.0.1",
                     port = NULL,
                     launch_browser = interactive(),
@@ -28,7 +33,7 @@ run_app <- function(bundle_path,
       ))
     }
   }
-  study <- load_study(bundle_path)
+  study <- load_study(bundle_path, shard_dir = shard_dir)
   app <- shiny::shinyApp(
     ui     = .app_ui(study),
     server = .app_server(study)
@@ -44,8 +49,8 @@ run_app <- function(bundle_path,
 #' @inheritParams run_app
 #' @return A `shiny.appobj`.
 #' @export
-build_app <- function(bundle_path) {
-  study <- load_study(bundle_path)
+build_app <- function(bundle_path, shard_dir = NULL) {
+  study <- load_study(bundle_path, shard_dir = shard_dir)
   shiny::shinyApp(
     ui     = .app_ui(study),
     server = .app_server(study)

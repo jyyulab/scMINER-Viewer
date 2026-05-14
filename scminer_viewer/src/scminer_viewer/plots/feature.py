@@ -15,12 +15,13 @@ def feature_plot(
     relationship: str = "Express_normalized",
     active_clusters: Optional[Iterable[str]] = None,
     dot_size: float = 4,
+    cell_mask: Optional[np.ndarray] = None,
 ) -> go.Figure:
     vals = study.gene_values(gene, relationship)
     if vals is None:
         return empty_figure(f"No {relationship} data for {gene}")
 
-    mask = cells_mask(study, active_clusters)
+    mask = cells_mask(study, active_clusters, cell_mask)
     cells = study.cells.loc[mask]
     v = vals[mask]
 

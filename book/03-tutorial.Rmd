@@ -1,0 +1,146 @@
+# Tutorial: from zero to a multi-study browser {#tutorial}
+
+This chapter walks through the most common workflow end-to-end:
+prepare one study, browse it, add a second study, browse them
+together. All paths assume the project root as the working directory.
+
+## A — Prepare one study from a YAML config {-}
+
+```{r tutorial-yaml, eval=FALSE}
+# 1) Copy the annotated template that ships with the package
+file.copy(
+  system.file("extdata", "example_config.yml", package = "scminerViewer"),
+  "config.yml"
+)
+```
+
+Open `config.yml` and edit:
+
+* `output:` — the **root** that will host all your studies (e.g. `"data"`).
+* `study.*` — ID, abbreviation, titles for this study.
+* `input.expression` — path to your expression `ExpressionSet` RDS.
+* `input.activity` (optional) — path to your activity ExpressionSet.
+* `input.networks` (optional) — path to the networks TSV.
+
+Then:
+
+```{r tutorial-prepare, eval=FALSE}
+library(scminerViewer)
+prepare_study("config.yml")
+```
+
+This writes `data/<studyID>/<studyID>.scminer.h5` plus the full graph
+layout (Cell/, Gene/, Network_*/, …) and the per-gene shard tree
+(`expression_files/<studyID>/<letter>/<gene>.csv.gz` and
+`activity_files/<studyID>/{TF,SIG}/...`) into `data/<studyID>/`.
+
+## B — Migrate an existing on-disk study (no RDS needed) {-}
+
+If you already have the graph-layout TSVs + shard tree on disk
+(e.g. under `data/example/`), build the bundle directly without
+invoking the Biobase pipeline:
+
+```{r tutorial-migrate, eval=FALSE}
+study <- read_graph_study(data_dir = "data/example", study_id = "2327")
+dir.create("data/2327", recursive = TRUE, showWarnings = FALSE)
+write_bundle(
+  bundle_path        = "data/2327/2327.scminer.h5",
+  meta               = study$meta,
+  cells              = study$cells,
+  clusters           = study$clusters,
+  genes              = study$genes,
+  expression_genes   = study$expression_genes,
+  activity_tf_genes  = study$activity_tf_genes,
+  activity_sig_genes = study$activity_sig_genes,
+  network_tf         = study$network_tf,
+  network_sig        = study$network_sig,
+  overwrite          = TRUE
+)
+```
+
+If you also want the shard tree co-located with the new bundle, move
+it once:
+
+```sh
+mv data/example/expression_files data/2327/
+mv data/example/activity_files   data/2327/
+```
+
+Otherwise pass `shard_dir =` to `run_app()` / `run_browser()` (see C).
+
+## C — Browse one or many studies {-}
+
+### Single study (R) {-}
+
+```{r tutorial-runapp, eval=FALSE}
+# Bundle and shards co-located (default — auto-discovered)
+run_app("data/2327/2327.scminer.h5", port = 8000)
+
+# Shards live elsewhere
+run_app("data/2327/2327.scminer.h5",
+        shard_dir = "data/example", port = 8000)
+```
+
+### Single study (Python) {-}
+
+```sh
+scminer-viewer run data/2327/2327.scminer.h5 --port 8000
+scminer-viewer run data/2327/2327.scminer.h5 \
+                   --shard-dir data/example --port 8000
+```
+
+### Multi-study browser (R) {-}
+
+```{r tutorial-browser-r, eval=FALSE}
+run_browser("data", port = 8000)
+
+# When shards still live in the legacy data/example/ tree
+run_browser("data", shard_dir = "data/example", port = 8000)
+```
+
+### Multi-study browser (Python) {-}
+
+```sh
+scminer-viewer browse data --port 8000
+scminer-viewer browse data --shard-dir data/example --port 8000
+```
+
+Inside the browser, each study is a card; clicking opens
+`?study=<sid>` (R) or sets a reactive value (Python) to drill in.
+A "← Back to studies" link returns to the index.
+
+## D — Adding a second study {-}
+
+Point `prepare_study()` at the same root with a new `study.ID`. Each
+call creates a sibling `<sid>/` folder:
+
+```
+data/
+├── 2327/                      # first study
+│   └── 2327.scminer.h5
+└── 9999/                      # second study
+    └── 9999.scminer.h5
+```
+
+`run_browser("data")` (or `scminer-viewer browse data`) now shows two
+cards. No rebuild of the existing study is required.
+
+## E — Inspect what's available without launching anything {-}
+
+`discover_studies()` returns one row per bundle found under a root:
+
+```{r tutorial-discover-r, eval=FALSE}
+scminerViewer::discover_studies("data")
+#    studyID studyAbbr shortTitle              longTitle    species n_cells n_genes n_clusters bundle_path                study_dir
+# 1     2327       tex        Tex Single-cell RNA-seq … Mus musculus    8464    9861          3 data/2327/2327.scminer.h5 data/2327
+```
+
+```sh
+scminer-viewer list data
+# studyID studyAbbr shortTitle      species  n_cells  n_genes  n_clusters  bundle_path
+#    2327       tex        Tex Mus musculus     8464     9861           3  data/2327/2327.scminer.h5
+```
+
+Useful for sanity-checking your layout before launching a browser
+session, or for scripting (e.g. iterate over every study's bundle in
+a batch job).

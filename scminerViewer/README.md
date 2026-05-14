@@ -69,20 +69,29 @@ library(scminerViewer)
 
 ## How it works (one minute)
 
-A study on disk consists of **two co-located parts**:
+`prepare_study()` writes everything for one study into
+`<out_dir>/<studyID>/`, so a single root can hold many studies:
 
-1. The **graph layout** — `Cell/`, `Gene/`, `Network_*/`, `study_meta/`,
-   manifest CSVs, plus the sharded per-gene `.csv.gz` tree under
-   `expression_files/<studyID>/` and `activity_files/<studyID>/`.
-2. The **bundle file** — a single `.scminer.h5` written next to the
-   shard tree, e.g. `data/2327.scminer.h5`. It carries study metadata,
-   cell + cluster info, the master gene list, gene indexes (which genes
-   have shards in each matrix), optional default genes, and networks.
+```
+<root>/
+├── <studyID-A>/
+│   ├── <studyID-A>.scminer.h5    bundle (metadata + gene indexes)
+│   ├── Cell/, Gene/, Network_*/, study_meta/, study_gene_*/
+│   ├── expression_files/<studyID-A>/<letter>/<gene>.csv.gz
+│   └── activity_files/<studyID-A>/{meta.csv, TF/, SIG/}
+├── <studyID-B>/
+│   └── …
+```
 
-`load_study(bundle_path)` reads the bundle; `gene_values(study, gene,
-relationship)` then reads exactly one `<gene>.csv.gz` per call from
-the shard tree (the parent dir of the bundle by default, overridable
-with `shard_dir = ...`).
+- `load_study(bundle_path)` reads the bundle (no matrix values);
+- `gene_values(study, gene, relationship)` reads exactly one
+  `<gene>.csv.gz` per call from the shard tree (`dirname(bundle_path)`
+  by default; override with `shard_dir = ...`).
+- `run_app(bundle_path)` serves the **single-study** viewer.
+- `run_browser(root_dir)` serves the **multi-study** viewer: a
+  card-grid index of every study at `<root>/<sid>/<sid>.scminer.h5`;
+  clicking a card opens `?study=<sid>` with the single-study layout
+  and a "← Back to studies" link.
 
 ## Quick start
 
@@ -110,17 +119,115 @@ write_bundle(
 )
 
 # Inspect a bundle + lazily read one gene's row aligned to the cells
-study <- load_study("path/to/data/2327.scminer.h5")
+study <- load_study("path/to/data/2327/2327.scminer.h5")
 print(study)
 vals <- gene_values(study, "Mrpl15", "Express_normalized")
 
-# Launch the Shiny app on the bundle
-run_app("path/to/data/2327.scminer.h5", port = 8000)
+# Launch the single-study Shiny app
+run_app("path/to/data/2327/2327.scminer.h5", port = 8000)
+
+# OR launch the multi-study browser (card-grid index of every
+# <studyID>/<studyID>.scminer.h5 found under the root)
+run_browser("path/to/data", port = 8000)
 ```
 
 For programmatic pipelines that already have matrices in memory, use
 `prepare_study_from_eset()` (Biobase ExpressionSet input) or
 `prepare_study_data()` (plain R structures).
+
+## Tutorial: from zero to a multi-study browser
+
+### A. Prepare one study from a YAML config
+
+1. Copy the annotated template that ships with the package:
+
+   ```r
+   file.copy(
+     system.file("extdata", "example_config.yml", package = "scminerViewer"),
+     "config.yml"
+   )
+   ```
+
+2. Edit `config.yml` — fill in `output:` (the **root** containing all
+   your studies, e.g. `"data"`), the `study.*` block (ID/abbr/titles),
+   and the `input.*` paths to your scMINER `ExpressionSet` RDS files.
+
+3. Run:
+
+   ```r
+   library(scminerViewer)
+   prepare_study("config.yml")
+   ```
+
+   This writes `data/<studyID>/<studyID>.scminer.h5` plus the full
+   graph layout and the shard tree inside `data/<studyID>/`.
+
+### B. Or migrate an existing on-disk study (no RDS needed)
+
+If you already have the graph-layout TSVs + shard tree on disk (e.g.
+under `data/example/`), build the bundle directly without invoking the
+Biobase pipeline:
+
+```r
+study <- read_graph_study(data_dir = "data/example", study_id = "2327")
+dir.create("data/2327", recursive = TRUE, showWarnings = FALSE)
+write_bundle(
+  bundle_path        = "data/2327/2327.scminer.h5",
+  meta               = study$meta,
+  cells              = study$cells,
+  clusters           = study$clusters,
+  genes              = study$genes,
+  expression_genes   = study$expression_genes,
+  activity_tf_genes  = study$activity_tf_genes,
+  activity_sig_genes = study$activity_sig_genes,
+  network_tf         = study$network_tf,
+  network_sig        = study$network_sig,
+  overwrite          = TRUE
+)
+```
+
+If you also want the shard tree co-located with the new bundle, move
+it once with `mv` / `file.rename()`; otherwise pass `shard_dir =` to
+`run_app()` / `run_browser()` (see C).
+
+### C. Browse one or many studies
+
+```r
+# Single study — bundle and shards co-located
+run_app("data/2327/2327.scminer.h5", port = 8000)
+
+# Single study — shards live somewhere else
+run_app("data/2327/2327.scminer.h5",
+        shard_dir = "data/example", port = 8000)
+
+# Multi-study card-grid index of every <studyID>/<studyID>.scminer.h5
+# found under the root; click a card to drill into that study's viewer
+run_browser("data", port = 8000)
+
+# Multi-study with external shard root (single shard_dir is shared by
+# every study under root_dir — useful while migrating)
+run_browser("data", shard_dir = "data/example", port = 8000)
+```
+
+`discover_studies("data")` returns a data.frame of every bundle the
+browser would find; useful for scripting or sanity-checking the layout
+before launching the app.
+
+### D. Adding a second study
+
+Just point `prepare_study()` (or another migration) at the same root
+with a new `study.ID`. Each call creates a sibling `<sid>/` folder:
+
+```
+data/
+├── 2327/                      # first study
+│   └── 2327.scminer.h5
+└── 9999/                      # second study
+    └── 9999.scminer.h5
+```
+
+`run_browser("data")` now shows two cards. No re-build of existing
+studies is required — `discover_studies()` re-scans on each launch.
 
 ## Exported API
 
@@ -155,8 +262,11 @@ are thin wrappers over them.
 | `read_graph_study(data_dir, study_id)`                         | Reconstruct study inputs from the on-disk graph layout. Per-matrix gene **indexes** come from the manifest CSVs; shard values are never loaded eagerly. |
 | `load_study(bundle_path, shard_dir = NULL)`                    | Read a `.scminer.h5` into an S3 `scminer_study` list. `shard_dir` defaults to `dirname(bundle_path)`. |
 | `gene_values(study, gene, relationship)`                       | Lazily read one gene's row from the shard tree (`Express_normalized`, `Activity_tf`, or `Activity_sig`). Aligned to `study$cells$cellID`; cached per gene. |
-| `run_app(bundle_path, host, port, launch_browser, ...)`        | Launch the Shiny app for a bundle. |
-| `build_app(bundle_path)`                                       | Build a `shiny.appobj` without launching it (for tests / embedding). |
+| `run_app(bundle_path, host, port, launch_browser, ...)`        | Launch the single-study Shiny app for a bundle. |
+| `build_app(bundle_path)`                                       | Build a single-study `shiny.appobj` without launching it. |
+| `discover_studies(root_dir)`                                   | Return one row per `<studyID>/<studyID>.scminer.h5` bundle found under `root_dir` (data.frame with meta + n_cells / n_genes / paths). |
+| `run_browser(root_dir, shard_dir = NULL, host, port, launch_browser, ...)` | Launch the **multi-study** browser. Card-grid index page; click → `?study=<id>` opens that study's viewer with a "← Back" link. `shard_dir` overrides where shards live (each bundle defaults to `dirname(bundle_path)`). |
+| `build_browser(root_dir, shard_dir = NULL)`                    | Build a multi-study `shiny.appobj` without launching it. |
 
 ### Debug / granular workflow
 
@@ -220,8 +330,16 @@ Use `emit = "bundle"` (or `"graph"`) to write only one of the two.
 
 `prepare_study(config_path)` reads a YAML file pointing at a scMINER
 ExpressionSet RDS (and optional activity + networks files) and writes
-both the graph layout and the bundle. A fully annotated example ships
-with the package; copy it as a starting point:
+both the graph layout and the bundle. Two examples are available:
+
+- **Annotated template** shipped inside the package — every field
+  documented inline. Copy it with `file.copy(system.file(...))` below.
+- **Concrete runnable config** at
+  [`data/example/2327.yml`](../data/example/2327.yml) keyed to the
+  actual 2327 (Tex) study in this repo. Adjust the `input.*` paths to
+  point at your scMINER RDS / TSV files and it runs end-to-end.
+
+Copy the annotated template:
 
 ```r
 file.copy(
@@ -290,10 +408,11 @@ groups) lives in [`../IMPLEMENTATION.md`](../IMPLEMENTATION.md).
 Rscript -e 'testthat::test_dir("scminerViewer/tests/testthat")'
 ```
 
-122 tests across `test-bundle-roundtrip.R`, `test-graph-read.R`,
-`test-shard-reader.R`, `test-prepare-study.R`, and `test-app.R` (plus
-shared `helper-fixtures.R`). Set `SCMINER_DATA_DIR=/path/to/data` to
-enable the integration tests that read real graph-layout outputs.
+169 tests across `test-bundle-roundtrip.R`, `test-graph-read.R`,
+`test-shard-reader.R`, `test-prepare-study.R`, `test-staged-helpers.R`,
+`test-browser.R`, and `test-app.R` (plus shared `helper-fixtures.R`).
+Set `SCMINER_DATA_DIR=/path/to/data` to enable the integration tests
+that read real graph-layout outputs.
 
 ## Reproducing the 2327 bundle
 
