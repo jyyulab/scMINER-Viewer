@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #BSUB -P scminer
-#BSUB -q "standard priority"
+#BSUB -q standard
 #BSUB -n 4
 #BSUB -R "rusage[mem=32000]"
 #BSUB -W 6:00
@@ -9,10 +9,11 @@
 #
 # LSF submission script for the portal-study benchmark.
 #
-# The -q directive uses LSF's multi-queue syntax: each task is
-# eligible for any queue in the list, and LSF dispatches to the first
-# one with capacity. Override per-submission with `bsub -q "q1 q2 ..."`
-# or the --queue flag of paper/portal_studies_hpc.sh.
+# The #BSUB -q here is a fallback default. When invoked through
+# paper/portal_studies_hpc.sh, the driver overrides -q per sub-array
+# so the manifest's tasks distribute across queues (LSF's native
+# multi-queue syntax does not actually distribute — it just picks the
+# first eligible queue with capacity).
 #
 # Two modes, switched by whether LSB_JOBINDEX is set:
 #

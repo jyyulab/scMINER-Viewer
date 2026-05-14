@@ -119,56 +119,113 @@ fi
 echo "Manifest -> $MANIFEST_FILE"
 echo
 
-# Per-task array submission -------------------------------------------------
-ARRAY_JOBNAME="scminer_portal_${STAMP}[1-${N}]"
-ARRAY_BSUB=(
-  bsub
-    -J "$ARRAY_JOBNAME"
-    -P "$PROJECT"
-    -q "$QUEUE"
-    -n "$CORES"
-    -R "rusage[mem=${MEM}]"
-    -W "$WALL"
-    -o "paper/logs/portal_studies_%J_%I.out"
-    -e "paper/logs/portal_studies_%J_%I.err"
-    -env "all, MANIFEST_FILE=${MANIFEST_FILE}"
-)
+# Split tasks across queues -------------------------------------------------
+#
+# LSF's native multi-queue syntax (`-q "q1 q2"`) does NOT distribute jobs
+# across queues — at dispatch time LSF just picks whichever queue has
+# capacity, so in practice everything tends to land in the first one.
+# To actually spread the array, we submit one sub-array per queue with a
+# disjoint index range over the same manifest. The merge job depends on
+# every sub-array completing.
+read -r -a QUEUE_ARR <<< "$QUEUE"
+N_Q="${#QUEUE_ARR[@]}"
+if [[ "$N_Q" -lt 1 ]]; then
+  echo "ERROR: --queue is empty" >&2
+  exit 2
+fi
+# Chunk size, ceiling division so every task is covered.
+CHUNK=$(( (N + N_Q - 1) / N_Q ))
 
-# Merge job depends on the entire array completing successfully ------------
-MERGE_BSUB=(
-  bsub
-    -J "scminer_portal_merge_${STAMP}"
-    -P "$PROJECT"
-    -q "$QUEUE"
-    -n 1
-    -R "rusage[mem=4000]"
-    -W "0:30"
-    -w "done(scminer_portal_${STAMP})"
-    -o "paper/logs/portal_merge_${STAMP}.out"
-    -e "paper/logs/portal_merge_${STAMP}.err"
-)
+echo "Distributing $N tasks across $N_Q queue(s) (chunk size $CHUNK):"
+ARRAY_NAMES=()
+ARRAY_PLAN=()  # for dry-run printing: "queue start end"
+for (( q_i = 0; q_i < N_Q; q_i++ )); do
+  start=$(( q_i * CHUNK + 1 ))
+  end=$(( (q_i + 1) * CHUNK ))
+  if [[ "$end" -gt "$N" ]]; then end="$N"; fi
+  if [[ "$start" -gt "$N" ]]; then break; fi
+  qname="${QUEUE_ARR[$q_i]}"
+  jobname="scminer_portal_${STAMP}_${qname}[${start}-${end}]"
+  ARRAY_NAMES+=("scminer_portal_${STAMP}_${qname}")
+  ARRAY_PLAN+=("$qname $start $end")
+  printf '  %-12s indices [%d-%d]  (%d task%s)\n' \
+      "$qname" "$start" "$end" $((end - start + 1)) \
+      "$(if [[ $((end - start + 1)) -ne 1 ]]; then echo s; fi)"
+done
+echo
+
+# Build the merge job's dependency string: done(arr1) && done(arr2) && ...
+MERGE_DEP=""
+for nm in "${ARRAY_NAMES[@]}"; do
+  if [[ -n "$MERGE_DEP" ]]; then MERGE_DEP+=" && "; fi
+  MERGE_DEP+="done(${nm})"
+done
 
 MERGE_CMD='Rscript paper/portal_merge.R paper/metrics/portal_studies.tsv paper/metrics/portal_studies_*.tsv'
 
+submit_array_for_queue() {
+  local qname="$1" start="$2" end="$3"
+  local jobname="scminer_portal_${STAMP}_${qname}[${start}-${end}]"
+  local cmd=(
+    bsub
+      -J "$jobname"
+      -P "$PROJECT"
+      -q "$qname"
+      -n "$CORES"
+      -R "rusage[mem=${MEM}]"
+      -W "$WALL"
+      -o "paper/logs/portal_studies_%J_%I.out"
+      -e "paper/logs/portal_studies_%J_%I.err"
+      -env "all, MANIFEST_FILE=${MANIFEST_FILE}"
+  )
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "[dry-run] ${qname} sub-array:"
+    printf '    %q ' "${cmd[@]}"; echo "< paper/portal_studies.bsub"
+  else
+    echo "Submitting ${jobname} on queue ${qname}"
+    "${cmd[@]}" < paper/portal_studies.bsub
+  fi
+}
+
+submit_merge_job() {
+  local cmd=(
+    bsub
+      -J "scminer_portal_merge_${STAMP}"
+      -P "$PROJECT"
+      -q "${QUEUE_ARR[0]}"
+      -n 1
+      -R "rusage[mem=4000]"
+      -W "0:30"
+      -w "$MERGE_DEP"
+      -o "paper/logs/portal_merge_${STAMP}.out"
+      -e "paper/logs/portal_merge_${STAMP}.err"
+  )
+  if [[ "$DRY_RUN" == "1" ]]; then
+    echo "[dry-run] merge submission:"
+    printf '    %q ' "${cmd[@]}"; echo "\"$MERGE_CMD\""
+  else
+    echo "Submitting merge job (waits for: $MERGE_DEP)"
+    "${cmd[@]}" "$MERGE_CMD"
+  fi
+}
+
+for plan in "${ARRAY_PLAN[@]}"; do
+  read -r qname start end <<< "$plan"
+  submit_array_for_queue "$qname" "$start" "$end"
+done
+echo
+submit_merge_job
+
 if [[ "$DRY_RUN" == "1" ]]; then
-  echo "[dry-run] array submission:"
-  printf '    %q ' "${ARRAY_BSUB[@]}"; echo "< paper/portal_studies.bsub"
-  echo "[dry-run] merge submission:"
-  printf '    %q ' "${MERGE_BSUB[@]}"; echo "\"$MERGE_CMD\""
   exit 0
 fi
 
-echo "Submitting array job: ${ARRAY_JOBNAME}"
-"${ARRAY_BSUB[@]}" < paper/portal_studies.bsub
-
-echo
-echo "Submitting merge job (runs when array completes):"
-"${MERGE_BSUB[@]}" "$MERGE_CMD"
-
 echo
 echo "Watch progress:"
-echo "    bjobs -A         # array status"
-echo "    bjobs -J scminer_portal_${STAMP}"
+echo "    bjobs -A                                       # all arrays"
+for nm in "${ARRAY_NAMES[@]}"; do
+  echo "    bjobs -J '${nm}*'                            # ${nm}"
+done
 echo "    tail -f paper/logs/portal_studies_*_*.out"
 echo
 echo "Final merged TSV will appear at paper/metrics/portal_studies.tsv"
