@@ -65,9 +65,9 @@ output:        /research_jude/.../scMINER_Portal/scMINERViewerMetrics
 ```
 
 * Required keys: `study.ID`, `input.expression`.
-* Optional with sensible defaults: `cellID` (`CellID`), `cellType`
-  (`CellGroup`), `cellGroup` (= `cellType`), `geneSymbol`
-  (`GeneSymbol`), `coordinate` (`UMAP`), `cluster_palette` (`npg`).
+* Optional with sensible defaults: `cellID` (`cellID`), `cellType`
+  (`cellGroup`), `cellGroup` (= `cellType`), `geneSymbol`
+  (`geneSymbol`), `coordinate` (`UMAP`), `cluster_palette` (`npg`).
 * Path resolution: paths inside `input.*` may be absolute (most
   configs are) or relative — relative paths resolve against
   `input_root` if set, else the YAML's own parent dir.

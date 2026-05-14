@@ -188,12 +188,18 @@ spec_from_yaml <- function(yaml_path) {
       species    = as.character(cfg$species          %||% "unknown"),
       coordinate = as.character(cfg$coordinate       %||% "UMAP")
     ),
-    cell_id_col     = as.character(cfg$cellID     %||% "CellID"),
-    cell_type_col   = as.character(cfg$cellType   %||% "CellGroup"),
+    # Defaults match scminerViewer / scMINER conventions:
+    #   cellID     -> "cellID"
+    #   cellType   -> "cellGroup"
+    #   cellGroup  -> falls back to cellType (or its default)
+    #   geneSymbol -> "geneSymbol"
+    #   coordinate -> "UMAP"
+    cell_id_col     = as.character(cfg$cellID     %||% "cellID"),
+    cell_type_col   = as.character(cfg$cellType   %||% "cellGroup"),
     cell_group_col  = as.character(cfg$cellGroup  %||%
-                                      cfg$cellType %||% "CellGroup"),
+                                      cfg$cellType %||% "cellGroup"),
     coordinate_col  = as.character(cfg$coordinate %||% "UMAP"),
-    gene_symbol_col = as.character(cfg$geneSymbol %||% "GeneSymbol"),
+    gene_symbol_col = as.character(cfg$geneSymbol %||% "geneSymbol"),
     cluster_palette = as.character(cfg$cluster_palette %||% "npg")
   )
 }
@@ -225,7 +231,7 @@ spec_from_dir <- function(study_dir) {
     cell_type_col   = "CellGroup",
     cell_group_col  = "CellGroup",
     coordinate_col  = "UMAP",
-    gene_symbol_col = "GeneSymbol",
+    gene_symbol_col = "geneSymbol",
     cluster_palette = "npg"
   )
 }
