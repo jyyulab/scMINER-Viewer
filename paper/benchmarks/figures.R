@@ -158,8 +158,8 @@ mk_half <- function(df, value_col, kind_label) {
   out
 }
 df_long <- rbind(
-  mk_half(scaling, "mb_bundle", "Bundle (metadata + indexes)"),
-  mk_half(scaling, "mb_shard",  "Shard tree (per-gene .csv.gz)")
+  mk_half(scaling, "mb_bundle", "Bundle"),
+  mk_half(scaling, "mb_shard",  "Shard tree")
 )
 p_A <- ggplot(df_long,
               aes(n_cells, mb, colour = gene_label, linetype = kind,
@@ -175,7 +175,7 @@ p_A <- ggplot(df_long,
   guides(colour = guide_legend(order = 1),
          linetype = guide_legend(order = 2),
          shape    = guide_legend(order = 2))
-save_panel(p_A, "figure1_A_size_vs_cells",   width = 6.0, height = 4.2)
+save_panel(p_A, "figure1_A_size_vs_cells",   width = 6.5, height = 4.2)
 
 # B. cold-load latency
 p_B <- ggplot(scaling, aes(n_cells, load_seconds,
