@@ -32,11 +32,17 @@
 #   MANIFEST_FILE  text file: line i is a YAML path OR a study folder
 #                  (the R script auto-detects; if the line ends in
 #                  .yaml/.yml it is treated as a config).
+#   MODE           (optional) 'full' (default) or 'expression-only'. When
+#                  set, the R driver receives --mode $MODE and each task's
+#                  per-study TSV is named portal_studies_<id>_<mode>.tsv.
+#                  Used by portal_studies_compare.sh to produce a
+#                  with-vs-without-TFsig comparison without clobbering.
 #
 # Env read by single mode (use exactly one):
 #   CONFIGS_DIR    folder containing the 21 YAML configs.
 #   STUDIES_ROOT   folder containing one subdir per study.
 #   ONLY           (optional) CSV of study IDs to restrict to.
+#   MODE           (optional) as above; also propagated in single mode.
 
 set -euo pipefail
 
@@ -63,14 +69,24 @@ if [[ -n "${LSB_JOBINDEX:-}" && "${LSB_JOBINDEX}" != "0" ]]; then
       mode_flag=(--studies-root "$(dirname "$line")" --only "$study_id") ;;
   esac
 
-  echo "[bsub] array task $LSB_JOBINDEX -> $study_id ($line)"
+  # Benchmark cell selector: 'full' is the historical behavior; the
+  # compare-orchestrator submits one array with MODE=expression-only and
+  # one with MODE=full so the two TSVs sit side by side.
+  RUN_MODE="${MODE:-full}"
+  out_tsv="paper/metrics/portal_studies_${study_id}.tsv"
+  if [[ -n "${MODE:-}" ]]; then
+    out_tsv="paper/metrics/portal_studies_${study_id}_${RUN_MODE}.tsv"
+  fi
+
+  echo "[bsub] array task $LSB_JOBINDEX -> $study_id ($line) mode=$RUN_MODE"
   echo "[bsub] host=$(hostname) job=${LSB_JOBID:-?}"
 
   Rscript paper/portal/portal_studies.R \
       "${mode_flag[@]}" \
-      --out "paper/metrics/portal_studies_${study_id}.tsv"
+      --mode "$RUN_MODE" \
+      --out  "$out_tsv"
 
-  echo "[bsub] $study_id done"
+  echo "[bsub] $study_id ($RUN_MODE) done"
 else
   # ---- Single-job mode --------------------------------------------------
   if [[ -n "${CONFIGS_DIR:-}" ]]; then
@@ -83,6 +99,9 @@ else
   fi
   if [[ -n "${ONLY:-}" ]]; then
     ARGS+=(--only "$ONLY")
+  fi
+  if [[ -n "${MODE:-}" ]]; then
+    ARGS+=(--mode "$MODE")
   fi
   if [[ -n "${OUT_TSV:-}" ]]; then
     ARGS+=(--out "$OUT_TSV")

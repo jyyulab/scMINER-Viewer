@@ -100,6 +100,15 @@ only_csv     <- get_arg("--only", "")
 output_root  <- get_arg("--output-root", NULL)
 scratch_root <- get_arg("--scratch",     tempfile("portal_bundle_"))
 verbose      <- !("--quiet" %in% args)
+# --mode controls the with/without-TFsig benchmark cells:
+#   full              read expression + activity + networks (default; current behavior)
+#   expression-only   skip activity and networks entirely (no TF/sig subgraphs)
+# Each mode lands in its own per-study subdir so the bundles don't clobber:
+#   <out_root>/<study_id>/<mode>/
+bench_mode <- get_arg("--mode", "full")
+if (!bench_mode %in% c("full", "expression-only")) {
+  stop("--mode must be 'full' or 'expression-only' (got: ", bench_mode, ")")
+}
 
 modes_set <- sum(!is.null(configs_dir), !is.null(config_one),
                   !is.null(studies_root))
@@ -306,7 +315,8 @@ if (length(only_set) > 0L) {
 
 # ---- One-study benchmark ---------------------------------------------------
 
-bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
+bench_real_one <- function(spec, scratch, cli_output_root = NULL,
+                            mode = "full") {
   if (!requireNamespace("Biobase", quietly = TRUE)) {
     stop("Biobase required; install via BiocManager::install('Biobase')")
   }
@@ -319,8 +329,14 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
   } else {
     scratch
   }
-  sub_root <- file.path(out_root, study_id)
+  # Per-mode subdir keeps the two benchmark cells from clobbering each
+  # other when both are run against the same cfg$output.
+  sub_root <- file.path(out_root, study_id, mode)
   dir.create(sub_root, recursive = TRUE, showWarnings = FALSE)
+  # expression-only mode forces activity and networks off regardless of
+  # whether the YAML names them.
+  use_activity  <- !identical(mode, "expression-only")
+  use_networks  <- !identical(mode, "expression-only")
 
   log_msg(sprintf("[%s] spec source: %s%s", study_id, spec$source,
                   if (spec$source == "yaml")
@@ -333,8 +349,8 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
     as.numeric(file.info(p)$size)
   }
   expr_input_bytes <- .file_bytes(spec$expr_path)
-  act_input_bytes  <- .file_bytes(spec$act_path)
-  net_input_bytes  <- .file_bytes(spec$net_path)
+  act_input_bytes  <- if (use_activity) .file_bytes(spec$act_path) else 0
+  net_input_bytes  <- if (use_networks) .file_bytes(spec$net_path) else 0
   total_input_bytes <- expr_input_bytes + act_input_bytes + net_input_bytes
 
   log_msg(sprintf("[%s] readRDS %s (%s)", study_id,
@@ -378,12 +394,14 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
       "Expect %d gzipped CSVs and proportionally large output."),
       study_id, expr_sz$nnz, expr_sz$nr))
   }
-  act_eset  <- if (!is.null(spec$act_path) && file.exists(spec$act_path)) {
+  act_eset  <- if (use_activity && !is.null(spec$act_path) &&
+                    file.exists(spec$act_path)) {
     log_msg(sprintf("[%s] readRDS %s (%s)", study_id,
                     basename(spec$act_path),
                     format(act_input_bytes, big.mark = ",")))
     readRDS(spec$act_path)
   } else NULL
+  net_path_used <- if (use_networks) spec$net_path else NULL
   if (!is.null(act_eset)) {
     act_sz <- .report_size(act_eset, "activity matrix")
     if (act_sz$nnz > .nnz_cap) {
@@ -412,7 +430,7 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
     out_dir         = sub_root,
     expression_eset = expr_eset,
     activity_eset   = act_eset,
-    networks_path   = spec$net_path,
+    networks_path   = net_path_used,
     meta            = spec$meta,
     cell_id_col     = spec$cell_id_col,
     cell_type_col   = spec$cell_type_col,
@@ -451,6 +469,13 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
   t1 <- Sys.time()
   s <- load_study(bundle)
   load_seconds <- as.numeric(difftime(Sys.time(), t1, units = "secs"))
+  # Warm load: re-call load_study() against the same bundle in the same
+  # session so OS page cache + R's allocator are pre-warmed. This isolates
+  # bundle-parse cost from filesystem-read cost.
+  rm(s); invisible(gc(verbose = FALSE))
+  t1w <- Sys.time()
+  s <- load_study(bundle)
+  load_seconds_warm <- as.numeric(difftime(Sys.time(), t1w, units = "secs"))
 
   fetch_pool <- sample(s$expression_index,
                         min(25L, length(s$expression_index)))
@@ -462,6 +487,7 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
 
   list(
     studyID            = study_id,
+    mode               = mode,
     n_cells            = nrow(s$cells),
     n_genes            = length(s$genes),
     n_clusters         = nrow(s$clusters),
@@ -480,6 +506,7 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
     prepare_seconds    = prepare_seconds,
     prepare_peak_mb    = prepare_peak_mb,
     load_seconds       = load_seconds,
+    load_seconds_warm  = load_seconds_warm,
     fetch_median       = stats::median(fetch_t),
     fetch_mean         = mean(fetch_t),
     fetch_max          = max(fetch_t),
@@ -494,9 +521,10 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
 log_msg(sprintf("Benchmarking %d studies (scratch=%s)",
                 length(specs), scratch_root))
 
-placeholder_row <- function(spec, status, note = "") {
+placeholder_row <- function(spec, status, note = "", mode = NA_character_) {
   data.frame(
     studyID            = spec$study_id,
+    mode               = mode,
     n_cells            = NA_integer_,
     n_genes            = NA_integer_,
     n_clusters         = NA_integer_,
@@ -512,6 +540,7 @@ placeholder_row <- function(spec, status, note = "") {
     prepare_seconds    = NA_real_,
     prepare_peak_mb    = NA_real_,
     load_seconds       = NA_real_,
+    load_seconds_warm  = NA_real_,
     fetch_median       = NA_real_,
     fetch_mean         = NA_real_,
     fetch_max          = NA_real_,
@@ -534,13 +563,15 @@ for (i in seq_along(specs)) {
     log_msg(sprintf("  SKIPPED: %s -- %s",
                     spec$study_id, spec$skip_reason))
     rows[[length(rows) + 1L]] <- placeholder_row(spec, "skipped",
-                                                  spec$skip_reason)
+                                                  spec$skip_reason,
+                                                  mode = bench_mode)
     next
   }
 
   err_obj <- NULL
   out <- tryCatch(bench_real_one(spec, scratch_root,
-                                  cli_output_root = output_root),
+                                  cli_output_root = output_root,
+                                  mode = bench_mode),
                   error = function(err) {
                     err_obj <<- err
                     message(sprintf("  ERROR: %s", conditionMessage(err)))
@@ -557,9 +588,11 @@ for (i in seq_along(specs)) {
               msg, ignore.case = TRUE)) {
       rows[[length(rows) + 1L]] <- placeholder_row(spec,
                                                     "error-too-large",
-                                                    msg)
+                                                    msg,
+                                                    mode = bench_mode)
     } else {
-      rows[[length(rows) + 1L]] <- placeholder_row(spec, "error", msg)
+      rows[[length(rows) + 1L]] <- placeholder_row(spec, "error", msg,
+                                                    mode = bench_mode)
     }
   } else {
     row <- as.data.frame(out, stringsAsFactors = FALSE)
@@ -600,10 +633,11 @@ display$shard_mb  <- round(display$shard_bytes        / 1024^2, 1)
 display$prep_s    <- round(display$prepare_seconds, 1)
 display$peak_mb   <- round(display$prepare_peak_mb, 0)
 display$load_s    <- round(display$load_seconds, 3)
+display$load_s_w  <- round(display$load_seconds_warm, 3)
 display$fetch_ms  <- round(display$fetch_median * 1000, 1)
-print(display[, c("studyID", "n_cells", "n_genes", "n_clusters",
+print(display[, c("studyID", "mode", "n_cells", "n_genes", "n_clusters",
                    "in_mb", "bundle_mb", "shard_mb", "out_mb",
-                   "prep_s", "peak_mb", "load_s", "fetch_ms")],
+                   "prep_s", "peak_mb", "load_s", "load_s_w", "fetch_ms")],
       row.names = FALSE)
 
 log_msg(sprintf(
