@@ -57,7 +57,7 @@ feature parity through 216 automated tests (194 R + 22 Python).
 
 **Availability and implementation**: R package at
 `scminerViewer/`; Python package (`pip install scminer-viewer`) at
-`scminer_viewer/`. MIT-licensed. Source, bookdown user guide, and
+`scminer_viewer/`. Apache-2.0–licensed. Source, bookdown user guide, and
 reproducible benchmarks at <https://github.com/jyyulab/scMINER-Viewer>.
 
 **Correspondance**: jiyang.yu@stjude.org

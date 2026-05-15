@@ -8,7 +8,7 @@ Description: Processes scMINER study data and serves it via a Shiny
     application. Emits both the graph-import layout used by the scMINER
     portal and a self-contained HDF5 study bundle that the Shiny app and
     the companion Python webui both consume.
-License: MIT + file LICENSE
+License: Apache License (>= 2)
 Encoding: UTF-8
 Imports:
     hdf5r,

@@ -149,7 +149,7 @@ See [`scminer_viewer/README.md`](scminer_viewer/README.md) for the
 
 Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:
 
-- Single HDF5 file, `bundleVersion = 2`.
+- Single HDF5 file, `bundleVersion = 1`.
 - Strings are UTF-8.
 - Three optional gene-index datasets under `/index/` enumerate which
   genes have shards in each matrix; the apps gate gene selection on
@@ -169,4 +169,20 @@ Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:
   9861 genes × 3 clusters; 9861 expression / 925 TF / 4708 SIG genes
   indexed; 743K total network edges; values fetched lazily from the
   shard tree.
+
+## License
+
+scMINER Viewer is released under the **Apache License, Version 2.0**.
+See [`LICENSE`](LICENSE) for the full text and [`NOTICE`](NOTICE) for
+attribution requirements. Both packages (`scminerViewer/`,
+`scminer_viewer/`) carry symlinks back to the root `LICENSE` so each
+distribution unit ships a copy.
+
+    Copyright 2026 St. Jude Children's Research Hospital
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
 
