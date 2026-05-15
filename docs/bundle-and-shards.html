@@ -192,7 +192,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
-<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-2"><i class="fa fa-check"></i>HDF5 bundle layout (<code>bundleVersion = 2</code>)</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-1"><i class="fa fa-check"></i>HDF5 bundle layout (<code>bundleVersion = 1</code>)</a></li>
 <li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#shard-tree"><i class="fa fa-check"></i>Shard tree</a></li>
 <li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#lazy-contract"><i class="fa fa-check"></i>Lazy contract</a></li>
 <li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#discovering-studies-under-a-multi-study-root"><i class="fa fa-check"></i>Discovering studies under a multi-study root</a></li>
@@ -275,11 +275,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 file (~80 MB for an 8K-cell study) that contains everything the apps
 need at startup — except the matrix values, which stay on disk in the
 shard tree and are read lazily.</p>
-<div id="hdf5-bundle-layout-bundleversion-2" class="section level2 unnumbered hasAnchor">
-<h2>HDF5 bundle layout (<code>bundleVersion = 2</code>)<a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-2" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div id="hdf5-bundle-layout-bundleversion-1" class="section level2 unnumbered hasAnchor">
+<h2>HDF5 bundle layout (<code>bundleVersion = 1</code>)<a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-1" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <pre><code>/meta/
   studyID, studyAbbr, longTitle, shortTitle, species, coordinate  (string)
-  bundleVersion                                                   (int, = 2)
+  bundleVersion                                                   (int, = 1)
 
 /cells/
   cellID    (N,)   string

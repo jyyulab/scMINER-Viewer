@@ -192,7 +192,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
-<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-2"><i class="fa fa-check"></i>HDF5 bundle layout (<code>bundleVersion = 2</code>)</a></li>
+<li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#hdf5-bundle-layout-bundleversion-1"><i class="fa fa-check"></i>HDF5 bundle layout (<code>bundleVersion = 1</code>)</a></li>
 <li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#shard-tree"><i class="fa fa-check"></i>Shard tree</a></li>
 <li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#lazy-contract"><i class="fa fa-check"></i>Lazy contract</a></li>
 <li class="chapter" data-level="" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html#discovering-studies-under-a-multi-study-root"><i class="fa fa-check"></i>Discovering studies under a multi-study root</a></li>
@@ -388,12 +388,14 @@ Activity matrices typically have a smaller index than expression
 </div>
 <div id="bundle-is-huge-1-gb" class="section level2 unnumbered hasAnchor">
 <h2>Bundle is huge (&gt;1 GB)<a href="troubleshooting.html#bundle-is-huge-1-gb" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p><code>bundleVersion == 2</code> stores <strong>indexes only</strong> — no matrix values — so
-a healthy bundle is tens of MB even for studies with hundreds of
-thousands of cells. If your bundle is &gt;1 GB, you’re probably looking
-at a stale <code>bundleVersion == 1</code> artifact from before the lazy-mode
-refactor. Rebuild via <code>prepare_study()</code> or the migration recipe in
-Chapter <a href="tutorial.html#tutorial">3</a>.</p>
+<p>The bundle format (<code>bundleVersion == 1</code>) stores <strong>indexes only</strong> — no
+matrix values — so a healthy <code>.scminer.h5</code> is tens of MB even for
+studies with hundreds of thousands of cells. A multi-GB bundle is
+almost always an artifact written by an older non-lazy tool that
+inlined the expression matrix into HDF5 directly. Rebuild via
+<code>prepare_study(config_path)</code> (Chapter <a href="tutorial.html#tutorial">3</a>); the lazy
+writer drops the matrix values onto disk as per-gene gzipped CSVs
+under <code>expression_files/&lt;studyID&gt;/</code> and <code>activity_files/&lt;studyID&gt;/</code>.</p>
 </div>
 <div id="a-specific-cluster-disappears-with-sampling-on" class="section level2 unnumbered hasAnchor">
 <h2>A specific cluster disappears with sampling on<a href="troubleshooting.html#a-specific-cluster-disappears-with-sampling-on" class="anchor-section" aria-label="Anchor link to header"></a></h2>
