@@ -23,7 +23,7 @@
 <meta name="author" content="scMINER Team" />
 
 
-<meta name="date" content="2026-05-14" />
+<meta name="date" content="2026-05-15" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -421,12 +421,14 @@ and <code>extract_activity()</code> no longer cast the source matrix to
 genes one at a time and never materializes a full sparse copy,
 so it works on dense (<code>dgeMatrix</code>, base <code>matrix</code>) and sparse
 (<code>dgCMatrix</code>) inputs alike.</p></li>
-<li><p><strong><code>portal_studies.R</code> runs a pre-flight nnz check.</strong> Before calling
-<code>prepare_study_from_eset()</code> it counts the actual non-zero entries
-(<code>length(m@x)</code> if sparse, <code>sum(m != 0)</code> if dense) and skips
-the study with <code>status = "skipped-too-large"</code> when the value
-exceeds the cap. The bsub task still exits 0 so the job-array
-merge dependency fires.</p></li>
+<li><p><strong><code>portal_studies.R</code> reports actual nnz but no longer pre-emptively
+skips.</strong> It still counts non-zero entries on load (<code>length(m@x)</code>
+if sparse, <code>sum(m != 0)</code> if dense) and prints a warning if the
+value exceeds the cap. The run is allowed to proceed because the
+shard writer streams genes; if <code>.reindex_rows()</code> then fails on a
+huge activity matrix downstream, the run-loop’s <code>tryCatch</code> tags the
+row as <code>status = "error-too-large"</code>. The bsub task still exits 0
+either way so the job-array merge dependency fires.</p></li>
 </ol>
 <p>If you hit this error from your own pipeline (not through
 <code>portal_studies.R</code>):</p>
