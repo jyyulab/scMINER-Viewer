@@ -342,13 +342,14 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
                   format(expr_input_bytes, big.mark = ",")))
   expr_eset <- readRDS(spec$expr_path)
 
-  # Pre-flight: R's Matrix package caps dgCMatrix at 2^31-1 nonzero
-  # entries (sparseMatrix() throws "more than 2^31-1 nonzero entries").
-  # For a sparse-backed eset we read the actual nnz via @x; for a
-  # dense-backed eset we have to walk the matrix once with sum(m != 0).
-  # That scan is cheap relative to the bundle write and avoids
-  # false-positive skips on scRNA-seq matrices that are sparse in fact
-  # even when stored densely (post-normalization log-CPM, etc.).
+  # Pre-flight on matrix sizes. R's Matrix package caps dgCMatrix at
+  # 2^31-1 nonzero entries; sparseMatrix() throws when that limit is
+  # exceeded. After the extract_expression / extract_activity
+  # simplification (scminerViewer >= 0.1.0), the expression matrix
+  # never gets converted to dgCMatrix -- .write_graph_shards streams
+  # rows one at a time -- so the cap doesn't apply to expression. We
+  # only hard-fail on the *activity* matrix, which still flows through
+  # .reindex_rows() and does construct a master-shaped sparse matrix.
   .nnz_cap <- .Machine$integer.max  # 2^31 - 1
   .nnz_of <- function(eset) {
     m <- Biobase::exprs(eset)
@@ -360,30 +361,41 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
            dense = TRUE, nr = nrow(m), nc = ncol(m))
     }
   }
-  .check_size <- function(eset, label) {
+  .report_size <- function(eset, label) {
     sz <- .nnz_of(eset)
     log_msg(sprintf("[%s] %s: %d x %d (%s), nnz=%s",
                     study_id, label, sz$nr, sz$nc,
                     if (sz$dense) "dense" else "sparse",
                     format(sz$nnz, big.mark = ",")))
+    sz
+  }
+  .check_activity_cap <- function(eset, label) {
+    sz <- .report_size(eset, label)
     if (sz$nnz > .nnz_cap) {
       stop(sprintf(paste0(
-        "matrix too large for dgCMatrix: %s is %d x %d (%s), ",
-        "nnz=%.3g > 2^31-1 cap"),
+        "activity matrix too large for dgCMatrix: %s is %d x %d ",
+        "(%s), nnz=%.3g > 2^31-1 cap -- .reindex_rows() would fail"),
         label, sz$nr, sz$nc,
         if (sz$dense) "dense" else "sparse",
         sz$nnz),
         call. = FALSE)
     }
   }
-  .check_size(expr_eset, "expression matrix")
+  expr_sz <- .report_size(expr_eset, "expression matrix")
+  if (expr_sz$nnz > .nnz_cap) {
+    log_msg(sprintf(paste0(
+      "[%s] WARNING: expression nnz=%.3g exceeds 2^31-1 cap, but the ",
+      "shard writer streams gene-by-gene so this is non-fatal. ",
+      "Expect %d gzipped CSVs and proportionally large output."),
+      study_id, expr_sz$nnz, expr_sz$nr))
+  }
   act_eset  <- if (!is.null(spec$act_path) && file.exists(spec$act_path)) {
     log_msg(sprintf("[%s] readRDS %s (%s)", study_id,
                     basename(spec$act_path),
                     format(act_input_bytes, big.mark = ",")))
     readRDS(spec$act_path)
   } else NULL
-  if (!is.null(act_eset)) .check_size(act_eset, "activity matrix")
+  if (!is.null(act_eset)) .check_activity_cap(act_eset, "activity matrix")
   log_msg(sprintf("[%s] networks: %s%s", study_id,
                   if (is.null(spec$net_path)) "(none)" else
                     basename(spec$net_path),
