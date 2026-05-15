@@ -28,7 +28,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`sparseify_eset.sh`](portal/sparseify_eset.sh)             | LSF bsub wrapper around `sparseify_eset.R` with high-mem defaults. |
 | &nbsp;&nbsp;[`example.yaml`](portal/example.yaml)                       | Reference YAML schema (annotated template). |
 | [`figures/`](figures/)                           | Generated standalone panels: `figure1_{A..F}_*.{pdf,png}` (synthetic, 6 panels), `architecture.{pdf,png}` (figure 2), `figure_portal_{A..F}_*.{pdf,png}` (real-data, 6 panels). |
-| [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv`, `discover_scaling.tsv`, `real_study.tsv`, `portal_studies.tsv` (merged), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts). |
+| [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv` (per-rep), `bundle_scaling_summary.tsv` (mean / sd / SE per config), `discover_scaling.tsv` + `_summary.tsv`, `real_study.tsv`, `portal_studies.tsv` (merged), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts). |
 | [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). `table 1 = portal_studies`, `table 2 = figure1_scaling`. Re-render with `Rscript paper/benchmarks/tables.R`. |
 | [`logs/`](logs/), [`hpc/`](hpc/)                 | Runtime artefacts (manifests, bsub stdout/stderr). |
 
@@ -55,8 +55,18 @@ Rscript paper/benchmarks/tables.R
 
 The sweep is a 7 × 4 grid: `n_cells ∈ {500, 1000, 2000, 4000, 6000,
 8000, 10000}`, `n_genes ∈ {2000, 5000, 8000, 10000}` (28 configs).
-Total wall time: ~ 15–25 min on a laptop, ~ 5 s for the multi-study
-discover sweep, < 1 s for the real 2327 row.
+Each configuration is benchmarked **`N_REPS = 5`** times with
+independent random seeds; mean ± standard error across replicates
+drives both the figure 1 error bars and the table 2 cells. Total
+wall time: ~ 60–90 min on a laptop (140 runs), ~ 30 s for the
+multi-study discover sweep (also 5×6 = 30 runs), < 1 s for the real
+2327 row. Drop `N_REPS` to `1` in `figures.R` for a single-run
+iteration cycle.
+
+The replicate-level TSVs at `paper/metrics/{bundle,discover}_scaling.tsv`
+keep every individual run; the aggregated summaries (one row per
+config with `_mean / _sd / _se / n_reps` columns) live at
+`paper/metrics/{bundle,discover}_scaling_summary.tsv`.
 
 `run_figure1.sh` flags (HPC mode only):
 

@@ -115,33 +115,81 @@ message("Wrote paper/tables/portal_studies.md")
 
 # ---- 2. Figure 1 synthetic-sweep table -------------------------------------
 
-scaling <- read_tsv("paper/metrics/bundle_scaling.tsv")
-scaling <- scaling[order(scaling$n_cells, scaling$n_genes), , drop = FALSE]
+# Prefer the per-config summary (one row per cells x genes with mean +
+# SE across replicates). Fall back to the raw per-rep TSV when the
+# summary hasn't been generated yet (single-rep mode).
+summary_path <- "paper/metrics/bundle_scaling_summary.tsv"
+if (file.exists(summary_path)) {
+  s <- read_tsv(summary_path)
+  s <- s[order(s$n_cells, s$n_genes), , drop = FALSE]
 
-fig1_tbl <- data.frame(
-  n_cells       = fmt_n(scaling$n_cells),
-  n_genes       = fmt_n(scaling$n_genes),
-  `bundle MB`   = fmt_mb(scaling$bundle_bytes / 1024^2, 2),
-  `shard MB`    = fmt_mb(scaling$shard_bytes  / 1024^2, 1),
-  `prepare s`   = fmt_secs(scaling$prepare_seconds, 1),
-  `peak Mb`     = fmt_mb(scaling$prepare_peak_mb, 0),
-  `load s`      = fmt_secs(scaling$load_seconds, 3),
-  `fetch median ms` = fmt_ms(scaling$fetch_median * 1000, 1),
-  `fetch max ms`    = fmt_ms(scaling$fetch_max    * 1000, 1),
-  check.names   = FALSE,
-  stringsAsFactors = FALSE
-)
+  # Cell formatter: "mean ± SE" with units already baked in.
+  fmt_pm <- function(mean, se, digits = 2, big = ",") {
+    ifelse(is.na(mean), "—",
+           sprintf("%s ± %s",
+                   formatC(mean, format = "f", digits = digits,
+                            big.mark = big),
+                   formatC(se,   format = "f", digits = digits,
+                            big.mark = big)))
+  }
+
+  n_reps_value <- if ("n_reps" %in% colnames(s)) max(s$n_reps) else 1L
+  fig1_tbl <- data.frame(
+    n_cells       = fmt_n(s$n_cells),
+    n_genes       = fmt_n(s$n_genes),
+    n_reps        = fmt_n(s$n_reps %||% n_reps_value),
+    `bundle MB`   = fmt_pm(s$bundle_bytes_mean / 1024^2,
+                            s$bundle_bytes_se   / 1024^2, digits = 2),
+    `shard MB`    = fmt_pm(s$shard_bytes_mean  / 1024^2,
+                            s$shard_bytes_se    / 1024^2, digits = 1),
+    `prepare s`   = fmt_pm(s$prepare_seconds_mean,
+                            s$prepare_seconds_se, digits = 1),
+    `peak Mb`     = fmt_pm(s$prepare_peak_mb_mean,
+                            s$prepare_peak_mb_se, digits = 0),
+    `load s`      = fmt_pm(s$load_seconds_mean,
+                            s$load_seconds_se, digits = 3),
+    `fetch median ms` = fmt_pm(s$fetch_median_mean * 1000,
+                                  s$fetch_median_se   * 1000, digits = 1),
+    `fetch max ms`    = fmt_pm(s$fetch_max_mean    * 1000,
+                                  s$fetch_max_se      * 1000, digits = 1),
+    check.names      = FALSE,
+    stringsAsFactors = FALSE
+  )
+  source_label <- sprintf("(mean ± SE across %d replicates)",
+                          n_reps_value)
+} else {
+  message("No summary TSV; falling back to per-rep table at ",
+          "paper/metrics/bundle_scaling.tsv")
+  scaling <- read_tsv("paper/metrics/bundle_scaling.tsv")
+  scaling <- scaling[order(scaling$n_cells, scaling$n_genes), ,
+                       drop = FALSE]
+  fig1_tbl <- data.frame(
+    n_cells       = fmt_n(scaling$n_cells),
+    n_genes       = fmt_n(scaling$n_genes),
+    `bundle MB`   = fmt_mb(scaling$bundle_bytes / 1024^2, 2),
+    `shard MB`    = fmt_mb(scaling$shard_bytes  / 1024^2, 1),
+    `prepare s`   = fmt_secs(scaling$prepare_seconds, 1),
+    `peak Mb`     = fmt_mb(scaling$prepare_peak_mb, 0),
+    `load s`      = fmt_secs(scaling$load_seconds, 3),
+    `fetch median ms` = fmt_ms(scaling$fetch_median * 1000, 1),
+    `fetch max ms`    = fmt_ms(scaling$fetch_max    * 1000, 1),
+    check.names      = FALSE,
+    stringsAsFactors = FALSE
+  )
+  source_label <- "(single run per configuration)"
+}
 write.table(fig1_tbl, "paper/tables/figure1_scaling.tsv",
             sep = "\t", row.names = FALSE, quote = FALSE)
 message("Wrote paper/tables/figure1_scaling.tsv")
 
 md_lines2 <- c(
-  sprintf("**Table 2.** Synthetic-sweep benchmark (%d configurations) ",
-          nrow(scaling)),
-  "underlying figure 1. Each row is a single synthetic study generated",
+  sprintf("**Table 2.** Synthetic-sweep benchmark (%d configurations, %s) ",
+          nrow(fig1_tbl), source_label),
+  "underlying figure 1. Each configuration is a synthetic study generated",
   "by `make_synthetic_study(n_cells, n_genes, n_clusters = 4, density = 0.10)`",
   "and benchmarked end-to-end via `bench_bundle()`: bundle + shard write,",
   "`load_study()` cold-start, and 25 random `gene_values()` fetches.",
+  "Each replicate uses an independent random seed.",
   "Bundles stay near-constant in size while the shard tree grows linearly",
   "with `n_cells × n_genes`.",
   "",
