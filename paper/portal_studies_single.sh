@@ -76,17 +76,25 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 
 # Build the env string handed to the .bsub task. -env "all, K=V, K=V"
 # starts from the submitter's env, then sets the listed keys.
+# IMPORTANT: LSF uses comma as the separator, so any literal comma
+# inside a value (e.g. --only=2317,2333) must be backslash-escaped
+# (\,) or LSF rejects the whole expression with "Invalid syntax for
+# option -env." See `man bsub` / IBM LSF env doc.
+.lsf_escape() {
+  # Backslash-escape commas inside a value so LSF doesn't split on them.
+  printf '%s' "${1//,/\\,}"
+}
 ENV_PARTS=("all")
 if [[ -n "$CONFIGS_DIR" ]]; then
   CONFIGS_ABS="$(cd "$CONFIGS_DIR" && pwd)"
-  ENV_PARTS+=("CONFIGS_DIR=${CONFIGS_ABS}")
+  ENV_PARTS+=("CONFIGS_DIR=$(.lsf_escape "$CONFIGS_ABS")")
 fi
 if [[ -n "$STUDIES_ROOT" ]]; then
   STUDIES_ABS="$(cd "$STUDIES_ROOT" && pwd)"
-  ENV_PARTS+=("STUDIES_ROOT=${STUDIES_ABS}")
+  ENV_PARTS+=("STUDIES_ROOT=$(.lsf_escape "$STUDIES_ABS")")
 fi
 if [[ -n "$ONLY" ]]; then
-  ENV_PARTS+=("ONLY=${ONLY}")
+  ENV_PARTS+=("ONLY=$(.lsf_escape "$ONLY")")
 fi
 ENV_STR="$(IFS=,; echo "${ENV_PARTS[*]}")"
 
