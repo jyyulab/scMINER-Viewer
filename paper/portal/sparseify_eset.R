@@ -146,8 +146,14 @@ if (file.exists(dst_path) && !force_over) {
 
 log_msg(sprintf("Converting %s -> dgCMatrix ...", src_class))
 t_conv <- Sys.time()
-exprs(eset) <- methods::as(m, "CsparseMatrix")
+# Biobase only registers `exprs<-` for signature (ExpressionSet, matrix);
+# a dgCMatrix isn't a base matrix, so dispatch fails for every ExpressionSet
+# subclass (including scMINER's SparseExpressionSet). Write to assayData
+# directly to bypass the restriction; dimnames carry over from `m`.
+sp <- methods::as(m, "CsparseMatrix")
 rm(m); invisible(gc(verbose = FALSE))
+eset <- Biobase::assayDataElementReplace(eset, "exprs", sp, validate = FALSE)
+rm(sp); invisible(gc(verbose = FALSE))
 conv_secs <- as.numeric(difftime(Sys.time(), t_conv, units = "secs"))
 log_msg(sprintf("  convert:  %.1f s", conv_secs))
 
