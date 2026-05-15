@@ -11,8 +11,11 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | [`scminer-viewer.md`](scminer-viewer.md)         | Manuscript draft (~2 pages, Markdown). Pandoc-renderable to PDF / DOCX. |
 | [`benchmarks/`](benchmarks/)                     | Synthetic-sweep code (figure 1) + architecture renderer (figure 2). |
 | &nbsp;&nbsp;[`methods.R`](benchmarks/methods.R)                | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
-| &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | Synthetic-sweep benchmark + real 2327 row; writes `figures/figure1.{pdf,png}` and the scaling TSVs. |
+| &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | 7x4 synthetic-sweep benchmark (cells × genes) + real 2327 row + discover scaling. Writes 6 standalone figure 1 panels (`figure1_{A..F}_*.{pdf,png}`) plus the scaling TSVs. |
 | &nbsp;&nbsp;[`figure_architecture.R`](benchmarks/figure_architecture.R) | Renders the architecture diagram (figure 2). No data deps; ~ 1 s. |
+| &nbsp;&nbsp;[`figure_portal.R`](benchmarks/figure_portal.R)             | Renders 6 standalone real-data figures (A–F) from the aggregated portal metrics. Each panel is its own `{pdf,png}` pair so it can be placed independently. |
+| &nbsp;&nbsp;[`tables.R`](benchmarks/tables.R)                           | Generates pandoc-renderable tables (table 1 / portal studies, table 2 / figure 1 sweep) from the benchmark TSVs. Writes both `.md` and `.tsv` under `tables/`. |
+| &nbsp;&nbsp;[`run_figure1.sh`](benchmarks/run_figure1.sh)               | One-command driver: runs `figures.R` then `tables.R`. Local by default; pass `--hpc --mem ... --wall ...` to submit as a single LSF bsub job. |
 | [`configs/`](configs/)                           | 29 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
 | [`portal/`](portal/)                             | 29-study HPC pipeline: drivers, R workers, bsub task body, helpers. |
 | &nbsp;&nbsp;[`portal_studies.R`](portal/portal_studies.R)               | Loads each YAML, runs `prepare_study_from_eset → load_study → gene_values`, writes per-study metrics. |
@@ -24,22 +27,63 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`sparseify_eset.R`](portal/sparseify_eset.R)               | One-time converter: rewrites a dense-backed `ExpressionSet` rds into a `dgCMatrix`-backed one. |
 | &nbsp;&nbsp;[`sparseify_eset.sh`](portal/sparseify_eset.sh)             | LSF bsub wrapper around `sparseify_eset.R` with high-mem defaults. |
 | &nbsp;&nbsp;[`example.yaml`](portal/example.yaml)                       | Reference YAML schema (annotated template). |
-| [`figures/`](figures/)                           | Generated `figure1.{pdf,png}`, `architecture.{pdf,png}`. |
-| [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv`, `discover_scaling.tsv`, `real_study.tsv`, `portal_studies.tsv`. |
+| [`figures/`](figures/)                           | Generated standalone panels: `figure1_{A..F}_*.{pdf,png}` (synthetic, 6 panels), `architecture.{pdf,png}` (figure 2), `figure_portal_{A..F}_*.{pdf,png}` (real-data, 6 panels). |
+| [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv`, `discover_scaling.tsv`, `real_study.tsv`, `portal_studies.tsv` (merged), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts). |
+| [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). `table 1 = portal_studies`, `table 2 = figure1_scaling`. Re-render with `Rscript paper/benchmarks/tables.R`. |
 | [`logs/`](logs/), [`hpc/`](hpc/)                 | Runtime artefacts (manifests, bsub stdout/stderr). |
 
 ## Synthetic-sweep benchmark (figure 1)
 
-From the project root with `scminerViewer` installed:
+The wrapper runs the full pipeline — `figures.R` → `tables.R` — and
+tees output to `paper/logs/figure1_<timestamp>.log`:
 
 ```sh
+# Local (laptop / HPC interactive node)
+./paper/benchmarks/run_figure1.sh
+
+# HPC (single bsub job; recommended for the full 28-config sweep
+# since 10K x 10K configs may need ~16-32 GB):
+./paper/benchmarks/run_figure1.sh --hpc --mem 64000 --wall 6:00
+
+# Inspect the bsub command without submitting:
+./paper/benchmarks/run_figure1.sh --hpc --dry-run
+
+# Skip the wrapper and run the R steps directly:
 Rscript paper/benchmarks/figures.R
+Rscript paper/benchmarks/tables.R
 ```
 
-Run time ≈ 1–2 min on a laptop; ≈ 5 s for the multi-study
-discover sweep; < 1 s for the real 2327 row. Outputs land in
-`paper/figures/` and `paper/metrics/`. Edit `SCALING_GRID` /
-`DISCOVER_GRID` in `figures.R` to widen or shrink the sweep.
+The sweep is a 7 × 4 grid: `n_cells ∈ {500, 1000, 2000, 4000, 6000,
+8000, 10000}`, `n_genes ∈ {2000, 5000, 8000, 10000}` (28 configs).
+Total wall time: ~ 15–25 min on a laptop, ~ 5 s for the multi-study
+discover sweep, < 1 s for the real 2327 row.
+
+`run_figure1.sh` flags (HPC mode only):
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--hpc` | — | Submit via `bsub` (otherwise: run in-shell). |
+| `--mem <MB>` | `32000` | Memory request. |
+| `--cores <n>` | `4` | Cores. |
+| `--wall <hh:mm>` | `4:00` | Wall-clock limit. |
+| `--queue <name>` | `standard` | LSF queue. |
+| `--project <id>` | `scminer` | LSF charge code. |
+| `--dry-run` | — | Print the bsub command without submitting. |
+
+Each panel is rendered as its own `{pdf,png}` pair (no patchwork grid):
+
+| File stem | What it shows |
+| --- | --- |
+| `figure1_A_size_vs_cells`     | Bundle + shard tree size vs cells, faceted by gene count |
+| `figure1_B_load_latency`      | `load_study()` cold-start latency |
+| `figure1_C_fetch_latency`     | `gene_values()` median fetch latency (bar to max) |
+| `figure1_D_discover_scaling`  | `discover_studies()` scaling on a multi-study root |
+| `figure1_E_prepare_time`      | `prepare_study_data()` wall time |
+| `figure1_F_peak_memory`       | `prepare_study_data()` peak resident memory |
+
+Edit `SCALING_GRID` / `DISCOVER_GRID` in `figures.R` to widen or
+shrink the sweep. Outputs land in `paper/figures/` and
+`paper/metrics/{bundle_scaling,discover_scaling,real_study}.tsv`.
 
 ## Portal benchmark (29 real studies on HPC)
 
@@ -128,6 +172,58 @@ tail -f paper/logs/portal_studies_*_*.out
 ls   paper/metrics/portal_studies_*.tsv    # per-study TSVs (one per array task)
 cat  paper/metrics/portal_studies.tsv      # final merged table
 ```
+
+**Aggregate + render real-data figures** once the per-study
+TSVs are on disk:
+
+```sh
+# 1. Concatenate all per-study TSVs into paper/metrics/portal_studies.tsv:
+Rscript paper/portal/portal_merge.R paper/metrics/portal_studies.tsv \
+    paper/metrics/portal_studies_*.tsv
+
+# 2. Render 6 standalone panels (one {pdf,png} each)
+#    + the status-count summary TSV:
+Rscript paper/benchmarks/figure_portal.R
+```
+
+Each panel is its own file so it can be placed independently in the
+manuscript or supplementary slides — no patchwork grid:
+
+| File stem | What it shows |
+| --- | --- |
+| `figure_portal_A_size_vs_cells` | Bundle + shard tree size vs cell count (log-log) |
+| `figure_portal_B_prepare_time`  | `prepare_study()` wall time vs `n_cells × n_genes` |
+| `figure_portal_C_peak_memory`   | Peak memory vs total input size |
+| `figure_portal_D_load_latency`  | `load_study()` cold-start latency vs bundle size |
+| `figure_portal_E_fetch_latency` | `gene_values()` median fetch latency vs gene count |
+| `figure_portal_F_size_ratio`    | Output : input compression ratio per study (split by activity presence) |
+
+If the merged TSV is absent, `figure_portal.R` falls back to globbing
+the per-study TSVs directly. The status-count summary lands at
+`paper/metrics/portal_studies_summary.tsv` so the manuscript can cite
+how many runs landed in each status bucket.
+
+### Tables
+
+`paper/benchmarks/tables.R` regenerates two manuscript tables from
+the same TSVs:
+
+```sh
+Rscript paper/benchmarks/tables.R
+```
+
+Outputs land under `paper/tables/`:
+
+| Table | Source | Output |
+| --- | --- | --- |
+| Table 1 — per-study metrics for the 26+ real portal studies | `paper/metrics/portal_studies.tsv` (status == `ok`) | `paper/tables/portal_studies.{md,tsv}` |
+| Table 2 — synthetic-sweep grid underlying figure 1 (28 configs once `figures.R` finishes) | `paper/metrics/bundle_scaling.tsv` | `paper/tables/figure1_scaling.{md,tsv}` |
+
+The Markdown files ship a leading caption block and a GFM table that
+pandoc converts to LaTeX (or DOCX) without further intervention.
+Embed them in `scminer-viewer.md` with a pandoc include filter, or
+paste inline. The TSV versions are clean for any downstream
+post-processing.
 
 ### Local / sequential modes (development & reruns)
 
