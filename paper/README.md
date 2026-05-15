@@ -11,7 +11,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | [`scminer-viewer.md`](scminer-viewer.md)         | Manuscript draft (~2 pages, Markdown). |
 | [`methods.R`](methods.R)                         | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
 | [`figures.R`](figures.R)                         | Synthetic-sweep benchmark + real 2327 row; writes `figure1.{pdf,png}` and the scaling TSVs. |
-| [`configs/`](configs/)                           | 34 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
+| [`configs/`](configs/)                           | 29 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
 | [`portal_studies.R`](portal_studies.R)           | Loads each YAML, runs `prepare_study_from_eset → load_study → gene_values`, writes per-study metrics. |
 | [`portal_studies.sh`](portal_studies.sh)         | Local / interactive wrapper around `portal_studies.R`. |
 | [`portal_studies.bsub`](portal_studies.bsub)     | LSF script: single-job mode and job-array task body. |
@@ -35,9 +35,9 @@ discover sweep; < 1 s for the real 2327 row. Outputs land in
 `paper/figures/` and `paper/metrics/`. Edit `SCALING_GRID` /
 `DISCOVER_GRID` in `figures.R` to widen or shrink the sweep.
 
-## Portal benchmark (34 real studies on HPC)
+## Portal benchmark (29 real studies on HPC)
 
-The `paper/configs/` folder holds **34 YAML configs**, one per study,
+The `paper/configs/` folder holds **29 YAML configs**, one per study,
 named `<study.ID>.yaml`. Each config tells `portal_studies.R` exactly
 where its `expression.rds`, `activity.rds`, and `networks.txt` live
 on HPC.
@@ -175,7 +175,7 @@ Status values:
 | `status` | When | TSV columns |
 | --- | --- | --- |
 | `ok` | Benchmark completed | All metric columns filled |
-| `skipped` | Legacy `input.genes` layout (KKYan studies) | Metrics NA; `note` carries reason |
+| `skipped` | YAML uses the legacy `input.genes` (raw matrix + `genes.csv`) layout that `prepare_study_from_eset()` can't consume | Metrics NA; `note` carries reason |
 | `skipped-too-large` | Actual nnz exceeds 2^31-1 (R's `dgCMatrix` cap) | Metrics NA; `note` carries the size that tripped the cap |
 | `error` | Any other failure | Metrics NA; `note` carries the error message |
 
@@ -191,16 +191,18 @@ Per-study runtime scales roughly linearly with cell count:
 * 100 k+ cells (Covid97k, GSE155446, HMC76k): ~ 1–3 h, 12–24 GB peak
 * 650 k cells (Covid650k): bump to `--mem 64000 --wall 12:00`
 
-A full 34-task array completes in roughly the wall time of the
+A full 29-task array completes in roughly the wall time of the
 largest single study (the array runs in parallel across hosts).
 
 ### Known limitations
 
-* **Legacy raw-matrix layout (KKYan).** `2343.yaml` – `2347.yaml`
-  (mammary-gland nest substudies) use a raw `.rds` matrix + separate
-  `.genes.csv` file, not a Biobase `ExpressionSet`. `portal_studies.R`
-  emits a `skipped` row for these (the bsub task still exits 0).
-  Convert to `ExpressionSet` on HPC before re-running.
+* **Legacy raw-matrix layout (none currently in `configs/`).**
+  YAMLs using the historical raw `.rds` matrix + separate `.genes.csv`
+  layout (older mammary-gland exports, etc.) are not Biobase
+  `ExpressionSet`s. `portal_studies.R` detects `input.genes` in the
+  YAML and emits a `skipped` row (the bsub task still exits 0). The
+  29 active configs no longer include any; convert to `ExpressionSet`
+  on HPC before adding such YAMLs back.
 
 * **R `dgCMatrix` 2^31 nnz cap.** `Matrix::sparseMatrix()` refuses
   more than 2^31-1 non-zero entries. `portal_studies.R` runs a
@@ -234,9 +236,26 @@ Plain Markdown so it can be reviewed on GitHub directly or converted
 to PDF / DOCX with pandoc:
 
 ```sh
+# PDF -- xelatex (Unicode-safe). Page geometry / fonts come from the
+# YAML frontmatter at the top of scminer-viewer.md, so no -V flags
+# needed here. Edit those keys (paperwidth, left/right margins, etc.)
+# to change the layout.
 pandoc paper/scminer-viewer.md \
        --resource-path=paper \
+       --pdf-engine=xelatex \
        -o paper/scminer-viewer.pdf
+
+# DOCX (Unicode-safe; YAML geometry ignored, Word controls layout)
+pandoc paper/scminer-viewer.md \
+       --resource-path=paper \
+       -o paper/scminer-viewer.docx
+```
+
+If `xelatex` is missing, install TinyTeX (no sudo, ~150 MB):
+
+```sh
+Rscript -e 'install.packages("tinytex"); tinytex::install_tinytex()'
+which xelatex      # should resolve to ~/Library/TinyTeX/bin/.../xelatex on macOS
 ```
 
 Bibliography is inline (no `.bib`) — short Applications-Note format

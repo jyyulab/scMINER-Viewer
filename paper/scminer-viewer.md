@@ -1,14 +1,32 @@
+---
+# Pandoc reads these on `--pdf-engine=xelatex` builds and threads them
+# into the LaTeX template. Widen margins to 0.6 in -> 7.3 in text block
+# (default would be 6.5 in). Also tighten line spacing slightly.
+geometry:
+  - paperwidth=8.5in
+  - paperheight=11in
+  - left=0.6in
+  - right=0.6in
+  - top=0.8in
+  - bottom=0.8in
+fontsize: 11pt
+linestretch: 1.15
+mainfont: Helvetica
+monofont: Menlo
+linkcolor: NavyBlue
+urlcolor:  NavyBlue
+header-includes:
+  - \usepackage{microtype}
+---
+
 # scMINER Viewer: an offline, multi-study browser for single-cell mutual-information networks
 
-**Honglei Zhou¹**, *and collaborators*¹
+*Honglei Zhou¹*, *Jiyang Yu*¹\*
 
 ¹ Department of Computational Biology, St. Jude Children's Research Hospital, Memphis, TN 38105, USA.
 
 \* To whom correspondence should be addressed.
 
-Associate Editor: TBD
-
-Received: …; revised: …; editorial decision: …; accepted: …
 
 ---
 
@@ -42,9 +60,9 @@ feature parity through 216 automated tests (194 R + 22 Python).
 `scminer_viewer/`. MIT-licensed. Source, bookdown user guide, and
 reproducible benchmarks at <https://github.com/jyyulab/scMINER-Viewer>.
 
-**Contact**: honglei.zhou@stjude.org or jiyang.yu@stjude.org
+**Correspondance**: jiyang.yu@stjude.org
 
-**Supplementary information**: Available at *Bioinformatics* online.
+**Supplementary information**: Available at [scMINER-Viewer](https://github.com/jyyulab/scMINER-Viewer).
 
 ---
 
@@ -82,7 +100,7 @@ card.
 
 ## 2 Implementation
 
-### 2.1 Bundle format (R ↔ Python contract)
+### 2.1 Bundle format (R / Python contract)
 
 A single HDF5 file (`bundleVersion = 2`) carrying:
 
@@ -136,7 +154,7 @@ the shard tree — with per-gene LRU caching.
 `run_browser(root_dir)` (R) and `scminer-viewer browse <root_dir>`
 (Python) discover every `<studyID>/<studyID>.scminer.h5` pattern under
 the root and serve a card-grid landing page. Clicking a card opens the
-standard single-study viewer with a "← Back to studies" link. The
+standard single-study viewer with a "Back to studies" link. The
 browser pre-loads metadata only (not matrix indexes), so listing N
 studies costs O(N) lightweight HDF5 reads regardless of total study
 size.
