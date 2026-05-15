@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# paper/figure_architecture.R
+# paper/benchmarks/figure_architecture.R
 #
 # Renders the scMINER Viewer architecture as a single vector figure.
 # Drives a base-graphics layout with rect()/arrows()/text() -- no
@@ -10,7 +10,7 @@
 #   paper/figures/architecture.png
 #
 # Run:
-#   Rscript paper/figure_architecture.R
+#   Rscript paper/benchmarks/figure_architecture.R
 
 dir.create("paper/figures", recursive = TRUE, showWarnings = FALSE)
 

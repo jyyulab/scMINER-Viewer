@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
-# paper/portal_merge.R
+# paper/portal/portal_merge.R
 #
 # Concatenate the per-study TSVs that the bsub job array produced into
 # the final paper/metrics/portal_studies.tsv. Called by the merge job
-# scheduled in paper/portal_studies_hpc.sh.
+# scheduled in paper/portal/portal_studies_hpc.sh.
 #
 # Usage:
-#   Rscript paper/portal_merge.R <out.tsv> <in1.tsv> <in2.tsv> ...
+#   Rscript paper/portal/portal_merge.R <out.tsv> <in1.tsv> <in2.tsv> ...
 
 .libPaths("~/R_libs")
 

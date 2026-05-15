@@ -185,12 +185,14 @@ Two layers protect against this in the portal benchmark:
    so it works on dense (`dgeMatrix`, base `matrix`) and sparse
    (`dgCMatrix`) inputs alike.
 
-2. **`portal_studies.R` runs a pre-flight nnz check.** Before calling
-   `prepare_study_from_eset()` it counts the actual non-zero entries
-   (`length(m@x)` if sparse, `sum(m != 0)` if dense) and skips
-   the study with `status = "skipped-too-large"` when the value
-   exceeds the cap. The bsub task still exits 0 so the job-array
-   merge dependency fires.
+2. **`portal_studies.R` reports actual nnz but no longer pre-emptively
+   skips.** It still counts non-zero entries on load (`length(m@x)`
+   if sparse, `sum(m != 0)` if dense) and prints a warning if the
+   value exceeds the cap. The run is allowed to proceed because the
+   shard writer streams genes; if `.reindex_rows()` then fails on a
+   huge activity matrix downstream, the run-loop's `tryCatch` tags the
+   row as `status = "error-too-large"`. The bsub task still exits 0
+   either way so the job-array merge dependency fires.
 
 If you hit this error from your own pipeline (not through
 `portal_studies.R`):

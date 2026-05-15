@@ -10,7 +10,7 @@
 # LSF submission script for the portal-study benchmark.
 #
 # The #BSUB -q here is a fallback default. When invoked through
-# paper/portal_studies_hpc.sh, the driver overrides -q per sub-array
+# paper/portal/portal_studies_hpc.sh, the driver overrides -q per sub-array
 # so the manifest's tasks distribute across queues (LSF's native
 # multi-queue syntax does not actually distribute — it just picks the
 # first eligible queue with capacity).
@@ -18,15 +18,15 @@
 # Two modes, switched by whether LSB_JOBINDEX is set:
 #
 # 1. Array mode (preferred for the full 21-study run -- see
-#    paper/portal_studies_hpc.sh). The driver writes a manifest with
+#    paper/portal/portal_studies_hpc.sh). The driver writes a manifest with
 #    one YAML config path per line (or one study folder per line) and
 #    submits `bsub -J "name[1-N]" < this.bsub`. Each task picks line
 #    $LSB_JOBINDEX of MANIFEST_FILE and benchmarks that single entry,
 #    writing paper/metrics/portal_studies_<id>.tsv.
 #
 # 2. Single-job mode. Submit with one of:
-#       CONFIGS_DIR=...   bsub < paper/portal_studies.bsub
-#       STUDIES_ROOT=...  bsub < paper/portal_studies.bsub
+#       CONFIGS_DIR=...   bsub < paper/portal/portal_studies.bsub
+#       STUDIES_ROOT=...  bsub < paper/portal/portal_studies.bsub
 #
 # Env read by array mode:
 #   MANIFEST_FILE  text file: line i is a YAML path OR a study folder
@@ -66,7 +66,7 @@ if [[ -n "${LSB_JOBINDEX:-}" && "${LSB_JOBINDEX}" != "0" ]]; then
   echo "[bsub] array task $LSB_JOBINDEX -> $study_id ($line)"
   echo "[bsub] host=$(hostname) job=${LSB_JOBID:-?}"
 
-  Rscript paper/portal_studies.R \
+  Rscript paper/portal/portal_studies.R \
       "${mode_flag[@]}" \
       --out "paper/metrics/portal_studies_${study_id}.tsv"
 
@@ -91,7 +91,7 @@ else
   echo "[bsub] single job=${LSB_JOBID:-?} host=$(hostname)"
   echo "[bsub] args: ${ARGS[*]}"
 
-  Rscript paper/portal_studies.R "${ARGS[@]}"
+  Rscript paper/portal/portal_studies.R "${ARGS[@]}"
 
   echo "[bsub] done -- metrics at paper/metrics/portal_studies.tsv"
 fi

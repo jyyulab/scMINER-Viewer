@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# paper/portal_studies_single.sh
+# paper/portal/portal_studies_single.sh
 #
 # Submit the portal-study benchmark as a SINGLE bsub job (sequential
 # walk through every YAML in --configs-dir, or every study folder under
@@ -12,10 +12,10 @@
 # directives in portal_studies.bsub are overridden via bsub flags.
 #
 # Usage:
-#   ./paper/portal_studies_single.sh --configs-dir paper/configs
-#   ./paper/portal_studies_single.sh --configs-dir <path> --mem 64000 --wall 12:00
-#   ./paper/portal_studies_single.sh --configs-dir <path> --only 2327,2326
-#   ./paper/portal_studies_single.sh --studies-root /research/.../studies
+#   ./paper/portal/portal_studies_single.sh --configs-dir paper/configs
+#   ./paper/portal/portal_studies_single.sh --configs-dir <path> --mem 64000 --wall 12:00
+#   ./paper/portal/portal_studies_single.sh --configs-dir <path> --only 2327,2326
+#   ./paper/portal/portal_studies_single.sh --studies-root /research/.../studies
 #
 # Flags (all optional except one of --configs-dir / --studies-root):
 #   --configs-dir <dir>   Folder of YAML configs.
@@ -30,7 +30,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 CONFIGS_DIR=""
@@ -140,11 +140,11 @@ echo
 
 if [[ "$DRY_RUN" == "1" ]]; then
   echo "[dry-run]:"
-  printf '    %q ' "${BSUB_CMD[@]}"; echo "< paper/portal_studies.bsub"
+  printf '    %q ' "${BSUB_CMD[@]}"; echo "< paper/portal/portal_studies.bsub"
   exit 0
 fi
 
-"${BSUB_CMD[@]}" < paper/portal_studies.bsub
+"${BSUB_CMD[@]}" < paper/portal/portal_studies.bsub
 
 echo
 echo "Watch progress:"

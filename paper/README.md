@@ -8,18 +8,23 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 
 | File | What it is |
 | --- | --- |
-| [`scminer-viewer.md`](scminer-viewer.md)         | Manuscript draft (~2 pages, Markdown). |
-| [`methods.R`](methods.R)                         | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
-| [`figures.R`](figures.R)                         | Synthetic-sweep benchmark + real 2327 row; writes `figure1.{pdf,png}` and the scaling TSVs. |
-| [`figure_architecture.R`](figure_architecture.R) | Renders the scMINER Viewer architecture diagram (Figure 2 of the paper) to `figures/architecture.{pdf,png}`. No data deps; runs in < 1 s. |
+| [`scminer-viewer.md`](scminer-viewer.md)         | Manuscript draft (~2 pages, Markdown). Pandoc-renderable to PDF / DOCX. |
+| [`benchmarks/`](benchmarks/)                     | Synthetic-sweep code (figure 1) + architecture renderer (figure 2). |
+| &nbsp;&nbsp;[`methods.R`](benchmarks/methods.R)                | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
+| &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | Synthetic-sweep benchmark + real 2327 row; writes `figures/figure1.{pdf,png}` and the scaling TSVs. |
+| &nbsp;&nbsp;[`figure_architecture.R`](benchmarks/figure_architecture.R) | Renders the architecture diagram (figure 2). No data deps; ~ 1 s. |
 | [`configs/`](configs/)                           | 29 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
-| [`portal_studies.R`](portal_studies.R)           | Loads each YAML, runs `prepare_study_from_eset → load_study → gene_values`, writes per-study metrics. |
-| [`portal_studies.sh`](portal_studies.sh)         | Local / interactive wrapper around `portal_studies.R`. |
-| [`portal_studies.bsub`](portal_studies.bsub)     | LSF script: single-job mode and job-array task body. |
-| [`portal_studies_hpc.sh`](portal_studies_hpc.sh) | One-command HPC driver — submits the array (one task per study) + dependent merge job. |
-| [`portal_studies_single.sh`](portal_studies_single.sh) | One-command HPC driver — submits a single sequential bsub with configurable mem/cores/wall. |
-| [`portal_merge.R`](portal_merge.R)               | Concatenates per-study TSVs into `metrics/portal_studies.tsv`. |
-| [`figures/`](figures/)                           | Generated `figure1.{pdf,png}`. |
+| [`portal/`](portal/)                             | 29-study HPC pipeline: drivers, R workers, bsub task body, helpers. |
+| &nbsp;&nbsp;[`portal_studies.R`](portal/portal_studies.R)               | Loads each YAML, runs `prepare_study_from_eset → load_study → gene_values`, writes per-study metrics. |
+| &nbsp;&nbsp;[`portal_studies.sh`](portal/portal_studies.sh)             | Local / interactive wrapper around `portal_studies.R`. |
+| &nbsp;&nbsp;[`portal_studies.bsub`](portal/portal_studies.bsub)         | LSF script: single-job mode and job-array task body. |
+| &nbsp;&nbsp;[`portal_studies_hpc.sh`](portal/portal_studies_hpc.sh)     | One-command HPC driver — submits the array (one task per study) + dependent merge job. |
+| &nbsp;&nbsp;[`portal_studies_single.sh`](portal/portal_studies_single.sh) | One-command HPC driver — submits a single sequential bsub with configurable mem/cores/wall. |
+| &nbsp;&nbsp;[`portal_merge.R`](portal/portal_merge.R)                   | Concatenates per-study TSVs into `metrics/portal_studies.tsv`. |
+| &nbsp;&nbsp;[`sparseify_eset.R`](portal/sparseify_eset.R)               | One-time converter: rewrites a dense-backed `ExpressionSet` rds into a `dgCMatrix`-backed one. |
+| &nbsp;&nbsp;[`sparseify_eset.sh`](portal/sparseify_eset.sh)             | LSF bsub wrapper around `sparseify_eset.R` with high-mem defaults. |
+| &nbsp;&nbsp;[`example.yaml`](portal/example.yaml)                       | Reference YAML schema (annotated template). |
+| [`figures/`](figures/)                           | Generated `figure1.{pdf,png}`, `architecture.{pdf,png}`. |
 | [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv`, `discover_scaling.tsv`, `real_study.tsv`, `portal_studies.tsv`. |
 | [`logs/`](logs/), [`hpc/`](hpc/)                 | Runtime artefacts (manifests, bsub stdout/stderr). |
 
@@ -28,7 +33,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 From the project root with `scminerViewer` installed:
 
 ```sh
-Rscript paper/figures.R
+Rscript paper/benchmarks/figures.R
 ```
 
 Run time ≈ 1–2 min on a laptop; ≈ 5 s for the multi-study
@@ -92,7 +97,7 @@ output:        /research_jude/.../scMINER_Portal/scMINERViewerMetrics
 ### One-command HPC run
 
 ```sh
-./paper/portal_studies_hpc.sh --configs-dir paper/configs
+./paper/portal/portal_studies_hpc.sh --configs-dir paper/configs
 ```
 
 The driver enumerates every `*.yaml` in `--configs-dir`, writes the
@@ -128,22 +133,22 @@ cat  paper/metrics/portal_studies.tsv      # final merged table
 
 ```sh
 # Local interactive — one or many studies on the current machine:
-./paper/portal_studies.sh --configs-dir paper/configs
-./paper/portal_studies.sh --config       paper/configs/2327.yaml
-./paper/portal_studies.sh --configs-dir  paper/configs --only 2327,2326
+./paper/portal/portal_studies.sh --configs-dir paper/configs
+./paper/portal/portal_studies.sh --config       paper/configs/2327.yaml
+./paper/portal/portal_studies.sh --configs-dir  paper/configs --only 2327,2326
 
 # Single bsub (sequential walk, no array) -- wrapper with mem / wall / cores knobs:
-./paper/portal_studies_single.sh --configs-dir paper/configs
-./paper/portal_studies_single.sh --configs-dir paper/configs --mem 64000 --wall 12:00
-./paper/portal_studies_single.sh --configs-dir paper/configs --only 2327,2326
+./paper/portal/portal_studies_single.sh --configs-dir paper/configs
+./paper/portal/portal_studies_single.sh --configs-dir paper/configs --mem 64000 --wall 12:00
+./paper/portal/portal_studies_single.sh --configs-dir paper/configs --only 2327,2326
 
 # Single bsub (minimal, env-only -- defaults to mem=32000):
-CONFIGS_DIR=$(pwd)/paper/configs bsub < paper/portal_studies.bsub
-ONLY=2327,2326 CONFIGS_DIR=$(pwd)/paper/configs bsub < paper/portal_studies.bsub
+CONFIGS_DIR=$(pwd)/paper/configs bsub < paper/portal/portal_studies.bsub
+ONLY=2327,2326 CONFIGS_DIR=$(pwd)/paper/configs bsub < paper/portal/portal_studies.bsub
 
 # Single bsub with mem override (bsub flag overrides #BSUB directive):
 CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
-    < paper/portal_studies.bsub
+    < paper/portal/portal_studies.bsub
 ```
 
 `portal_studies.R` flags:
@@ -169,7 +174,7 @@ CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
 | Wall time & memory | `prepare_seconds`, `prepare_peak_mb`, `load_seconds` |
 | Gene fetch | `fetch_median`, `fetch_mean`, `fetch_max`, `n_fetched` |
 | Networks | `net_tf_edges`, `net_sig_edges` |
-| Status | `status` (`ok` / `skipped` / `skipped-too-large` / `error`), `note` |
+| Status | `status` (`ok` / `skipped` / `error-too-large` / `error`), `note` |
 
 Status values:
 
@@ -177,7 +182,7 @@ Status values:
 | --- | --- | --- |
 | `ok` | Benchmark completed | All metric columns filled |
 | `skipped` | YAML uses the legacy `input.genes` (raw matrix + `genes.csv`) layout that `prepare_study_from_eset()` can't consume | Metrics NA; `note` carries reason |
-| `skipped-too-large` | Actual nnz exceeds 2^31-1 (R's `dgCMatrix` cap) | Metrics NA; `note` carries the size that tripped the cap |
+| `error-too-large` | Run-time failure attributable to R's `dgCMatrix` 2^31-1 nnz cap (typically inside `.reindex_rows()` for very large activity matrices) | Metrics NA; `note` carries the offending message |
 | `error` | Any other failure | Metrics NA; `note` carries the error message |
 
 The bsub task always exits 0 regardless of status (skip / cap / error are all "expected outcomes"), so the merge job's `ended(array)` dependency always fires.
@@ -195,6 +200,96 @@ Per-study runtime scales roughly linearly with cell count:
 A full 29-task array completes in roughly the wall time of the
 largest single study (the array runs in parallel across hosts).
 
+### Priming large studies (dense-backed `ExpressionSet`s)
+
+A handful of portal studies ship `expression.rds` files whose
+`exprs()` slot is stored as a **dense** matrix (`dgeMatrix` or base
+`matrix`) — Covid650k (2317) and ATRT (2333) are the canonical
+examples. For 650 k × 30 k or 138 k × 18 k data, the dense in-memory
+footprint is 100–250 GB, so `readRDS()` alone can blow past the
+queue ceiling and trigger `TERM_MEMLIMIT` before the benchmark ever
+runs. Symptom in the LSF tail:
+
+```
+TERM_MEMLIMIT: job killed after reaching LSF memory usage limit.
+Exited with exit code 143.
+```
+
+**One-time fix** — convert the source rds to a `dgCMatrix`-backed eset
+on a high-mem node, point the YAML at the new file, then submit the
+benchmark with normal memory. Everything downstream (`portal_studies.R`,
+`prepare_study_from_eset`, the shard writer) works unchanged because
+the row-streaming pipeline reads both classes uniformly.
+
+**Step 1 — verify-only probe** (cheap, no write; reports class +
+dims + nnz + density):
+
+```sh
+./paper/portal/sparseify_eset.sh \
+    --in /research_jude/.../Studies/Covid650k/expression.rds \
+    --verify-only --mem 400000 --wall 1:00
+```
+
+If the output reports `class: dgCMatrix`, the rds is already sparse —
+skip to Step 3. If it reports `class: dgeMatrix` or `matrix`, proceed
+to Step 2.
+
+**Step 2 — submit the conversion job**:
+
+```sh
+./paper/portal/sparseify_eset.sh \
+    --in /research_jude/.../Studies/Covid650k/expression.rds \
+    --mem 500000 --wall 8:00 --queue priority
+```
+
+This loads the rds once on a high-mem node, runs
+`exprs(eset) <- as(m, "CsparseMatrix")`, and writes a new
+`expression.sparse.rds` next to the source (overridable with `--out`).
+Logs land in `paper/logs/sparseify_<tag>_<timestamp>.{out,err}` and
+include load / convert / save wall time plus a size-delta report
+(typically 5–10× smaller on disk).
+
+Repeat for the activity matrix if it's also dense:
+
+```sh
+./paper/portal/sparseify_eset.sh \
+    --in /research_jude/.../Studies/Covid650k/activity.rds \
+    --mem 200000 --wall 4:00
+```
+
+**Step 3 — point the YAML at the converted files**:
+
+```yaml
+# paper/configs/2317.yaml
+input:
+    expression: /research_jude/.../Studies/Covid650k/expression.sparse.rds
+    activity:   /research_jude/.../Studies/Covid650k/activity.sparse.rds
+    networks:   /research_jude/.../Studies/Covid650k/networks.txt
+```
+
+**Step 4 — re-run the benchmark with ordinary memory** (the sparse
+backing fits comfortably in 64 GB):
+
+```sh
+bash paper/portal/portal_studies_single.sh --configs-dir paper/configs \
+    --queue priority --mem 64000 --cores 1 --wall 4:00 --only 2317
+```
+
+Flags accepted by `sparseify_eset.sh`:
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--in <path>` | (required) | Source `.rds` (Biobase ExpressionSet). |
+| `--out <path>` | `<stem>.sparse.rds` next to source | Destination path. |
+| `--force` | — | Overwrite existing destination. |
+| `--verify-only` | — | Load + report only; do not write. |
+| `--mem <MB>` | `400000` | Memory request. Bump to `500000`+ for 650 k-cell studies. |
+| `--cores <n>` | `1` | Cores. The conversion is single-threaded. |
+| `--wall <hh:mm>` | `6:00` | Wall-clock limit. |
+| `--queue <name>` | `standard` | LSF queue. |
+| `--project <id>` | `scminer` | Charge code. |
+| `--dry-run` | — | Print the bsub command without submitting. |
+
 ### Known limitations
 
 * **Legacy raw-matrix layout (none currently in `configs/`).**
@@ -206,16 +301,23 @@ largest single study (the array runs in parallel across hosts).
   on HPC before adding such YAMLs back.
 
 * **R `dgCMatrix` 2^31 nnz cap.** `Matrix::sparseMatrix()` refuses
-  more than 2^31-1 non-zero entries. `portal_studies.R` runs a
-  pre-flight that counts the actual nnz (via `length(m@x)` for
-  sparse, `sum(m != 0)` for dense) and emits a `skipped-too-large`
-  row when the value exceeds the cap. Studies whose dimensions are
-  large but density is low (e.g. ATRT at 18 k × 138 k, ~12 % density
-  → 300 M nnz) are *not* affected; they bundle normally.
-  scminerViewer's shard writer (`.write_graph_shards`) iterates one
-  gene at a time and never materializes a full sparse copy, so the
-  cap only bites studies whose pre-bundle expression matrix legally
-  cannot exist as a single `dgCMatrix`.
+  more than 2^31-1 non-zero entries. `portal_studies.R` reports
+  matrix nnz at load time but only warns; the run is allowed to
+  proceed since scminerViewer's shard writer (`.write_graph_shards`)
+  streams genes one at a time and never materializes a full sparse
+  copy. The cap can still bite for *activity* matrices — they pass
+  through `.reindex_rows()` which builds a master-shape sparse
+  matrix — and such failures surface as `status = "error-too-large"`
+  in the TSV. Expression matrices (e.g. ATRT at 18 k × 138 k,
+  2.5 G nnz) bundle normally regardless of nnz.
+
+* **Dense-backed source `ExpressionSet`s OOM during `readRDS()`.**
+  Studies whose `exprs()` is stored as a `dgeMatrix` / base `matrix`
+  rather than `dgCMatrix` can need 150–300 GB to deserialize, even
+  when the on-disk rds is only a few GB. Symptom: `TERM_MEMLIMIT`,
+  exit 143. Fix: see *Priming large studies (dense-backed
+  ExpressionSets)* above — one-time `sparseify_eset.sh` job, then
+  point the YAML at the new `.sparse.rds`.
 
 ## Figure (anatomy)
 

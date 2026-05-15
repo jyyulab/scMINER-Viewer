@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# paper/portal_studies.R
+# paper/portal/portal_studies.R
 #
 # Benchmark the full prepare_study_from_eset -> load_study -> gene_values
 # pipeline against the 21 real scMINER Portal studies whose source data
@@ -58,9 +58,9 @@
 #     fetch_max           worst case in that 25-gene sample
 #
 # Usage (from project root):
-#   Rscript paper/portal_studies.R --studies-root data/input
-#   Rscript paper/portal_studies.R --studies-root /hpc/.../studies
-#   Rscript paper/portal_studies.R --studies-root <path> --only 2327
+#   Rscript paper/portal/portal_studies.R --studies-root data/input
+#   Rscript paper/portal/portal_studies.R --studies-root /hpc/.../studies
+#   Rscript paper/portal/portal_studies.R --studies-root <path> --only 2327
 
 .libPaths("~/R_libs")
 
@@ -342,14 +342,15 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
                   format(expr_input_bytes, big.mark = ",")))
   expr_eset <- readRDS(spec$expr_path)
 
-  # Pre-flight on matrix sizes. R's Matrix package caps dgCMatrix at
-  # 2^31-1 nonzero entries; sparseMatrix() throws when that limit is
-  # exceeded. After the extract_expression / extract_activity
-  # simplification (scminerViewer >= 0.1.0), the expression matrix
-  # never gets converted to dgCMatrix -- .write_graph_shards streams
-  # rows one at a time -- so the cap doesn't apply to expression. We
-  # only hard-fail on the *activity* matrix, which still flows through
-  # .reindex_rows() and does construct a master-shaped sparse matrix.
+  # Matrix size telemetry. R's Matrix package caps dgCMatrix at 2^31-1
+  # nonzero entries; sparseMatrix() throws when that limit is exceeded.
+  # After the extract_expression / extract_activity simplification
+  # (scminerViewer >= 0.1.0), the expression matrix never gets converted
+  # to dgCMatrix; .write_graph_shards streams rows one at a time. We
+  # therefore do NOT pre-emptively skip on size for either matrix:
+  # expression always proceeds, activity proceeds (with a warning) and
+  # any downstream .reindex_rows() failure is captured by the run-loop
+  # tryCatch as `status = "error"`.
   .nnz_cap <- .Machine$integer.max  # 2^31 - 1
   .nnz_of <- function(eset) {
     m <- Biobase::exprs(eset)
@@ -369,18 +370,6 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
                     format(sz$nnz, big.mark = ",")))
     sz
   }
-  .check_activity_cap <- function(eset, label) {
-    sz <- .report_size(eset, label)
-    if (sz$nnz > .nnz_cap) {
-      stop(sprintf(paste0(
-        "activity matrix too large for dgCMatrix: %s is %d x %d ",
-        "(%s), nnz=%.3g > 2^31-1 cap -- .reindex_rows() would fail"),
-        label, sz$nr, sz$nc,
-        if (sz$dense) "dense" else "sparse",
-        sz$nnz),
-        call. = FALSE)
-    }
-  }
   expr_sz <- .report_size(expr_eset, "expression matrix")
   if (expr_sz$nnz > .nnz_cap) {
     log_msg(sprintf(paste0(
@@ -395,7 +384,20 @@ bench_real_one <- function(spec, scratch, cli_output_root = NULL) {
                     format(act_input_bytes, big.mark = ",")))
     readRDS(spec$act_path)
   } else NULL
-  if (!is.null(act_eset)) .check_activity_cap(act_eset, "activity matrix")
+  if (!is.null(act_eset)) {
+    act_sz <- .report_size(act_eset, "activity matrix")
+    if (act_sz$nnz > .nnz_cap) {
+      # Activity passes through .reindex_rows() which currently calls
+      # Matrix::sparseMatrix() and would hard-fail above the 2^31-1
+      # cap. We log it loudly but let it proceed; the run-loop's
+      # tryCatch tags any downstream blow-up as `status = "error"`.
+      log_msg(sprintf(paste0(
+        "[%s] WARNING: activity nnz=%.3g exceeds 2^31-1 cap. ",
+        ".reindex_rows() may fail when assembling the master-shape ",
+        "sparse matrix; if so, the run-loop will record this as an error."),
+        study_id, act_sz$nnz))
+    }
+  }
   log_msg(sprintf("[%s] networks: %s%s", study_id,
                   if (is.null(spec$net_path)) "(none)" else
                     basename(spec$net_path),
@@ -546,13 +548,15 @@ for (i in seq_along(specs)) {
                   })
   if (is.null(out)) {
     msg <- if (!is.null(err_obj)) conditionMessage(err_obj) else ""
-    # Classify the 2^31-1 sparse-matrix overflow as its own status so
-    # it shows up alongside legacy-skipped rows rather than as a generic
-    # failure -- it is a data-size limit, not a bug.
-    if (grepl("2\\^31|nnz cap|too large for dgCMatrix",
+    # 2^31-1 sparse-matrix overflows used to hit the pre-flight as
+    # `skipped-too-large`; the pre-flight now only warns and lets the
+    # run continue, so any genuine overflow surfaces here as a plain
+    # error from .reindex_rows() / sparseMatrix(). We still tag it
+    # separately to make data-size limits easy to filter from real bugs.
+    if (grepl("2\\^31|nnz cap|too large for dgCMatrix|nonzero entries",
               msg, ignore.case = TRUE)) {
       rows[[length(rows) + 1L]] <- placeholder_row(spec,
-                                                    "skipped-too-large",
+                                                    "error-too-large",
                                                     msg)
     } else {
       rows[[length(rows) + 1L]] <- placeholder_row(spec, "error", msg)
@@ -581,10 +585,10 @@ log_msg(sprintf(paste0(
   "\nWrote %d-row TSV to %s (%d ok, %d skipped, ",
   "%d too-large, %d error)"),
   nrow(df), out_tsv,
-  sum(df$status == "ok",                na.rm = TRUE),
-  sum(df$status == "skipped",           na.rm = TRUE),
-  sum(df$status == "skipped-too-large", na.rm = TRUE),
-  sum(df$status == "error",             na.rm = TRUE)))
+  sum(df$status == "ok",              na.rm = TRUE),
+  sum(df$status == "skipped",         na.rm = TRUE),
+  sum(df$status == "error-too-large", na.rm = TRUE),
+  sum(df$status %in% c("error"),      na.rm = TRUE)))
 
 # ---- Console summary -------------------------------------------------------
 

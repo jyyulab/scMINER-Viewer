@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# paper/portal_studies_hpc.sh
+# paper/portal/portal_studies_hpc.sh
 #
 # One-command driver for the portal-study benchmark on St. Jude HPC.
 #
@@ -14,10 +14,10 @@
 #   --studies-root <dir>  folder of N per-study subfolders
 #
 # Usage:
-#   ./paper/portal_studies_hpc.sh --configs-dir paper/configs
-#   ./paper/portal_studies_hpc.sh --studies-root /research/.../studies
-#   ./paper/portal_studies_hpc.sh --configs-dir <path> --mem 64000 -W 12:00
-#   ./paper/portal_studies_hpc.sh --configs-dir <path> --queue "standard priority compbio"
+#   ./paper/portal/portal_studies_hpc.sh --configs-dir paper/configs
+#   ./paper/portal/portal_studies_hpc.sh --studies-root /research/.../studies
+#   ./paper/portal/portal_studies_hpc.sh --configs-dir <path> --mem 64000 -W 12:00
+#   ./paper/portal/portal_studies_hpc.sh --configs-dir <path> --queue "standard priority compbio"
 #
 # Flags:
 #   --configs-dir <dir>    Folder of YAML configs (one per study).
@@ -33,7 +33,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 CONFIGS_DIR=""
@@ -164,7 +164,7 @@ for nm in "${ARRAY_NAMES[@]}"; do
   MERGE_DEP+="ended(${nm})"
 done
 
-MERGE_CMD='Rscript paper/portal_merge.R paper/metrics/portal_studies.tsv paper/metrics/portal_studies_*.tsv'
+MERGE_CMD='Rscript paper/portal/portal_merge.R paper/metrics/portal_studies.tsv paper/metrics/portal_studies_*.tsv'
 
 submit_array_for_queue() {
   local qname="$1" start="$2" end="$3"
@@ -183,10 +183,10 @@ submit_array_for_queue() {
   )
   if [[ "$DRY_RUN" == "1" ]]; then
     echo "[dry-run] ${qname} sub-array:"
-    printf '    %q ' "${cmd[@]}"; echo "< paper/portal_studies.bsub"
+    printf '    %q ' "${cmd[@]}"; echo "< paper/portal/portal_studies.bsub"
   else
     echo "Submitting ${jobname} on queue ${qname}"
-    "${cmd[@]}" < paper/portal_studies.bsub
+    "${cmd[@]}" < paper/portal/portal_studies.bsub
   fi
 }
 

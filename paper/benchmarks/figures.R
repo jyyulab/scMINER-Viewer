@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-# paper/figures.R
+# paper/benchmarks/figures.R
 #
-# Runs the benchmarks defined in paper/methods.R against
+# Runs the benchmarks defined in paper/benchmarks/methods.R against
 #   1. a sweep of synthetic studies (cells × genes scaling),
 #   2. the real 2327 (Tex) study at data/2327/2327.scminer.h5,
 #   3. a discover_studies() scan over 1..32 multi-study roots,
@@ -13,7 +13,7 @@
 #   paper/metrics/real_study.tsv
 #
 # Run from the project root:
-#   Rscript paper/figures.R
+#   Rscript paper/benchmarks/figures.R
 #
 # Knobs: edit SCALING_GRID below to grow / shrink the synthetic sweep.
 
@@ -25,7 +25,7 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-source("paper/methods.R")
+source("paper/benchmarks/methods.R")
 
 # Each row in SCALING_GRID becomes one synthetic study + one row of metrics.
 # Keep the sweep modest so the benchmark finishes in <2 min on a laptop.

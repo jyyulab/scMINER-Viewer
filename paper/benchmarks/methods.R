@@ -1,6 +1,6 @@
-# paper/methods.R
+# paper/benchmarks/methods.R
 # Benchmarking helpers for the scMINER Viewer Applications Note.
-# Sourced by paper/figures.R.
+# Sourced by paper/benchmarks/figures.R.
 
 suppressPackageStartupMessages({
   library(Matrix)
