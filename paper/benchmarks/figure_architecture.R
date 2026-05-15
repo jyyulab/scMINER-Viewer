@@ -59,9 +59,11 @@ draw_arrow <- function(x0, y0, x1, y1, lwd = 1.6, length = 0.10) {
          angle = 25)
 }
 
-# --- Layout coordinates (12 wide x 20 tall) ---------------------------------
+# --- Layout coordinates (12 wide x 22 tall) ---------------------------------
+# Box heights are deliberately a bit larger than the body content's
+# vertical extent so multi-line bodies never spill past the bottom edge.
 
-W <- 12; H <- 20
+W <- 12; H <- 22
 render_arch <- function() {
   par(mar = c(0.4, 0.4, 0.4, 0.4))
   plot.new()
@@ -100,7 +102,7 @@ render_arch <- function() {
 
   # Arrows from each input box down to the prepare_study box.
   prep_top <- in_bot - 1.5
-  prep_bot <- prep_top - 2.6
+  prep_bot <- prep_top - 3.4    # was 2.6 -- needed extra room for 4 body lines
   prep_x0  <- pad + 0.6
   prep_x1  <- W - pad - 0.6
   prep_xc  <- (prep_x0 + prep_x1) / 2
@@ -203,7 +205,7 @@ render_arch <- function() {
 # --- Write PDF + PNG -------------------------------------------------------
 
 w_in <- 7.5
-h_in <- 9.0
+h_in <- 10.0
 
 pdf("paper/figures/architecture.pdf", width = w_in, height = h_in)
 render_arch()
