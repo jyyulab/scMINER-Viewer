@@ -94,6 +94,23 @@ fi
 if [[ -n "$ONLY" ]]; then
   export ONLY="$ONLY"
 fi
+# Per-selection output TSV path so successive single-bsub jobs don't
+# clobber each other. ONLY=2317,2333 -> portal_studies_2317_2333.tsv.
+# Long lists are truncated and hashed to keep the filename sane.
+if [[ -n "$ONLY" ]]; then
+  ONLY_TAG="${ONLY//,/_}"
+  ONLY_TAG="${ONLY_TAG// /}"
+  if [[ "${#ONLY_TAG}" -gt 60 ]]; then
+    # Too many IDs -- keep the first ~50 chars + a short hash for uniqueness.
+    ONLY_HASH="$(printf '%s' "$ONLY" | md5sum 2>/dev/null | cut -c1-6)"
+    ONLY_HASH="${ONLY_HASH:-$(printf '%s' "$ONLY" | shasum 2>/dev/null | cut -c1-6)}"
+    ONLY_TAG="${ONLY_TAG:0:50}_${ONLY_HASH}"
+  fi
+  OUT_TSV="paper/metrics/portal_studies_${ONLY_TAG}.tsv"
+else
+  OUT_TSV="paper/metrics/portal_studies.tsv"
+fi
+export OUT_TSV
 ENV_STR="all"
 
 BSUB_CMD=(
@@ -118,6 +135,7 @@ echo "  wall:        $WALL"
 if [[ -n "$CONFIGS_DIR" ]]; then echo "  configs-dir: $CONFIGS_ABS"; fi
 if [[ -n "$STUDIES_ROOT" ]]; then echo "  studies-root: $STUDIES_ABS"; fi
 if [[ -n "$ONLY" ]]; then echo "  only:        $ONLY"; fi
+echo  "  out tsv:     $OUT_TSV"
 echo
 
 if [[ "$DRY_RUN" == "1" ]]; then
@@ -132,4 +150,4 @@ echo
 echo "Watch progress:"
 echo "    bjobs -J scminer_portal_single_${STAMP}"
 echo "    tail -f paper/logs/portal_single_${STAMP}.out"
-echo "Final TSV: paper/metrics/portal_studies.tsv"
+echo "Final TSV: $OUT_TSV"

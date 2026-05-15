@@ -84,6 +84,9 @@ else
   if [[ -n "${ONLY:-}" ]]; then
     ARGS+=(--only "$ONLY")
   fi
+  if [[ -n "${OUT_TSV:-}" ]]; then
+    ARGS+=(--out "$OUT_TSV")
+  fi
 
   echo "[bsub] single job=${LSB_JOBID:-?} host=$(hostname)"
   echo "[bsub] args: ${ARGS[*]}"
