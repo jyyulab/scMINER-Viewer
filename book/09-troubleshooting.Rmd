@@ -150,12 +150,14 @@ Activity matrices typically have a smaller index than expression
 
 ## Bundle is huge (>1 GB) {-}
 
-`bundleVersion == 2` stores **indexes only** — no matrix values — so
-a healthy bundle is tens of MB even for studies with hundreds of
-thousands of cells. If your bundle is >1 GB, you're probably looking
-at a stale `bundleVersion == 1` artifact from before the lazy-mode
-refactor. Rebuild via `prepare_study()` or the migration recipe in
-Chapter \@ref(tutorial).
+The bundle format (`bundleVersion == 1`) stores **indexes only** — no
+matrix values — so a healthy `.scminer.h5` is tens of MB even for
+studies with hundreds of thousands of cells. A multi-GB bundle is
+almost always an artifact written by an older non-lazy tool that
+inlined the expression matrix into HDF5 directly. Rebuild via
+`prepare_study(config_path)` (Chapter \@ref(tutorial)); the lazy
+writer drops the matrix values onto disk as per-gene gzipped CSVs
+under `expression_files/<studyID>/` and `activity_files/<studyID>/`.
 
 ## A specific cluster disappears with sampling on {-}
 

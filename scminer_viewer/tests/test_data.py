@@ -17,7 +17,7 @@ def test_load_study_meta(fixture_bundle):
     assert s.meta.shortTitle == "Fx"
     assert s.meta.species == "Mus musculus"
     assert s.meta.coordinate == "UMAP"
-    assert s.meta.bundleVersion == 2
+    assert s.meta.bundleVersion == 1
 
 
 def test_load_study_cells(fixture_bundle):

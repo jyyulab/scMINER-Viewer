@@ -100,9 +100,36 @@ card.
 
 ## 2 Implementation
 
-### 2.1 Bundle format (R / Python contract)
+### 2.1 Architecture
 
-A single HDF5 file (`bundleVersion = 2`) carrying:
+Figure 2 summarises the dataflow. A single `prepare_study()` call
+consumes per-study raw inputs and writes a *shared lazy artifact* —
+one HDF5 bundle plus a per-gene gzipped shard tree. Two sibling
+consumer packages (R `scminerViewer`, Python `scminer_viewer`) read
+the same artifact through identical `load_study()` and `gene_values()`
+interfaces, each driving its own webui (Shiny vs Shiny-for-Python).
+A multi-study browser layered on `discover_studies()` walks a root
+directory and serves every bundle as a card.
+
+![](figures/architecture.pdf){width=78%}
+
+**Figure 2.** scMINER Viewer architecture. `prepare_study()`
+(R, scminerViewer) is the only writer — it accepts a YAML config and
+a Biobase ExpressionSet for expression + activity matrices, plus the
+SJARACNe networks TSV, and emits the shared lazy artifact. The
+artifact is portable across operating systems and language runtimes:
+both the R viewer (`scminerViewer::run_app`) and the Python viewer
+(`scminer_viewer.run_app`) load the same `.scminer.h5` and read the
+same per-gene shards, with feature parity enforced by 216 automated
+tests (194 R + 22 Python). The multi-study browsers
+(`run_browser` / `scminer-viewer browse <root>`) overlay a card grid
+on `discover_studies()`, which scans for `<studyID>/<studyID>.scminer.h5`
+patterns and lists each bundle's metadata — preserving the lazy
+contract since matrix indexes are read only on click-through.
+
+### 2.2 Bundle format (R / Python contract)
+
+A single HDF5 file (`bundleVersion = 1`) carrying:
 
 * `meta/` — `studyID`, `studyAbbr`, `longTitle`, `shortTitle`, `species`,
   `coordinate`, `bundleVersion`.
@@ -119,7 +146,7 @@ A single HDF5 file (`bundleVersion = 2`) carrying:
 Strings are UTF-8. Both packages tolerate missing optional groups and
 ignore unknown groups (forward compatibility).
 
-### 2.2 Sharded matrix tree
+### 2.3 Sharded matrix tree
 
 Expression and activity values live alongside each bundle as gzipped
 per-gene CSVs, sharded by the first lower-case letter of each gene
@@ -137,7 +164,7 @@ permutation index aligns each shard's columns to the bundle's
 `cells/cellID`, so missing cells (activity is computed only on a
 subset) become zero columns automatically.
 
-### 2.3 Two packages, one contract
+### 2.4 Two packages, one contract
 
 The R package (`scminerViewer`) owns data preparation
 (`prepare_study(config_path)` reads a YAML config + scMINER
@@ -149,7 +176,7 @@ plus its own multi-study browser. Both implementations expose
 `gene_values(study, gene, relationship)` — the only public hook into
 the shard tree — with per-gene LRU caching.
 
-### 2.4 Multi-study browser
+### 2.5 Multi-study browser
 
 `run_browser(root_dir)` (R) and `scminer-viewer browse <root_dir>`
 (Python) discover every `<studyID>/<studyID>.scminer.h5` pattern under
@@ -159,7 +186,7 @@ browser pre-loads metadata only (not matrix indexes), so listing N
 studies costs O(N) lightweight HDF5 reads regardless of total study
 size.
 
-### 2.5 Configurable cluster metadata
+### 2.6 Configurable cluster metadata
 
 `prepare_study()` auto-fills cluster colours and label positions for the
 `study_meta.csv` whenever they are not supplied. Colours come from any

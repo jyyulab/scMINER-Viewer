@@ -5,12 +5,12 @@ file (~80 MB for an 8K-cell study) that contains everything the apps
 need at startup — except the matrix values, which stay on disk in the
 shard tree and are read lazily.
 
-## HDF5 bundle layout (`bundleVersion = 2`) {-}
+## HDF5 bundle layout (`bundleVersion = 1`) {-}
 
 ```
 /meta/
   studyID, studyAbbr, longTitle, shortTitle, species, coordinate  (string)
-  bundleVersion                                                   (int, = 2)
+  bundleVersion                                                   (int, = 1)
 
 /cells/
   cellID    (N,)   string

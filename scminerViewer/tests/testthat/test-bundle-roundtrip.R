@@ -21,7 +21,7 @@ test_that("bundle round-trips metadata + indexes + networks", {
   out <- load_study(tmp)
   expect_s3_class(out, "scminer_study")
   expect_equal(out$meta$studyID,       s$meta$studyID)
-  expect_equal(out$meta$bundleVersion, 2L)
+  expect_equal(out$meta$bundleVersion, 1L)
 
   expect_equal(out$cells$cellID,    s$cells$cellID)
   expect_equal(out$cells$cellType,  s$cells$cellType)

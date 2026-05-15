@@ -11,6 +11,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | [`scminer-viewer.md`](scminer-viewer.md)         | Manuscript draft (~2 pages, Markdown). |
 | [`methods.R`](methods.R)                         | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
 | [`figures.R`](figures.R)                         | Synthetic-sweep benchmark + real 2327 row; writes `figure1.{pdf,png}` and the scaling TSVs. |
+| [`figure_architecture.R`](figure_architecture.R) | Renders the scMINER Viewer architecture diagram (Figure 2 of the paper) to `figures/architecture.{pdf,png}`. No data deps; runs in < 1 s. |
 | [`configs/`](configs/)                           | 29 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
 | [`portal_studies.R`](portal_studies.R)           | Loads each YAML, runs `prepare_study_from_eset → load_study → gene_values`, writes per-study metrics. |
 | [`portal_studies.sh`](portal_studies.sh)         | Local / interactive wrapper around `portal_studies.R`. |
