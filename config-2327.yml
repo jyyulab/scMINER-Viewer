@@ -1,0 +1,48 @@
+# scminerViewer config for the 2327 (Tex) demo study.
+#
+# Pairs with the inputs published in the demo-data-v1 GitHub Release:
+#   https://github.com/hzhou98/scMINER-Viewer/releases/tag/demo-data-v1
+#
+# Download the three input files into data/input/2327/ first
+# (see Tutorial § A.1 in book/03-tutorial.Rmd), then from the project
+# root run:
+#
+#   Rscript -e 'scminerViewer::prepare_study("config-2327.yml")'
+#
+# That writes data/2327/2327.scminer.h5 plus the graph layout and the
+# per-gene shard tree under data/2327/.
+
+# Output root — the bundle lands at <output>/<studyID>/<studyID>.scminer.h5,
+# so the bundle and shard tree end up co-located and load_study() can
+# auto-discover shards.
+output: data
+
+study:
+  ID:         "2327"
+  studyAbbr:  Tex
+  shortTitle: Tex
+  longTitle:  >
+    Single-cell RNA sequencing of progenitor, intermediate and
+    terminally exhausted CD8+ T cells from tumors and chronic
+    viral infection
+
+species:    Mus musculus
+coordinate: UMAP
+
+# pData / fData column names in the source ExpressionSet — match the
+# 2327 inputs' actual column names (Capitalized in this dataset).
+cellID:     CellID
+cellType:   CellGroup
+cellGroup:  CellGroup
+geneSymbol: GeneSymbol
+
+input:
+  expression: data/input/2327/expression.rds
+  activity:   data/input/2327/activity.rds
+  networks:   data/input/2327/networks.txt
+
+cluster_palette: npg
+
+# Genes auto-selected on first app launch so the initial view is
+# never empty. Override with whatever markers you care about.
+default_genes: [Cd8a, Pdcd1, Tox]

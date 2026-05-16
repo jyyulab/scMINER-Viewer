@@ -109,7 +109,33 @@ devtools::install("scminerViewer")     # run from the project root
 In RStudio, you can also **File → Open Project…** the `scminerViewer/`
 folder and use **Build → Install Package** (`Cmd/Ctrl + Shift + B`).
 
-**Use it** — four things you can do:
+**Get the 2327 demo inputs** — required for (B) below; skip if you'll
+only use (Z), (A), or (D) against the in-package or already-built
+bundle. The three source files are published as a GitHub Release
+asset (315 MB total):
+
+```sh
+# Create the input dir under the (gitignored) data/ tree
+mkdir -p data/input/2327
+
+# Download the three source files into it
+RELEASE_URL=https://github.com/hzhou98/scMINER-Viewer/releases/download/demo-data-v1
+curl -L -o data/input/2327/expression.rds "$RELEASE_URL/expression.rds"   #  22 MB
+curl -L -o data/input/2327/activity.rds   "$RELEASE_URL/activity.rds"     # 236 MB
+curl -L -o data/input/2327/networks.txt   "$RELEASE_URL/networks.txt"     #  57 MB
+
+# Optional but recommended — verify the 236 MB activity.rds especially
+shasum -a 256 data/input/2327/{expression.rds,activity.rds,networks.txt}
+# expression.rds  9c28047387a181263107cab3076d426aaa32fcc402e6a2af6b4fb1ec5b910960
+# activity.rds    10b94c7826ce513c792ce0cdd57f6c1cad1adb3576f8f6f17779d35b6413c487
+# networks.txt    9096a1c3604a93e19e2ac177728686ca0f45c6de48a9b27149fc6e6e9b8dc856
+```
+
+Prefer the pre-built bundle? Grab `2327-processed.tar.gz` (~484 MB)
+from the same release, untar into `data/`, and skip straight to (D)
+— see the table in [🚀 Try the demo](#-try-the-demo) above.
+
+**Use it** — five things you can do (Z is the fastest):
 
 ```sh
 # (Z) Zero-config demo — open the in-package 2327 mini-bundle (200 genes)
@@ -119,16 +145,17 @@ Rscript -e 'scminerViewer::run_demo(port = 8000)'
 Rscript scminerViewer/inst/scripts/build_2327_bundle.R
 # → writes data/2327/2327.scminer.h5
 
-# (B) Full prepare_study pipeline driven by a YAML config (needs the
-#     scMINER ExpressionSet RDS / networks TSV; fetch them from the
-#     demo-data-v1 release — see Tutorial § A.1)
+# (B) Full prepare_study pipeline driven by a YAML config. config-2327.yml
+#     ships at the repo root and points at the files you downloaded above
+#     under data/input/2327/. Writes data/2327/2327.scminer.h5 + the full
+#     shard tree.
 Rscript -e 'scminerViewer::prepare_study("config-2327.yml")'
 
-# (C1) Multi-study browser — one URL per study, card-grid index
+# (C) Multi-study browser — one URL per study, card-grid index of every
+#     <sid>/<sid>.scminer.h5 under the root. Shards default to
+#     dirname(bundle_path); pass shard_dir = ... only if you've split
+#     the bundles and shard trees onto different parents.
 Rscript -e 'scminerViewer::run_browser("data", port = 8000)'
-
-# (C2) Same, but shards still live in the legacy data/example/ tree
-Rscript -e 'scminerViewer::run_browser("data", shard_dir = "data/example", port = 8000)'
 
 # (D) Single-study app
 Rscript -e 'scminerViewer::run_app("data/2327/2327.scminer.h5", port = 8000)'
