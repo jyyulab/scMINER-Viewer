@@ -263,12 +263,7 @@ and the per-study output dir on shared storage. Per-study TSVs at
 `paper/metrics/portal_studies.tsv` (27 rows, all `status == "ok"`)
 and rendered as six standalone panels in figure 3.
 
-![Figure 2A](figures/figure1_A_size_vs_cells.pdf){width=70%}
-![Figure 2B](figures/figure1_B_load_latency.pdf){width=70%}
-![Figure 2C](figures/figure1_C_fetch_latency.pdf){width=70%}
-![Figure 2D](figures/figure1_D_discover_scaling.pdf){width=70%}
-![Figure 2E](figures/figure1_E_prepare_time.pdf){width=70%}
-![Figure 2F](figures/figure1_F_peak_memory.pdf){width=70%}
+![](figures/figure2.pdf){width=100%}
 
 **Figure 2.** *scMINER Viewer performance on the synthetic sweep
 (7 × 4 = 28 configurations × 5 replicates per configuration; points
@@ -299,12 +294,7 @@ Table 1 (`paper/tables/portal_studies.md`) gives a comparable
 per-study breakdown for the 27 real portal studies underlying
 figure 3.
 
-![Figure 3A](figures/figure_portal_A_size_vs_cells.pdf){width=70%}
-![Figure 3B](figures/figure_portal_B_prepare_time.pdf){width=70%}
-![Figure 3C](figures/figure_portal_C_peak_memory.pdf){width=70%}
-![Figure 3D](figures/figure_portal_D_load_latency.pdf){width=70%}
-![Figure 3E](figures/figure_portal_E_fetch_latency.pdf){width=70%}
-![Figure 3F](figures/figure_portal_F_size_ratio.pdf){width=70%}
+![](figures/figure3.pdf){width=100%}
 
 **Figure 3.** *scMINER Viewer on the 27 real portal studies.* Each
 point is one study; axes are log10 where annotated. **(A)** Bundle

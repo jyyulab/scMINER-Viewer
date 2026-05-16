@@ -230,9 +230,28 @@ p_F <- ggplot(ok, aes(id_label, ratio_out_in, fill = has_activity)) +
   theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
 save_panel(p_F, "figure_portal_F_size_ratio",      width = 7.5, height = 4.0)
 
+# Combined 3x2 patchwork grid -- matches the manuscript's "Figure 3"
+# (real portal sweep). Standalone panels above remain available for
+# any case where only one panel is needed.
+if (requireNamespace("patchwork", quietly = TRUE)) {
+  suppressPackageStartupMessages(library(patchwork))
+  fig3 <- (p_A | p_B) / (p_C | p_D) / (p_E | p_F) +
+    plot_annotation(tag_levels = "A") &
+    theme(plot.tag = element_text(face = "bold"))
+  combo_pdf <- file.path(figures_dir, "figure3.pdf")
+  combo_png <- file.path(figures_dir, "figure3.png")
+  ggsave(combo_pdf, fig3,
+         width = 11.5, height = 12.0, units = "in", device = cairo_pdf)
+  ggsave(combo_png, fig3,
+         width = 11.5, height = 12.0, units = "in", dpi = 300)
+  message("  ", combo_pdf, " + figure3.png (combined 3x2)")
+} else {
+  message("(patchwork not installed; skipping combined figure3)")
+}
+
 # ---- 4. Console summary ---------------------------------------------------
 
-message(sprintf("\nRendered %d standalone panels under %s/",
+message(sprintf("\nRendered %d standalone panels + 1 combined under %s/",
                 6L, figures_dir))
 message("\n=== Portal benchmark summary (n=", nrow(ok), " OK rows) ===")
 disp <- ok[, c("studyID", "n_cells", "n_genes", "n_clusters",

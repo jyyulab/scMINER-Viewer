@@ -323,13 +323,25 @@ p_F <- ggplot(scaling_summary,
   theme_paper()
 save_panel(p_F, "figure1_F_peak_memory",     width = 6.0, height = 4.2)
 
-# Clean up any stale combined-grid artifact from earlier renders.
-for (legacy in c("paper/figures/figure1.pdf",
-                  "paper/figures/figure1.png")) {
-  if (file.exists(legacy)) file.remove(legacy)
+# Combined 3x2 patchwork grid -- matches the manuscript's "Figure 2"
+# (synthetic-sweep) and renders well as a single insert at full text
+# width. Standalone panels above remain available for any case where
+# only one panel is needed.
+if (requireNamespace("patchwork", quietly = TRUE)) {
+  suppressPackageStartupMessages(library(patchwork))
+  fig2 <- (p_A | p_B) / (p_C | p_D) / (p_E | p_F) +
+    plot_annotation(tag_levels = "A") &
+    theme(plot.tag = element_text(face = "bold"))
+  ggsave("paper/figures/figure2.pdf", fig2,
+         width = 12.0, height = 12.6, units = "in", device = cairo_pdf)
+  ggsave("paper/figures/figure2.png", fig2,
+         width = 12.0, height = 12.6, units = "in", dpi = 300)
+  message("  paper/figures/figure2.pdf + figure2.png (combined 3x2)")
+} else {
+  message("(patchwork not installed; skipping combined figure2)")
 }
 
-message(sprintf("\nRendered %d standalone panels under paper/figures/", 6L))
+message(sprintf("\nRendered %d standalone panels + 1 combined under paper/figures/", 6L))
 
 # ------------------------------------------------------- summary on stdout
 
