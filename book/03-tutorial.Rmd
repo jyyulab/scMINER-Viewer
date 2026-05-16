@@ -4,7 +4,149 @@ This chapter walks through the most common workflow end-to-end:
 prepare one study, browse it, add a second study, browse them
 together. All paths assume the project root as the working directory.
 
-## A — Prepare one study from a YAML config {-}
+## A — Walkthrough with the public 2327 (Tex) demo data {-}
+
+If you don't yet have your own scMINER outputs, the project ships a
+complete worked example: the 2327 CD8⁺ T-cell exhaustion study from
+*"Single-cell RNA sequencing of progenitor, intermediate and
+terminally exhausted CD8+ T cells from tumors and chronic viral
+infection"*. The three source files are hosted as a GitHub Release
+asset on this repo.
+
+> **Don't want to run `prepare_study()`?** Skip to
+> [A.2 — Fast path](#tutorial-2327-fast-path) and download the
+> pre-processed bundle directly.
+
+### A.1 — Run `prepare_study()` from scratch {-}
+
+#### 1. Download the inputs from the release {-}
+
+```sh
+mkdir -p data/input/2327 && cd data/input/2327
+
+RELEASE_URL=https://github.com/hzhou98/scMINER-Viewer/releases/download/demo-data-v1
+
+curl -L -o expression.rds "$RELEASE_URL/expression.rds"   #  22 MB
+curl -L -o activity.rds   "$RELEASE_URL/activity.rds"     # 236 MB
+curl -L -o networks.txt   "$RELEASE_URL/networks.txt"     #  57 MB
+```
+
+Verify the downloads (optional but recommended for the 236 MB file):
+
+```sh
+shasum -a 256 expression.rds activity.rds networks.txt
+# expression.rds  9c28047387a181263107cab3076d426aaa32fcc402e6a2af6b4fb1ec5b910960
+# activity.rds    10b94c7826ce513c792ce0cdd57f6c1cad1adb3576f8f6f17779d35b6413c487
+# networks.txt    9096a1c3604a93e19e2ac177728686ca0f45c6de48a9b27149fc6e6e9b8dc856
+```
+
+About the inputs:
+
+* `expression.rds` — Biobase `ExpressionSet` (genes × cells), normalised
+  counts. `pData` carries `CellID`, `CellGroup`, and `UMAP_1` / `UMAP_2`
+  coordinates; `fData` carries `GeneSymbol`.
+* `activity.rds` — Biobase `ExpressionSet` with the same cells. Row names
+  end in `_TF` or `_SIG`; `prepare_study()` splits them into the
+  TF-activity and SIG-activity matrices automatically.
+* `networks.txt` — tab-separated; columns include `source`, `target`,
+  `MI`, `pearson`, `spearman`, `slope`, `p.value`, `CellGroup`, and
+  `NetworkType` ∈ {TF, SIG}.
+
+#### 2. Write a YAML config that points at them {-}
+
+```yaml
+# config-2327.yml
+output: data        # writes data/2327/2327.scminer.h5 + the shard tree
+
+study:
+  ID:         "2327"
+  studyAbbr:  Tex
+  shortTitle: Tex
+  longTitle:  >
+    Single-cell RNA sequencing of progenitor, intermediate and
+    terminally exhausted CD8+ T cells from tumors and chronic
+    viral infection
+
+species:    Mus musculus
+coordinate: UMAP
+
+cellID:     CellID
+cellType:   CellGroup
+cellGroup:  CellGroup
+geneSymbol: GeneSymbol
+
+input:
+  expression: data/input/2327/expression.rds
+  activity:   data/input/2327/activity.rds
+  networks:   data/input/2327/networks.txt
+
+cluster_palette: npg
+default_genes: [Cd8a, Pdcd1, Tox]
+```
+
+`prepare_study()` resolves `input.*` paths relative to the current
+working directory — keep your shell in the project root when you run
+it, or rewrite the paths to be absolute.
+
+#### 3. Run `prepare_study()` {-}
+
+```{r tutorial-2327-prepare, eval=FALSE}
+library(scminerViewer)
+prepare_study("config-2327.yml")
+```
+
+Expect 1–3 minutes on a laptop (most of the time goes to writing the
+~15,500 per-gene shards). When it finishes, you'll have:
+
+```
+data/
+└── 2327/
+    ├── 2327.scminer.h5                # bundle (~77 MB)
+    ├── Cell/  Gene/  Network_*/  …    # graph layout
+    ├── expression_files/2327/{meta.csv, <letter>/<gene>.csv.gz}
+    └── activity_files/2327/{meta.csv, {TF,SIG}/<letter>/<gene>.csv.gz}
+```
+
+#### 4. Launch the viewer {-}
+
+```{r tutorial-2327-runapp, eval=FALSE}
+run_app("data/2327/2327.scminer.h5", port = 8000)
+```
+
+The gene picker pre-selects `Cd8a, Pdcd1, Tox` thanks to the
+`default_genes:` line in the YAML, so you land on a populated view.
+
+### A.2 — Fast path: download the pre-processed bundle {#tutorial-2327-fast-path -}
+
+If you just want to *see* the viewer without running `prepare_study()`,
+download the already-prepared bundle + shard tree as a single tarball:
+
+```sh
+mkdir -p data && cd data
+
+RELEASE_URL=https://github.com/hzhou98/scMINER-Viewer/releases/download/demo-data-v1
+curl -L -o 2327-processed.tar.gz "$RELEASE_URL/2327-processed.tar.gz"  # ~484 MB
+
+shasum -a 256 2327-processed.tar.gz
+# 2327-processed.tar.gz  c7e361c5623be787ca2874d4ef937a9bc38a59a44e3ee5b0ac7415ec656d7680
+
+tar -xzf 2327-processed.tar.gz
+mv 2327-processed 2327
+```
+
+Then:
+
+```{r tutorial-2327-fastpath, eval=FALSE}
+scminerViewer::run_app("data/2327/2327.scminer.h5", port = 8000)
+```
+
+> The R package also ships an even smaller in-package demo (200 gene
+> shards, ~80 MB total) accessible via `run_demo()` — see
+> [Installation](#installation). Use it when you want the very fastest
+> "what does this look like" path with zero downloads beyond the package
+> itself.
+
+## B — Prepare one study from a YAML config {-}
 
 ```{r tutorial-yaml, eval=FALSE}
 # 1) Copy the annotated template that ships with the package
@@ -34,7 +176,7 @@ layout (Cell/, Gene/, Network_*/, …) and the per-gene shard tree
 (`expression_files/<studyID>/<letter>/<gene>.csv.gz` and
 `activity_files/<studyID>/{TF,SIG}/...`) into `data/<studyID>/`.
 
-## B — Migrate an existing on-disk study (no RDS needed) {-}
+## C — Migrate an existing on-disk study (no RDS needed) {-}
 
 If you already have the graph-layout TSVs + shard tree on disk
 (e.g. under `data/example/`), build the bundle directly without
@@ -66,9 +208,9 @@ mv data/example/expression_files data/2327/
 mv data/example/activity_files   data/2327/
 ```
 
-Otherwise pass `shard_dir =` to `run_app()` / `run_browser()` (see C).
+Otherwise pass `shard_dir =` to `run_app()` / `run_browser()` (see D).
 
-## C — Browse one or many studies {-}
+## D — Browse one or many studies {-}
 
 ### Single study (R) {-}
 
@@ -109,7 +251,7 @@ Inside the browser, each study is a card; clicking opens
 `?study=<sid>` (R) or sets a reactive value (Python) to drill in.
 A "← Back to studies" link returns to the index.
 
-## D — Adding a second study {-}
+## E — Adding a second study {-}
 
 Point `prepare_study()` at the same root with a new `study.ID`. Each
 call creates a sibling `<sid>/` folder:
@@ -125,7 +267,7 @@ data/
 `run_browser("data")` (or `scminer-viewer browse data`) now shows two
 cards. No rebuild of the existing study is required.
 
-## E — Inspect what's available without launching anything {-}
+## F — Inspect what's available without launching anything {-}
 
 `discover_studies()` returns one row per bundle found under a root:
 

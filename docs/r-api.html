@@ -171,17 +171,22 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="3" data-path="tutorial.html"><a href="tutorial.html"><i class="fa fa-check"></i><b>3</b> Tutorial: from zero to a multi-study browser</a>
 <ul>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a-prepare-one-study-from-a-yaml-config"><i class="fa fa-check"></i>A — Prepare one study from a YAML config</a></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#b-migrate-an-existing-on-disk-study-no-rds-needed"><i class="fa fa-check"></i>B — Migrate an existing on-disk study (no RDS needed)</a></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#c-browse-one-or-many-studies"><i class="fa fa-check"></i>C — Browse one or many studies</a>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a-walkthrough-with-the-public-2327-tex-demo-data"><i class="fa fa-check"></i>A — Walkthrough with the public 2327 (Tex) demo data</a>
+<ul>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a.1-run-prepare_study-from-scratch"><i class="fa fa-check"></i>A.1 — Run <code>prepare_study()</code> from scratch</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#tutorial-2327-fast-path"><i class="fa fa-check"></i>A.2 — Fast path: download the pre-processed bundle</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#b-prepare-one-study-from-a-yaml-config"><i class="fa fa-check"></i>B — Prepare one study from a YAML config</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#c-migrate-an-existing-on-disk-study-no-rds-needed"><i class="fa fa-check"></i>C — Migrate an existing on-disk study (no RDS needed)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#d-browse-one-or-many-studies"><i class="fa fa-check"></i>D — Browse one or many studies</a>
 <ul>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-r"><i class="fa fa-check"></i>Single study (R)</a></li>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-python"><i class="fa fa-check"></i>Single study (Python)</a></li>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-r"><i class="fa fa-check"></i>Multi-study browser (R)</a></li>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-python"><i class="fa fa-check"></i>Multi-study browser (Python)</a></li>
 </ul></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#d-adding-a-second-study"><i class="fa fa-check"></i>D — Adding a second study</a></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#e-inspect-whats-available-without-launching-anything"><i class="fa fa-check"></i>E — Inspect what’s available without launching anything</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#e-adding-a-second-study"><i class="fa fa-check"></i>E — Adding a second study</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#f-inspect-whats-available-without-launching-anything"><i class="fa fa-check"></i>F — Inspect what’s available without launching anything</a></li>
 </ul></li>
 <li class="chapter" data-level="4" data-path="config-yaml.html"><a href="config-yaml.html"><i class="fa fa-check"></i><b>4</b> Config YAML reference</a>
 <ul>
@@ -425,52 +430,52 @@ are thin wrappers over them.</p>
 <h2>Debug / granular workflow<a href="r-api.html#debug-granular-workflow" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>When something goes wrong with <code>prepare_study()</code>, drive the pipeline
 manually one step at a time:</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="r-api.html#cb40-1" tabindex="-1"></a><span class="fu">library</span>(scminerViewer)</span>
-<span id="cb40-2"><a href="r-api.html#cb40-2" tabindex="-1"></a></span>
-<span id="cb40-3"><a href="r-api.html#cb40-3" tabindex="-1"></a><span class="co"># 1) Parse the config without touching the RDS files</span></span>
-<span id="cb40-4"><a href="r-api.html#cb40-4" tabindex="-1"></a>cfg <span class="ot">&lt;-</span> <span class="fu">load_study_config</span>(<span class="st">&quot;config.yml&quot;</span>)</span>
-<span id="cb40-5"><a href="r-api.html#cb40-5" tabindex="-1"></a><span class="fu">str</span>(cfg)            <span class="co"># see exactly what defaults got applied</span></span>
-<span id="cb40-6"><a href="r-api.html#cb40-6" tabindex="-1"></a></span>
-<span id="cb40-7"><a href="r-api.html#cb40-7" tabindex="-1"></a><span class="co"># 2) Load the inputs (slow — gigabyte-sized RDS files)</span></span>
-<span id="cb40-8"><a href="r-api.html#cb40-8" tabindex="-1"></a>expr_eset <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>expression)</span>
-<span id="cb40-9"><a href="r-api.html#cb40-9" tabindex="-1"></a>act_eset  <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>activity)) <span class="fu">readRDS</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>activity)</span>
-<span id="cb40-10"><a href="r-api.html#cb40-10" tabindex="-1"></a></span>
-<span id="cb40-11"><a href="r-api.html#cb40-11" tabindex="-1"></a><span class="co"># 3) Extract each piece independently — every helper returns a plain</span></span>
-<span id="cb40-12"><a href="r-api.html#cb40-12" tabindex="-1"></a><span class="co">#    R structure you can print, summary(), or modify</span></span>
-<span id="cb40-13"><a href="r-api.html#cb40-13" tabindex="-1"></a>cells <span class="ot">&lt;-</span> <span class="fu">extract_cells</span>(</span>
-<span id="cb40-14"><a href="r-api.html#cb40-14" tabindex="-1"></a>  expr_eset,</span>
-<span id="cb40-15"><a href="r-api.html#cb40-15" tabindex="-1"></a>  <span class="at">cell_id_col    =</span> cfg<span class="sc">$</span>cellID,</span>
-<span id="cb40-16"><a href="r-api.html#cb40-16" tabindex="-1"></a>  <span class="at">cell_type_col  =</span> cfg<span class="sc">$</span>cellType,</span>
-<span id="cb40-17"><a href="r-api.html#cb40-17" tabindex="-1"></a>  <span class="at">cell_group_col =</span> cfg<span class="sc">$</span>cellGroup,</span>
-<span id="cb40-18"><a href="r-api.html#cb40-18" tabindex="-1"></a>  <span class="at">coordinate_col =</span> cfg<span class="sc">$</span>coordinate</span>
-<span id="cb40-19"><a href="r-api.html#cb40-19" tabindex="-1"></a>)</span>
-<span id="cb40-20"><a href="r-api.html#cb40-20" tabindex="-1"></a>genes <span class="ot">&lt;-</span> <span class="fu">extract_genes</span>(expr_eset, <span class="at">gene_symbol_col =</span> cfg<span class="sc">$</span>geneSymbol)</span>
-<span id="cb40-21"><a href="r-api.html#cb40-21" tabindex="-1"></a>expr  <span class="ot">&lt;-</span> <span class="fu">extract_expression</span>(expr_eset, <span class="at">genes =</span> genes)</span>
-<span id="cb40-22"><a href="r-api.html#cb40-22" tabindex="-1"></a>act   <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(act_eset)) <span class="fu">extract_activity</span>(act_eset, genes)</span>
-<span id="cb40-23"><a href="r-api.html#cb40-23" tabindex="-1"></a>        <span class="cf">else</span> <span class="fu">list</span>(<span class="at">tf =</span> <span class="cn">NULL</span>, <span class="at">sig =</span> <span class="cn">NULL</span>)</span>
-<span id="cb40-24"><a href="r-api.html#cb40-24" tabindex="-1"></a>nets  <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>networks))</span>
-<span id="cb40-25"><a href="r-api.html#cb40-25" tabindex="-1"></a>          <span class="fu">read_networks</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>networks)</span>
-<span id="cb40-26"><a href="r-api.html#cb40-26" tabindex="-1"></a>        <span class="cf">else</span> <span class="fu">list</span>(<span class="at">tf =</span> <span class="cn">NULL</span>, <span class="at">sig =</span> <span class="cn">NULL</span>)</span>
-<span id="cb40-27"><a href="r-api.html#cb40-27" tabindex="-1"></a></span>
-<span id="cb40-28"><a href="r-api.html#cb40-28" tabindex="-1"></a><span class="co"># 4) Inspect / tweak before writing</span></span>
-<span id="cb40-29"><a href="r-api.html#cb40-29" tabindex="-1"></a><span class="fu">head</span>(cells); <span class="fu">dim</span>(expr); <span class="fu">table</span>(<span class="fu">sapply</span>(nets, NROW))</span>
-<span id="cb40-30"><a href="r-api.html#cb40-30" tabindex="-1"></a></span>
-<span id="cb40-31"><a href="r-api.html#cb40-31" tabindex="-1"></a><span class="co"># 5) Hand the parts to prepare_study_data — writes graph + bundle</span></span>
-<span id="cb40-32"><a href="r-api.html#cb40-32" tabindex="-1"></a><span class="fu">prepare_study_data</span>(</span>
-<span id="cb40-33"><a href="r-api.html#cb40-33" tabindex="-1"></a>  <span class="at">out_dir      =</span> cfg<span class="sc">$</span>output,</span>
-<span id="cb40-34"><a href="r-api.html#cb40-34" tabindex="-1"></a>  <span class="at">meta         =</span> <span class="fu">list</span>(<span class="at">studyID   =</span> cfg<span class="sc">$</span>study<span class="sc">$</span>ID,</span>
-<span id="cb40-35"><a href="r-api.html#cb40-35" tabindex="-1"></a>                      <span class="at">studyAbbr =</span> cfg<span class="sc">$</span>study<span class="sc">$</span>studyAbbr,</span>
-<span id="cb40-36"><a href="r-api.html#cb40-36" tabindex="-1"></a>                      <span class="at">longTitle =</span> cfg<span class="sc">$</span>study<span class="sc">$</span>longTitle,</span>
-<span id="cb40-37"><a href="r-api.html#cb40-37" tabindex="-1"></a>                      <span class="at">shortTitle=</span> cfg<span class="sc">$</span>study<span class="sc">$</span>shortTitle,</span>
-<span id="cb40-38"><a href="r-api.html#cb40-38" tabindex="-1"></a>                      <span class="at">species   =</span> cfg<span class="sc">$</span>species,</span>
-<span id="cb40-39"><a href="r-api.html#cb40-39" tabindex="-1"></a>                      <span class="at">coordinate=</span> cfg<span class="sc">$</span>coordinate),</span>
-<span id="cb40-40"><a href="r-api.html#cb40-40" tabindex="-1"></a>  <span class="at">cells        =</span> cells, <span class="at">genes =</span> genes,</span>
-<span id="cb40-41"><a href="r-api.html#cb40-41" tabindex="-1"></a>  <span class="at">expression   =</span> expr,</span>
-<span id="cb40-42"><a href="r-api.html#cb40-42" tabindex="-1"></a>  <span class="at">activity_tf  =</span> act<span class="sc">$</span>tf, <span class="at">activity_sig =</span> act<span class="sc">$</span>sig,</span>
-<span id="cb40-43"><a href="r-api.html#cb40-43" tabindex="-1"></a>  <span class="at">network_tf   =</span> nets<span class="sc">$</span>tf, <span class="at">network_sig =</span> nets<span class="sc">$</span>sig,</span>
-<span id="cb40-44"><a href="r-api.html#cb40-44" tabindex="-1"></a>  <span class="at">emit         =</span> <span class="fu">c</span>(<span class="st">&quot;graph&quot;</span>, <span class="st">&quot;bundle&quot;</span>),</span>
-<span id="cb40-45"><a href="r-api.html#cb40-45" tabindex="-1"></a>  <span class="at">verbose      =</span> <span class="cn">TRUE</span></span>
-<span id="cb40-46"><a href="r-api.html#cb40-46" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="r-api.html#cb48-1" tabindex="-1"></a><span class="fu">library</span>(scminerViewer)</span>
+<span id="cb48-2"><a href="r-api.html#cb48-2" tabindex="-1"></a></span>
+<span id="cb48-3"><a href="r-api.html#cb48-3" tabindex="-1"></a><span class="co"># 1) Parse the config without touching the RDS files</span></span>
+<span id="cb48-4"><a href="r-api.html#cb48-4" tabindex="-1"></a>cfg <span class="ot">&lt;-</span> <span class="fu">load_study_config</span>(<span class="st">&quot;config.yml&quot;</span>)</span>
+<span id="cb48-5"><a href="r-api.html#cb48-5" tabindex="-1"></a><span class="fu">str</span>(cfg)            <span class="co"># see exactly what defaults got applied</span></span>
+<span id="cb48-6"><a href="r-api.html#cb48-6" tabindex="-1"></a></span>
+<span id="cb48-7"><a href="r-api.html#cb48-7" tabindex="-1"></a><span class="co"># 2) Load the inputs (slow — gigabyte-sized RDS files)</span></span>
+<span id="cb48-8"><a href="r-api.html#cb48-8" tabindex="-1"></a>expr_eset <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>expression)</span>
+<span id="cb48-9"><a href="r-api.html#cb48-9" tabindex="-1"></a>act_eset  <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>activity)) <span class="fu">readRDS</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>activity)</span>
+<span id="cb48-10"><a href="r-api.html#cb48-10" tabindex="-1"></a></span>
+<span id="cb48-11"><a href="r-api.html#cb48-11" tabindex="-1"></a><span class="co"># 3) Extract each piece independently — every helper returns a plain</span></span>
+<span id="cb48-12"><a href="r-api.html#cb48-12" tabindex="-1"></a><span class="co">#    R structure you can print, summary(), or modify</span></span>
+<span id="cb48-13"><a href="r-api.html#cb48-13" tabindex="-1"></a>cells <span class="ot">&lt;-</span> <span class="fu">extract_cells</span>(</span>
+<span id="cb48-14"><a href="r-api.html#cb48-14" tabindex="-1"></a>  expr_eset,</span>
+<span id="cb48-15"><a href="r-api.html#cb48-15" tabindex="-1"></a>  <span class="at">cell_id_col    =</span> cfg<span class="sc">$</span>cellID,</span>
+<span id="cb48-16"><a href="r-api.html#cb48-16" tabindex="-1"></a>  <span class="at">cell_type_col  =</span> cfg<span class="sc">$</span>cellType,</span>
+<span id="cb48-17"><a href="r-api.html#cb48-17" tabindex="-1"></a>  <span class="at">cell_group_col =</span> cfg<span class="sc">$</span>cellGroup,</span>
+<span id="cb48-18"><a href="r-api.html#cb48-18" tabindex="-1"></a>  <span class="at">coordinate_col =</span> cfg<span class="sc">$</span>coordinate</span>
+<span id="cb48-19"><a href="r-api.html#cb48-19" tabindex="-1"></a>)</span>
+<span id="cb48-20"><a href="r-api.html#cb48-20" tabindex="-1"></a>genes <span class="ot">&lt;-</span> <span class="fu">extract_genes</span>(expr_eset, <span class="at">gene_symbol_col =</span> cfg<span class="sc">$</span>geneSymbol)</span>
+<span id="cb48-21"><a href="r-api.html#cb48-21" tabindex="-1"></a>expr  <span class="ot">&lt;-</span> <span class="fu">extract_expression</span>(expr_eset, <span class="at">genes =</span> genes)</span>
+<span id="cb48-22"><a href="r-api.html#cb48-22" tabindex="-1"></a>act   <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(act_eset)) <span class="fu">extract_activity</span>(act_eset, genes)</span>
+<span id="cb48-23"><a href="r-api.html#cb48-23" tabindex="-1"></a>        <span class="cf">else</span> <span class="fu">list</span>(<span class="at">tf =</span> <span class="cn">NULL</span>, <span class="at">sig =</span> <span class="cn">NULL</span>)</span>
+<span id="cb48-24"><a href="r-api.html#cb48-24" tabindex="-1"></a>nets  <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>networks))</span>
+<span id="cb48-25"><a href="r-api.html#cb48-25" tabindex="-1"></a>          <span class="fu">read_networks</span>(cfg<span class="sc">$</span>input<span class="sc">$</span>networks)</span>
+<span id="cb48-26"><a href="r-api.html#cb48-26" tabindex="-1"></a>        <span class="cf">else</span> <span class="fu">list</span>(<span class="at">tf =</span> <span class="cn">NULL</span>, <span class="at">sig =</span> <span class="cn">NULL</span>)</span>
+<span id="cb48-27"><a href="r-api.html#cb48-27" tabindex="-1"></a></span>
+<span id="cb48-28"><a href="r-api.html#cb48-28" tabindex="-1"></a><span class="co"># 4) Inspect / tweak before writing</span></span>
+<span id="cb48-29"><a href="r-api.html#cb48-29" tabindex="-1"></a><span class="fu">head</span>(cells); <span class="fu">dim</span>(expr); <span class="fu">table</span>(<span class="fu">sapply</span>(nets, NROW))</span>
+<span id="cb48-30"><a href="r-api.html#cb48-30" tabindex="-1"></a></span>
+<span id="cb48-31"><a href="r-api.html#cb48-31" tabindex="-1"></a><span class="co"># 5) Hand the parts to prepare_study_data — writes graph + bundle</span></span>
+<span id="cb48-32"><a href="r-api.html#cb48-32" tabindex="-1"></a><span class="fu">prepare_study_data</span>(</span>
+<span id="cb48-33"><a href="r-api.html#cb48-33" tabindex="-1"></a>  <span class="at">out_dir      =</span> cfg<span class="sc">$</span>output,</span>
+<span id="cb48-34"><a href="r-api.html#cb48-34" tabindex="-1"></a>  <span class="at">meta         =</span> <span class="fu">list</span>(<span class="at">studyID   =</span> cfg<span class="sc">$</span>study<span class="sc">$</span>ID,</span>
+<span id="cb48-35"><a href="r-api.html#cb48-35" tabindex="-1"></a>                      <span class="at">studyAbbr =</span> cfg<span class="sc">$</span>study<span class="sc">$</span>studyAbbr,</span>
+<span id="cb48-36"><a href="r-api.html#cb48-36" tabindex="-1"></a>                      <span class="at">longTitle =</span> cfg<span class="sc">$</span>study<span class="sc">$</span>longTitle,</span>
+<span id="cb48-37"><a href="r-api.html#cb48-37" tabindex="-1"></a>                      <span class="at">shortTitle=</span> cfg<span class="sc">$</span>study<span class="sc">$</span>shortTitle,</span>
+<span id="cb48-38"><a href="r-api.html#cb48-38" tabindex="-1"></a>                      <span class="at">species   =</span> cfg<span class="sc">$</span>species,</span>
+<span id="cb48-39"><a href="r-api.html#cb48-39" tabindex="-1"></a>                      <span class="at">coordinate=</span> cfg<span class="sc">$</span>coordinate),</span>
+<span id="cb48-40"><a href="r-api.html#cb48-40" tabindex="-1"></a>  <span class="at">cells        =</span> cells, <span class="at">genes =</span> genes,</span>
+<span id="cb48-41"><a href="r-api.html#cb48-41" tabindex="-1"></a>  <span class="at">expression   =</span> expr,</span>
+<span id="cb48-42"><a href="r-api.html#cb48-42" tabindex="-1"></a>  <span class="at">activity_tf  =</span> act<span class="sc">$</span>tf, <span class="at">activity_sig =</span> act<span class="sc">$</span>sig,</span>
+<span id="cb48-43"><a href="r-api.html#cb48-43" tabindex="-1"></a>  <span class="at">network_tf   =</span> nets<span class="sc">$</span>tf, <span class="at">network_sig =</span> nets<span class="sc">$</span>sig,</span>
+<span id="cb48-44"><a href="r-api.html#cb48-44" tabindex="-1"></a>  <span class="at">emit         =</span> <span class="fu">c</span>(<span class="st">&quot;graph&quot;</span>, <span class="st">&quot;bundle&quot;</span>),</span>
+<span id="cb48-45"><a href="r-api.html#cb48-45" tabindex="-1"></a>  <span class="at">verbose      =</span> <span class="cn">TRUE</span></span>
+<span id="cb48-46"><a href="r-api.html#cb48-46" tabindex="-1"></a>)</span></code></pre></div>
 
 </div>
 </div>

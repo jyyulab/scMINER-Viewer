@@ -24,6 +24,16 @@ troubleshooting.
 Both apps are file-based: no Java services, no graph DB, no SQL. Drop
 a study directory on disk and either package can render it.
 
+## 🚀 Try the demo
+
+Three ways to see the viewer, in increasing order of "real":
+
+| Path | Size | How |
+| --- | --- | --- |
+| **In-package demo** — 2327 (Tex) bundle + 200 curated gene shards (canonical T-cell / exhaustion markers). Already shipped inside the R package. | ~80 MB (installed with the package) | `scminerViewer::run_demo()` |
+| **Pre-processed bundle** — full 2327 bundle + complete shard tree (every gene). Fastest way to browse all ~10k genes without running `prepare_study()`. | ~484 MB download | Download `2327-processed.tar.gz` from the [`demo-data-v1`](https://github.com/hzhou98/scMINER-Viewer/releases/tag/demo-data-v1) release, untar into `data/2327/`, then `run_app("data/2327/2327.scminer.h5")`. |
+| **Run the full pipeline** — download the source `expression.rds` (22 MB), `activity.rds` (236 MB), `networks.txt` (57 MB), write a YAML, run `prepare_study()`. The closest thing to "I have my own scMINER data". | ~315 MB download + 1–3 min processing | See [Tutorial § A.1](book/03-tutorial.Rmd) (rendered: `docs/tutorial.html`). |
+
 ## Lazy by design + multi-study by default
 
 Each study lives in **its own subfolder** under a shared root so one
@@ -62,8 +72,10 @@ study's viewer (back link to return).
 scMINER-Viewer/
 ├── IMPLEMENTATION.md                  # architecture & status doc
 ├── README.md                          # you are here
-├── data/                              # multi-study root
-│   └── 2327/                          # per-study subfolder
+├── book/, docs/                       # bookdown sources + rendered site
+├── data/                              # multi-study root (gitignored)
+│   ├── input/2327/                    # raw RDS/TSV inputs (from demo-data-v1)
+│   └── 2327/                          # per-study processed subfolder
 │       ├── 2327.scminer.h5
 │       ├── Cell/, Gene/, Network_*/
 │       ├── study_meta/2327_study_meta.csv
@@ -71,8 +83,8 @@ scMINER-Viewer/
 │       ├── expression_files/2327/{meta.csv, <letter>/<gene>.csv.gz}
 │       └── activity_files/2327/{meta.csv, TF/<letter>/..., SIG/<letter>/...}
 ├── scminerViewer/                     # R package
-│   ├── R/, tests/, inst/extdata/example_config.yml
-│   └── inst/scripts/build_2327_bundle.R
+│   ├── R/, tests/, inst/extdata/      # incl. example_config.yml + 200-gene mini demo
+│   └── inst/scripts/{build_2327_bundle.R, build_demo_data.R}
 └── scminer_viewer/                    # Python package
     └── src/scminer_viewer/{data,app,cli}.py + plots/
 ```
@@ -97,16 +109,20 @@ devtools::install("scminerViewer")     # run from the project root
 In RStudio, you can also **File → Open Project…** the `scminerViewer/`
 folder and use **Build → Install Package** (`Cmd/Ctrl + Shift + B`).
 
-**Use it** — three things you can do:
+**Use it** — four things you can do:
 
 ```sh
+# (Z) Zero-config demo — open the in-package 2327 mini-bundle (200 genes)
+Rscript -e 'scminerViewer::run_demo(port = 8000)'
+
 # (A) Build the 2327 bundle from an on-disk graph layout (no RDS needed)
 Rscript scminerViewer/inst/scripts/build_2327_bundle.R
 # → writes data/2327/2327.scminer.h5
 
 # (B) Full prepare_study pipeline driven by a YAML config (needs the
-#     scMINER ExpressionSet RDS / networks TSV; see data/example/2327.yml)
-Rscript -e 'scminerViewer::prepare_study("data/example/2327.yml")'
+#     scMINER ExpressionSet RDS / networks TSV; fetch them from the
+#     demo-data-v1 release — see Tutorial § A.1)
+Rscript -e 'scminerViewer::prepare_study("config-2327.yml")'
 
 # (C1) Multi-study browser — one URL per study, card-grid index
 Rscript -e 'scminerViewer::run_browser("data", port = 8000)'
@@ -118,15 +134,15 @@ Rscript -e 'scminerViewer::run_browser("data", shard_dir = "data/example", port 
 Rscript -e 'scminerViewer::run_app("data/2327/2327.scminer.h5", port = 8000)'
 ```
 
-Full multi-study walkthrough (prep → browse → add another) is in
-[`scminerViewer/README.md → Tutorial`](scminerViewer/README.md#tutorial-from-zero-to-a-multi-study-browser).
+Full multi-study walkthrough (download demo data → prep → browse → add
+another) is in the bookdown [Tutorial chapter](book/03-tutorial.Rmd)
+(rendered: `docs/tutorial.html`). Section A walks through downloading
+the 2327 inputs from the [`demo-data-v1`](https://github.com/hzhou98/scMINER-Viewer/releases/tag/demo-data-v1)
+release and running `prepare_study()` end-to-end.
 
-A concrete, runnable YAML for the 2327 study lives at
-[`data/example/2327.yml`](data/example/2327.yml) — copy it as a starting
-point for new studies and edit the `input.*` paths to point at your
-ExpressionSet RDS files. The package also ships a fully-annotated
-template at
-`system.file("extdata", "example_config.yml", package = "scminerViewer")`.
+The package also ships a fully-annotated YAML template at
+`system.file("extdata", "example_config.yml", package = "scminerViewer")`
+— copy it as the starting point for any new study.
 
 See [`scminerViewer/README.md`](scminerViewer/README.md) for the YAML
 config schema, the full exported API, and how to prepare a fresh study
@@ -161,7 +177,7 @@ Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:
 
 ## Status
 
-- **R**: 169/169 tests pass (`scminerViewer/tests/testthat/`).
+- **R**: 191/191 tests pass, 2 skipped (`scminerViewer/tests/testthat/`).
 - **Python**: 17/17 tests pass (`scminer_viewer/tests/`). Fixtures are
   built by shelling out to `Rscript`, so the Python reader is verified
   against bytes produced by the R writer.

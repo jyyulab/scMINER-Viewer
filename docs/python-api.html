@@ -171,17 +171,22 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="3" data-path="tutorial.html"><a href="tutorial.html"><i class="fa fa-check"></i><b>3</b> Tutorial: from zero to a multi-study browser</a>
 <ul>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a-prepare-one-study-from-a-yaml-config"><i class="fa fa-check"></i>A — Prepare one study from a YAML config</a></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#b-migrate-an-existing-on-disk-study-no-rds-needed"><i class="fa fa-check"></i>B — Migrate an existing on-disk study (no RDS needed)</a></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#c-browse-one-or-many-studies"><i class="fa fa-check"></i>C — Browse one or many studies</a>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a-walkthrough-with-the-public-2327-tex-demo-data"><i class="fa fa-check"></i>A — Walkthrough with the public 2327 (Tex) demo data</a>
+<ul>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#a.1-run-prepare_study-from-scratch"><i class="fa fa-check"></i>A.1 — Run <code>prepare_study()</code> from scratch</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#tutorial-2327-fast-path"><i class="fa fa-check"></i>A.2 — Fast path: download the pre-processed bundle</a></li>
+</ul></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#b-prepare-one-study-from-a-yaml-config"><i class="fa fa-check"></i>B — Prepare one study from a YAML config</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#c-migrate-an-existing-on-disk-study-no-rds-needed"><i class="fa fa-check"></i>C — Migrate an existing on-disk study (no RDS needed)</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#d-browse-one-or-many-studies"><i class="fa fa-check"></i>D — Browse one or many studies</a>
 <ul>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-r"><i class="fa fa-check"></i>Single study (R)</a></li>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#single-study-python"><i class="fa fa-check"></i>Single study (Python)</a></li>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-r"><i class="fa fa-check"></i>Multi-study browser (R)</a></li>
 <li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#multi-study-browser-python"><i class="fa fa-check"></i>Multi-study browser (Python)</a></li>
 </ul></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#d-adding-a-second-study"><i class="fa fa-check"></i>D — Adding a second study</a></li>
-<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#e-inspect-whats-available-without-launching-anything"><i class="fa fa-check"></i>E — Inspect what’s available without launching anything</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#e-adding-a-second-study"><i class="fa fa-check"></i>E — Adding a second study</a></li>
+<li class="chapter" data-level="" data-path="tutorial.html"><a href="tutorial.html#f-inspect-whats-available-without-launching-anything"><i class="fa fa-check"></i>F — Inspect what’s available without launching anything</a></li>
 </ul></li>
 <li class="chapter" data-level="4" data-path="config-yaml.html"><a href="config-yaml.html"><i class="fa fa-check"></i><b>4</b> Config YAML reference</a>
 <ul>
@@ -394,26 +399,26 @@ scminer-viewer browse &lt;root_dir&gt; [options]
 </div>
 <div id="programmatic-example" class="section level2 unnumbered hasAnchor">
 <h2>Programmatic example<a href="python-api.html#programmatic-example" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<div class="sourceCode" id="cb42"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb42-1"><a href="python-api.html#cb42-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
-<span id="cb42-2"><a href="python-api.html#cb42-2" tabindex="-1"></a></span>
-<span id="cb42-3"><a href="python-api.html#cb42-3" tabindex="-1"></a><span class="co"># Single study</span></span>
-<span id="cb42-4"><a href="python-api.html#cb42-4" tabindex="-1"></a>study <span class="op">=</span> scminer_viewer.load_study(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
-<span id="cb42-5"><a href="python-api.html#cb42-5" tabindex="-1"></a><span class="bu">print</span>(study)</span>
-<span id="cb42-6"><a href="python-api.html#cb42-6" tabindex="-1"></a><span class="co"># &lt;Study tex (2327) cells=8464 genes=9861 clusters=3 ...&gt;</span></span>
-<span id="cb42-7"><a href="python-api.html#cb42-7" tabindex="-1"></a></span>
-<span id="cb42-8"><a href="python-api.html#cb42-8" tabindex="-1"></a>expr <span class="op">=</span> study.gene_values(<span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
-<span id="cb42-9"><a href="python-api.html#cb42-9" tabindex="-1"></a><span class="bu">print</span>(expr.shape)            <span class="co"># (8464,)</span></span>
-<span id="cb42-10"><a href="python-api.html#cb42-10" tabindex="-1"></a><span class="bu">print</span>((expr <span class="op">!=</span> <span class="dv">0</span>).<span class="bu">sum</span>())     <span class="co"># number of cells with non-zero expression</span></span>
-<span id="cb42-11"><a href="python-api.html#cb42-11" tabindex="-1"></a></span>
-<span id="cb42-12"><a href="python-api.html#cb42-12" tabindex="-1"></a><span class="co"># Multi-study browser</span></span>
-<span id="cb42-13"><a href="python-api.html#cb42-13" tabindex="-1"></a>studies <span class="op">=</span> scminer_viewer.discover_studies(<span class="st">&quot;data&quot;</span>)</span>
-<span id="cb42-14"><a href="python-api.html#cb42-14" tabindex="-1"></a><span class="bu">print</span>(studies[[<span class="st">&quot;studyID&quot;</span>, <span class="st">&quot;studyAbbr&quot;</span>, <span class="st">&quot;n_cells&quot;</span>]])</span>
-<span id="cb42-15"><a href="python-api.html#cb42-15" tabindex="-1"></a></span>
-<span id="cb42-16"><a href="python-api.html#cb42-16" tabindex="-1"></a><span class="co"># Build but don&#39;t launch (e.g. for embedding)</span></span>
-<span id="cb42-17"><a href="python-api.html#cb42-17" tabindex="-1"></a>app <span class="op">=</span> scminer_viewer.build_browser(<span class="st">&quot;data&quot;</span>)</span>
-<span id="cb42-18"><a href="python-api.html#cb42-18" tabindex="-1"></a></span>
-<span id="cb42-19"><a href="python-api.html#cb42-19" tabindex="-1"></a><span class="co"># Launch (blocking)</span></span>
-<span id="cb42-20"><a href="python-api.html#cb42-20" tabindex="-1"></a>scminer_viewer.run_browser(<span class="st">&quot;data&quot;</span>, port<span class="op">=</span><span class="dv">8000</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb50"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb50-1"><a href="python-api.html#cb50-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
+<span id="cb50-2"><a href="python-api.html#cb50-2" tabindex="-1"></a></span>
+<span id="cb50-3"><a href="python-api.html#cb50-3" tabindex="-1"></a><span class="co"># Single study</span></span>
+<span id="cb50-4"><a href="python-api.html#cb50-4" tabindex="-1"></a>study <span class="op">=</span> scminer_viewer.load_study(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
+<span id="cb50-5"><a href="python-api.html#cb50-5" tabindex="-1"></a><span class="bu">print</span>(study)</span>
+<span id="cb50-6"><a href="python-api.html#cb50-6" tabindex="-1"></a><span class="co"># &lt;Study tex (2327) cells=8464 genes=9861 clusters=3 ...&gt;</span></span>
+<span id="cb50-7"><a href="python-api.html#cb50-7" tabindex="-1"></a></span>
+<span id="cb50-8"><a href="python-api.html#cb50-8" tabindex="-1"></a>expr <span class="op">=</span> study.gene_values(<span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
+<span id="cb50-9"><a href="python-api.html#cb50-9" tabindex="-1"></a><span class="bu">print</span>(expr.shape)            <span class="co"># (8464,)</span></span>
+<span id="cb50-10"><a href="python-api.html#cb50-10" tabindex="-1"></a><span class="bu">print</span>((expr <span class="op">!=</span> <span class="dv">0</span>).<span class="bu">sum</span>())     <span class="co"># number of cells with non-zero expression</span></span>
+<span id="cb50-11"><a href="python-api.html#cb50-11" tabindex="-1"></a></span>
+<span id="cb50-12"><a href="python-api.html#cb50-12" tabindex="-1"></a><span class="co"># Multi-study browser</span></span>
+<span id="cb50-13"><a href="python-api.html#cb50-13" tabindex="-1"></a>studies <span class="op">=</span> scminer_viewer.discover_studies(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb50-14"><a href="python-api.html#cb50-14" tabindex="-1"></a><span class="bu">print</span>(studies[[<span class="st">&quot;studyID&quot;</span>, <span class="st">&quot;studyAbbr&quot;</span>, <span class="st">&quot;n_cells&quot;</span>]])</span>
+<span id="cb50-15"><a href="python-api.html#cb50-15" tabindex="-1"></a></span>
+<span id="cb50-16"><a href="python-api.html#cb50-16" tabindex="-1"></a><span class="co"># Build but don&#39;t launch (e.g. for embedding)</span></span>
+<span id="cb50-17"><a href="python-api.html#cb50-17" tabindex="-1"></a>app <span class="op">=</span> scminer_viewer.build_browser(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb50-18"><a href="python-api.html#cb50-18" tabindex="-1"></a></span>
+<span id="cb50-19"><a href="python-api.html#cb50-19" tabindex="-1"></a><span class="co"># Launch (blocking)</span></span>
+<span id="cb50-20"><a href="python-api.html#cb50-20" tabindex="-1"></a>scminer_viewer.run_browser(<span class="st">&quot;data&quot;</span>, port<span class="op">=</span><span class="dv">8000</span>)</span></code></pre></div>
 </div>
 <div id="differences-vs-the-r-package" class="section level2 unnumbered hasAnchor">
 <h2>Differences vs the R package<a href="python-api.html#differences-vs-the-r-package" class="anchor-section" aria-label="Anchor link to header"></a></h2>

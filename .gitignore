@@ -1,4 +1,5 @@
 data/
+release-assets/
 .DS_Store
 scminer_viewer/.pytest_cache/
 .claude

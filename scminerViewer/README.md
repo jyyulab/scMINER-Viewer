@@ -139,6 +139,26 @@ Three ways to avoid it:
 
 ## Quick start
 
+### Demo (no data prep needed)
+
+The package ships a curated demo of the 2327 (Tex) study under
+`inst/extdata/`: the full `.scminer.h5` bundle plus ~200 gene shards
+(67 expression / 67 SIG activity / 66 TF activity). Enough to see the
+viewer in action without preparing your own study:
+
+```r
+library(scminerViewer)
+run_demo()                        # launches the Shiny app
+demo_bundle_path()                # absolute path to the bundle
+demo_genes()                      # data.frame: which genes have shards
+```
+
+The shipped subset adds ~80 MB to the installed package and centres on
+canonical T-cell / exhaustion markers (Cd8a, Pdcd1, Tox, Tcf7, Eomes,
+Mki67, …); selecting any other gene in the picker yields an empty plot.
+
+### Your own data
+
 ```r
 library(scminerViewer)
 
@@ -341,6 +361,9 @@ are thin wrappers over them.
 | `discover_studies(root_dir)`                                   | Return one row per `<studyID>/<studyID>.scminer.h5` bundle found under `root_dir` (data.frame with meta + n_cells / n_genes / paths). |
 | `run_browser(root_dir, shard_dir = NULL, host, port, launch_browser, ...)` | Launch the **multi-study** browser. Card-grid index page; click → `?study=<id>` opens that study's viewer with a "← Back" link. `shard_dir` overrides where shards live (each bundle defaults to `dirname(bundle_path)`). |
 | `build_browser(root_dir, shard_dir = NULL)`                    | Build a multi-study `shiny.appobj` without launching it. |
+| `demo_bundle_path()`                                           | Absolute path to the demo `.scminer.h5` shipped under `inst/extdata/` (2327 Tex study, ~200 gene shards). |
+| `demo_genes()`                                                 | `data.frame` (`modality`, `gene`) listing every gene with a shard in the demo. Use it to drive screenshots or scripted tours. |
+| `run_demo(host, port, launch_browser, ...)`                    | Convenience wrapper for `run_app(demo_bundle_path())`. |
 
 ### Debug / granular workflow
 
@@ -501,3 +524,18 @@ Defaults: `data_dir = data`, `study_id = 2327`,
 lands next to the shard tree so `load_study()` auto-discovers shards
 without an explicit `shard_dir`. The script tolerates missing matrices
 and warns on the path of any file it can't find.
+
+## Rebuilding the bundled demo
+
+The demo bundle + shard subset under `inst/extdata/` are produced by:
+
+```sh
+Rscript scminerViewer/inst/scripts/build_demo_data.R
+```
+
+The script reads the source data under `data/2327/` and
+`data/example/{expression,activity}_files/2327/`, picks a curated
+~200-gene subset, mirrors the shard tree under `inst/extdata/`, and
+writes `inst/extdata/demo_genes.csv` as a manifest. Re-run after any
+change to the source bundle or to the curated gene list at the top of
+the script.
