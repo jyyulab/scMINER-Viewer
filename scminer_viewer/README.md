@@ -62,7 +62,7 @@ app = build_app("path/to/data/2327.scminer.h5")
 | Symbol | Purpose |
 | --- | --- |
 | `load_study(bundle_path, shard_dir=None) -> Study` | Read a `.scminer.h5` into a `Study` dataclass. `shard_dir` defaults to `Path(bundle_path).parent`. |
-| `Study`                                           | Dataclass with `meta`, `cells` (pandas, indexed by cellID), `clusters` (pandas, indexed by cellType), `genes` (numpy), `expression_index`/`activity_tf_index`/`activity_sig_index` (numpy or `None`), `default_genes` (numpy or `None`), `network_tf`/`network_sig` (pandas or `None`), `shard_dir`. |
+| `Study`                                           | Dataclass with `meta`, `cells` (pandas, indexed by cellID), `clusters` (pandas, indexed by cellType), `genes` (numpy), `expression_index`/`activity_tf_index`/`activity_sig_index` (numpy or `None`), `default_genes` (numpy or `None` — auto-selected in the Shiny app's gene picker on launch; set this via `default_genes:` in the YAML on the R side, see [`scminerViewer` README](../scminerViewer/README.md#pre-selecting-genes-on-app-launch-default_genes)), `network_tf`/`network_sig` (pandas or `None`), `shard_dir`. |
 | `Study.gene_values(gene, relationship)`          | Lazily read one gene's row from the shard tree; ndarray of length `n_cells` aligned to `Study.cells.index`, or `None` if missing. Cached per gene. `relationship` is one of `"Express_normalized"`, `"Activity_tf"`, `"Activity_sig"`. |
 | `Study.has_gene(gene, relationship)`             | True if `gene` is in the corresponding bundle index. |
 | `build_app(bundle_path) -> shiny.App`            | Build a Shiny app without launching it. |
