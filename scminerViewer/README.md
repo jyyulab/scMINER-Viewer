@@ -206,6 +206,33 @@ For programmatic pipelines that already have matrices in memory, use
    This writes `data/<studyID>/<studyID>.scminer.h5` plus the full
    graph layout and the shard tree inside `data/<studyID>/`.
 
+#### Pre-selecting genes on app launch (`default_genes`)
+
+Add a `default_genes:` key to the YAML and `prepare_study()` writes them
+into the bundle's `defaults/genes` group. When `run_app()` opens that
+bundle, those genes are auto-selected in the gene picker — saving the
+user a click and giving every study a canonical "first look".
+
+```yaml
+# Any one of these four forms is accepted; they all parse to the same
+# normalised character vector internally.
+
+default_genes: [Cd36, Pdpn, Meox1]              # explicit list
+# default_genes: "Cd36, Pdpn, Meox1"            # comma-separated string
+# defaults:                                      # nested form
+#   genes: [Cd36, Pdpn, Meox1]
+# preGenes: "Cd36, Pdpn, Meox1"                 # legacy alias (matches
+#                                                 # the scMINER Portal
+#                                                 # JSON `preGenes` field)
+```
+
+The parser tolerates leading/trailing whitespace, mixed separators
+(comma / semicolon / newline / spaces), and duplicates. Any gene
+listed that isn't in the bundle's master gene index is dropped with a
+warning so the bundle never references something `gene_values()` can't
+resolve. Pass `prepare_study_from_eset(..., default_genes = c("A","B","C"))`
+to set them programmatically without a YAML.
+
 ### B. Or migrate an existing on-disk study (no RDS needed)
 
 If you already have the graph-layout TSVs + shard tree on disk (e.g.
@@ -280,7 +307,7 @@ studies is required — `discover_studies()` re-scans on each launch.
 | Function | Purpose |
 | --- | --- |
 | `prepare_study(config_path, emit, verbose)`                    | YAML-driven entry. Requires `yaml` + `Biobase`. |
-| `prepare_study_from_eset(out_dir, expression_eset, ...)`       | Accepts a Biobase ExpressionSet. Splits activity rows into TF/SIG by `_TF`/`_SIG` row suffix. Requires `Biobase`. |
+| `prepare_study_from_eset(out_dir, expression_eset, ..., default_genes)` | Accepts a Biobase ExpressionSet. Splits activity rows into TF/SIG by `_TF`/`_SIG` row suffix. Optional `default_genes` writes a `defaults/genes` group into the bundle so the Shiny app pre-selects those genes on launch. Requires `Biobase`. |
 | `prepare_study_data(out_dir, meta, cells, clusters, genes, expression, ..., default_genes, emit, verbose)` | Lowest-level orchestrator — plain R structures only. |
 
 ### Staged helpers (granular control / debugging)
@@ -291,7 +318,9 @@ are thin wrappers over them.
 
 | Function | Purpose |
 | --- | --- |
-| `load_study_config(config_path)`                               | Parse + validate the YAML; fill in defaults. Pure parsing — does not touch the RDS / TSV files referenced in `input.*`. |
+| `load_study_config(config_path)`                               | Parse + validate the YAML; fill in defaults. Pure parsing — does not touch the RDS / TSV files referenced in `input.*`. Also normalises `default_genes` / `defaults.genes` / legacy `preGenes` into a `cfg$default_genes` character vector via `parse_default_genes()`. |
+| `parse_default_genes(x)`                                       | Normalises a YAML-derived value (list, vector, or comma- / whitespace- / newline-separated string) into a deduplicated character vector of gene symbols. Returns `NULL` if `x` is empty. |
+| `validate_default_genes(default_genes, master_genes, warn = TRUE)` | Filters a default-gene list to those present in `master_genes`; warns about any drops. Used by `prepare_study()` / `prepare_study_from_eset()` before writing `defaults/genes` to the bundle. |
 | `extract_cells(eset, cell_id_col, cell_type_col, cell_group_col, coordinate_col)` | `pData(eset)` → cells data.frame. Errors loudly on missing columns. |
 | `extract_genes(eset, gene_symbol_col)`                         | `fData(eset)` → character vector of gene symbols. |
 | `extract_expression(eset, genes = NULL)`                       | `exprs(eset)` → sparse `Matrix` (genes × cells). Sets rownames from `genes` if provided. |

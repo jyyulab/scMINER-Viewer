@@ -63,3 +63,20 @@ input:
   #   source, target, NetworkType (TF|SIG), CellGroup,
   #   mi, pearson, spearman, rho, pvalue
   networks:   inputs/2327_networks.tsv
+
+# ---- Default genes pre-selected on app launch (optional) ----------------
+# The Shiny app auto-selects these genes the first time a user opens
+# this study, so every visitor sees a useful initial view. Mirrors the
+# scMINER Portal's `preGenes` mechanic. Any of these four shapes are
+# accepted; pick whichever reads cleanest:
+#
+#   default_genes: [Cd36, Pdpn, Meox1]              # explicit list
+#   default_genes: "Cd36, Pdpn, Meox1"              # comma-separated
+#   defaults:                                        # nested form
+#     genes: [Cd36, Pdpn, Meox1]
+#   preGenes: "Cd36, Pdpn, Meox1"                   # legacy alias
+#
+# Genes that aren't in the bundle's master gene index are dropped with
+# a warning at prepare time, so the on-disk defaults/genes is always
+# referentially valid.
+default_genes: [Cd36, Pdpn, Meox1]

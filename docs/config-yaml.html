@@ -23,7 +23,7 @@
 <meta name="author" content="scMINER Team" />
 
 
-<meta name="date" content="2026-05-15" />
+<meta name="date" content="2026-05-16" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -189,6 +189,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#auto-generated-cluster-metadata"><i class="fa fa-check"></i>Auto-generated cluster metadata</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#pre-selecting-genes-on-app-launch-default_genes"><i class="fa fa-check"></i>Pre-selecting genes on app launch (<code>default_genes</code>)</a></li>
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
@@ -345,7 +346,18 @@ and the lazy-mode bundle in one call.</p>
 <span id="cb27-38"><a href="config-yaml.html#cb27-38" tabindex="-1"></a><span class="at">  </span><span class="fu">networks</span><span class="kw">:</span><span class="at">   inputs/2327_networks.tsv</span><span class="co">     # optional, tab-separated:</span></span>
 <span id="cb27-39"><a href="config-yaml.html#cb27-39" tabindex="-1"></a><span class="co">                                            # source, target, NetworkType,</span></span>
 <span id="cb27-40"><a href="config-yaml.html#cb27-40" tabindex="-1"></a><span class="co">                                            # CellGroup, mi, pearson,</span></span>
-<span id="cb27-41"><a href="config-yaml.html#cb27-41" tabindex="-1"></a><span class="co">                                            # spearman, rho, pvalue</span></span></code></pre></div>
+<span id="cb27-41"><a href="config-yaml.html#cb27-41" tabindex="-1"></a><span class="co">                                            # spearman, rho, pvalue</span></span>
+<span id="cb27-42"><a href="config-yaml.html#cb27-42" tabindex="-1"></a></span>
+<span id="cb27-43"><a href="config-yaml.html#cb27-43" tabindex="-1"></a><span class="co"># Optional: genes the Shiny app loads on launch. Mirrors the scMINER</span></span>
+<span id="cb27-44"><a href="config-yaml.html#cb27-44" tabindex="-1"></a><span class="co"># Portal&#39;s preGenes field. Any of these four shapes parse to the same</span></span>
+<span id="cb27-45"><a href="config-yaml.html#cb27-45" tabindex="-1"></a><span class="co"># normalised character vector internally; pick whichever reads</span></span>
+<span id="cb27-46"><a href="config-yaml.html#cb27-46" tabindex="-1"></a><span class="co"># cleanest in your YAML:</span></span>
+<span id="cb27-47"><a href="config-yaml.html#cb27-47" tabindex="-1"></a><span class="fu">default_genes</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">Cd36</span><span class="kw">,</span><span class="at"> Pdpn</span><span class="kw">,</span><span class="at"> Meox1</span><span class="kw">]</span><span class="co">         # explicit list</span></span>
+<span id="cb27-48"><a href="config-yaml.html#cb27-48" tabindex="-1"></a><span class="co"># default_genes: &quot;Cd36, Pdpn, Meox1&quot;       # comma-separated string</span></span>
+<span id="cb27-49"><a href="config-yaml.html#cb27-49" tabindex="-1"></a><span class="co"># defaults:                                 # nested form, matches the</span></span>
+<span id="cb27-50"><a href="config-yaml.html#cb27-50" tabindex="-1"></a><span class="co">#   genes: [Cd36, Pdpn, Meox1]              #   bundle&#39;s defaults/genes</span></span>
+<span id="cb27-51"><a href="config-yaml.html#cb27-51" tabindex="-1"></a><span class="co">#                                           #   HDF5 path</span></span>
+<span id="cb27-52"><a href="config-yaml.html#cb27-52" tabindex="-1"></a><span class="co"># preGenes: &quot;Cd36, Pdpn, Meox1&quot;            # legacy alias</span></span></code></pre></div>
 </div>
 <div id="field-by-field" class="section level2 unnumbered hasAnchor">
 <h2>Field-by-field<a href="config-yaml.html#field-by-field" class="anchor-section" aria-label="Anchor link to header"></a></h2>
@@ -455,6 +467,12 @@ and the lazy-mode bundle in one call.</p>
 <td>none</td>
 <td>Path to the networks TSV.</td>
 </tr>
+<tr class="even">
+<td><code>default_genes</code></td>
+<td>no</td>
+<td>none</td>
+<td>Genes the Shiny app pre-selects on launch. Accepts a YAML list (<code>[A, B, C]</code>), a comma- / semicolon- / newline-separated string, the nested form <code>defaults: { genes: [...] }</code>, or the legacy alias <code>preGenes</code>. Parsed via <code>parse_default_genes()</code>; any gene not in the bundle’s master index is dropped with a warning, so the on-disk <code>defaults/genes</code> is always referentially valid.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -489,6 +507,55 @@ these to place the cluster-name annotations.</li>
 <p>Existing values in the clusters data.frame (when one is supplied) are
 <strong>preserved</strong>; only NA / empty cells are filled in. So you can hand-pick
 a few colours and let the rest fall back to ggsci.</p>
+</div>
+<div id="pre-selecting-genes-on-app-launch-default_genes" class="section level2 unnumbered hasAnchor">
+<h2>Pre-selecting genes on app launch (<code>default_genes</code>)<a href="config-yaml.html#pre-selecting-genes-on-app-launch-default_genes" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p><code>prepare_study()</code> can pre-populate the Shiny app’s gene picker with a
+small, curated set of “canonical” genes for that study — the same
+mechanism the scMINER Portal calls <code>preGenes</code>. Declare the list in
+your YAML config under any of these keys (they all map to the same
+internal value):</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb29-1"><a href="config-yaml.html#cb29-1" tabindex="-1"></a><span class="fu">default_genes</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">Cd36</span><span class="kw">,</span><span class="at"> Pdpn</span><span class="kw">,</span><span class="at"> Meox1</span><span class="kw">]</span><span class="co">              # explicit list (recommended)</span></span>
+<span id="cb29-2"><a href="config-yaml.html#cb29-2" tabindex="-1"></a></span>
+<span id="cb29-3"><a href="config-yaml.html#cb29-3" tabindex="-1"></a><span class="fu">default_genes</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;Cd36, Pdpn, Meox1&quot;</span><span class="co">              # comma-separated string</span></span>
+<span id="cb29-4"><a href="config-yaml.html#cb29-4" tabindex="-1"></a></span>
+<span id="cb29-5"><a href="config-yaml.html#cb29-5" tabindex="-1"></a><span class="fu">defaults</span><span class="kw">:</span><span class="co">                                        # nested form (mirrors the</span></span>
+<span id="cb29-6"><a href="config-yaml.html#cb29-6" tabindex="-1"></a><span class="at">  </span><span class="fu">genes</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">Cd36</span><span class="kw">,</span><span class="at"> Pdpn</span><span class="kw">,</span><span class="at"> Meox1</span><span class="kw">]</span><span class="co">                    #   on-disk HDF5 group)</span></span>
+<span id="cb29-7"><a href="config-yaml.html#cb29-7" tabindex="-1"></a></span>
+<span id="cb29-8"><a href="config-yaml.html#cb29-8" tabindex="-1"></a><span class="fu">preGenes</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;Cd36, Pdpn, Meox1&quot;</span><span class="co">                   # legacy alias from the</span></span>
+<span id="cb29-9"><a href="config-yaml.html#cb29-9" tabindex="-1"></a><span class="co">                                                 #   scMINER Portal JSON export</span></span></code></pre></div>
+<p><code>load_study_config()</code> normalises any of those into a deduplicated
+character vector at <code>cfg$default_genes</code>. Internally the helper used is
+<code>parse_default_genes()</code>:</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="config-yaml.html#cb30-1" tabindex="-1"></a>scminerViewer<span class="sc">::</span><span class="fu">parse_default_genes</span>(<span class="st">&quot;Cd36, Pdpn; Meox1</span><span class="sc">\n</span><span class="st">Cd36&quot;</span>)</span>
+<span id="cb30-2"><a href="config-yaml.html#cb30-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Cd36&quot;  &quot;Pdpn&quot;  &quot;Meox1&quot;</span></span></code></pre></div>
+<p>When you run <code>prepare_study(config_path)</code>, the validated subset of
+default genes (only the ones that exist in the bundle’s master gene
+index) is written to the HDF5 group <code>defaults/genes</code>. The R Shiny app
+and the Python webui both auto-select those genes on launch:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="config-yaml.html#cb31-1" tabindex="-1"></a>study <span class="ot">&lt;-</span> <span class="fu">load_study</span>(<span class="st">&quot;study/2327/2327.scminer.h5&quot;</span>)</span>
+<span id="cb31-2"><a href="config-yaml.html#cb31-2" tabindex="-1"></a>study<span class="sc">$</span>default_genes</span>
+<span id="cb31-3"><a href="config-yaml.html#cb31-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Cd36&quot; &quot;Pdpn&quot; &quot;Meox1&quot;</span></span></code></pre></div>
+<p>You can also set default genes <strong>programmatically</strong> from a Biobase
+pipeline (no YAML required):</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="config-yaml.html#cb32-1" tabindex="-1"></a><span class="fu">prepare_study_from_eset</span>(</span>
+<span id="cb32-2"><a href="config-yaml.html#cb32-2" tabindex="-1"></a>  <span class="at">out_dir         =</span> <span class="st">&quot;study&quot;</span>,</span>
+<span id="cb32-3"><a href="config-yaml.html#cb32-3" tabindex="-1"></a>  <span class="at">expression_eset =</span> eset,</span>
+<span id="cb32-4"><a href="config-yaml.html#cb32-4" tabindex="-1"></a>  <span class="at">meta            =</span> <span class="fu">list</span>(<span class="at">studyID =</span> <span class="st">&quot;2327&quot;</span>, <span class="at">studyAbbr =</span> <span class="st">&quot;Tex&quot;</span>,</span>
+<span id="cb32-5"><a href="config-yaml.html#cb32-5" tabindex="-1"></a>                          <span class="at">longTitle =</span> <span class="st">&quot;T-cell exhaustion (Tex)&quot;</span>,</span>
+<span id="cb32-6"><a href="config-yaml.html#cb32-6" tabindex="-1"></a>                          <span class="at">shortTitle =</span> <span class="st">&quot;Tex&quot;</span>),</span>
+<span id="cb32-7"><a href="config-yaml.html#cb32-7" tabindex="-1"></a>  <span class="at">default_genes   =</span> <span class="fu">c</span>(<span class="st">&quot;Cd36&quot;</span>, <span class="st">&quot;Pdpn&quot;</span>, <span class="st">&quot;Meox1&quot;</span>)</span>
+<span id="cb32-8"><a href="config-yaml.html#cb32-8" tabindex="-1"></a>)</span></code></pre></div>
+<p><code>validate_default_genes()</code> filters the list against the bundle’s
+master gene index before write — any unknown symbol is dropped with a
+warning naming the offenders, so the on-disk <code>defaults/genes</code> is
+always referentially valid:</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="config-yaml.html#cb33-1" tabindex="-1"></a>scminerViewer<span class="sc">::</span><span class="fu">validate_default_genes</span>(</span>
+<span id="cb33-2"><a href="config-yaml.html#cb33-2" tabindex="-1"></a>  <span class="fu">c</span>(<span class="st">&quot;Cd36&quot;</span>, <span class="st">&quot;Pdpn&quot;</span>, <span class="st">&quot;MissingGene&quot;</span>),</span>
+<span id="cb33-3"><a href="config-yaml.html#cb33-3" tabindex="-1"></a>  <span class="at">master_genes =</span> <span class="fu">c</span>(<span class="st">&quot;Cd36&quot;</span>, <span class="st">&quot;Pdpn&quot;</span>, <span class="st">&quot;Meox1&quot;</span>)</span>
+<span id="cb33-4"><a href="config-yaml.html#cb33-4" tabindex="-1"></a>)</span>
+<span id="cb33-5"><a href="config-yaml.html#cb33-5" tabindex="-1"></a><span class="co">#&gt; Warning: default_genes: 1/3 not in master gene list (dropping): MissingGene</span></span>
+<span id="cb33-6"><a href="config-yaml.html#cb33-6" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Cd36&quot; &quot;Pdpn&quot;</span></span></code></pre></div>
 
 </div>
 </div>

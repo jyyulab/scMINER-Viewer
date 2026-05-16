@@ -23,7 +23,7 @@
 <meta name="author" content="scMINER Team" />
 
 
-<meta name="date" content="2026-05-15" />
+<meta name="date" content="2026-05-16" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -189,6 +189,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#auto-generated-cluster-metadata"><i class="fa fa-check"></i>Auto-generated cluster metadata</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#pre-selecting-genes-on-app-launch-default_genes"><i class="fa fa-check"></i>Pre-selecting genes on app launch (<code>default_genes</code>)</a></li>
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
@@ -393,26 +394,26 @@ scminer-viewer browse &lt;root_dir&gt; [options]
 </div>
 <div id="programmatic-example" class="section level2 unnumbered hasAnchor">
 <h2>Programmatic example<a href="python-api.html#programmatic-example" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<div class="sourceCode" id="cb37"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb37-1"><a href="python-api.html#cb37-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
-<span id="cb37-2"><a href="python-api.html#cb37-2" tabindex="-1"></a></span>
-<span id="cb37-3"><a href="python-api.html#cb37-3" tabindex="-1"></a><span class="co"># Single study</span></span>
-<span id="cb37-4"><a href="python-api.html#cb37-4" tabindex="-1"></a>study <span class="op">=</span> scminer_viewer.load_study(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
-<span id="cb37-5"><a href="python-api.html#cb37-5" tabindex="-1"></a><span class="bu">print</span>(study)</span>
-<span id="cb37-6"><a href="python-api.html#cb37-6" tabindex="-1"></a><span class="co"># &lt;Study tex (2327) cells=8464 genes=9861 clusters=3 ...&gt;</span></span>
-<span id="cb37-7"><a href="python-api.html#cb37-7" tabindex="-1"></a></span>
-<span id="cb37-8"><a href="python-api.html#cb37-8" tabindex="-1"></a>expr <span class="op">=</span> study.gene_values(<span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
-<span id="cb37-9"><a href="python-api.html#cb37-9" tabindex="-1"></a><span class="bu">print</span>(expr.shape)            <span class="co"># (8464,)</span></span>
-<span id="cb37-10"><a href="python-api.html#cb37-10" tabindex="-1"></a><span class="bu">print</span>((expr <span class="op">!=</span> <span class="dv">0</span>).<span class="bu">sum</span>())     <span class="co"># number of cells with non-zero expression</span></span>
-<span id="cb37-11"><a href="python-api.html#cb37-11" tabindex="-1"></a></span>
-<span id="cb37-12"><a href="python-api.html#cb37-12" tabindex="-1"></a><span class="co"># Multi-study browser</span></span>
-<span id="cb37-13"><a href="python-api.html#cb37-13" tabindex="-1"></a>studies <span class="op">=</span> scminer_viewer.discover_studies(<span class="st">&quot;data&quot;</span>)</span>
-<span id="cb37-14"><a href="python-api.html#cb37-14" tabindex="-1"></a><span class="bu">print</span>(studies[[<span class="st">&quot;studyID&quot;</span>, <span class="st">&quot;studyAbbr&quot;</span>, <span class="st">&quot;n_cells&quot;</span>]])</span>
-<span id="cb37-15"><a href="python-api.html#cb37-15" tabindex="-1"></a></span>
-<span id="cb37-16"><a href="python-api.html#cb37-16" tabindex="-1"></a><span class="co"># Build but don&#39;t launch (e.g. for embedding)</span></span>
-<span id="cb37-17"><a href="python-api.html#cb37-17" tabindex="-1"></a>app <span class="op">=</span> scminer_viewer.build_browser(<span class="st">&quot;data&quot;</span>)</span>
-<span id="cb37-18"><a href="python-api.html#cb37-18" tabindex="-1"></a></span>
-<span id="cb37-19"><a href="python-api.html#cb37-19" tabindex="-1"></a><span class="co"># Launch (blocking)</span></span>
-<span id="cb37-20"><a href="python-api.html#cb37-20" tabindex="-1"></a>scminer_viewer.run_browser(<span class="st">&quot;data&quot;</span>, port<span class="op">=</span><span class="dv">8000</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb42"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb42-1"><a href="python-api.html#cb42-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
+<span id="cb42-2"><a href="python-api.html#cb42-2" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="python-api.html#cb42-3" tabindex="-1"></a><span class="co"># Single study</span></span>
+<span id="cb42-4"><a href="python-api.html#cb42-4" tabindex="-1"></a>study <span class="op">=</span> scminer_viewer.load_study(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
+<span id="cb42-5"><a href="python-api.html#cb42-5" tabindex="-1"></a><span class="bu">print</span>(study)</span>
+<span id="cb42-6"><a href="python-api.html#cb42-6" tabindex="-1"></a><span class="co"># &lt;Study tex (2327) cells=8464 genes=9861 clusters=3 ...&gt;</span></span>
+<span id="cb42-7"><a href="python-api.html#cb42-7" tabindex="-1"></a></span>
+<span id="cb42-8"><a href="python-api.html#cb42-8" tabindex="-1"></a>expr <span class="op">=</span> study.gene_values(<span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
+<span id="cb42-9"><a href="python-api.html#cb42-9" tabindex="-1"></a><span class="bu">print</span>(expr.shape)            <span class="co"># (8464,)</span></span>
+<span id="cb42-10"><a href="python-api.html#cb42-10" tabindex="-1"></a><span class="bu">print</span>((expr <span class="op">!=</span> <span class="dv">0</span>).<span class="bu">sum</span>())     <span class="co"># number of cells with non-zero expression</span></span>
+<span id="cb42-11"><a href="python-api.html#cb42-11" tabindex="-1"></a></span>
+<span id="cb42-12"><a href="python-api.html#cb42-12" tabindex="-1"></a><span class="co"># Multi-study browser</span></span>
+<span id="cb42-13"><a href="python-api.html#cb42-13" tabindex="-1"></a>studies <span class="op">=</span> scminer_viewer.discover_studies(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb42-14"><a href="python-api.html#cb42-14" tabindex="-1"></a><span class="bu">print</span>(studies[[<span class="st">&quot;studyID&quot;</span>, <span class="st">&quot;studyAbbr&quot;</span>, <span class="st">&quot;n_cells&quot;</span>]])</span>
+<span id="cb42-15"><a href="python-api.html#cb42-15" tabindex="-1"></a></span>
+<span id="cb42-16"><a href="python-api.html#cb42-16" tabindex="-1"></a><span class="co"># Build but don&#39;t launch (e.g. for embedding)</span></span>
+<span id="cb42-17"><a href="python-api.html#cb42-17" tabindex="-1"></a>app <span class="op">=</span> scminer_viewer.build_browser(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb42-18"><a href="python-api.html#cb42-18" tabindex="-1"></a></span>
+<span id="cb42-19"><a href="python-api.html#cb42-19" tabindex="-1"></a><span class="co"># Launch (blocking)</span></span>
+<span id="cb42-20"><a href="python-api.html#cb42-20" tabindex="-1"></a>scminer_viewer.run_browser(<span class="st">&quot;data&quot;</span>, port<span class="op">=</span><span class="dv">8000</span>)</span></code></pre></div>
 </div>
 <div id="differences-vs-the-r-package" class="section level2 unnumbered hasAnchor">
 <h2>Differences vs the R package<a href="python-api.html#differences-vs-the-r-package" class="anchor-section" aria-label="Anchor link to header"></a></h2>

@@ -27,3 +27,11 @@ input:
 
 cluster_palette: npg
 input_root: ../../data/input/2327
+
+# Optional: genes the app loads on launch (mirrors the scMINER Portal's
+# preGenes). Accepts any of:
+#   default_genes: [Cd36, Pdpn, Meox1]        # list
+#   default_genes: "Cd36, Pdpn, Meox1"        # comma-separated string
+#   defaults: { genes: [Cd36, Pdpn, Meox1] }  # nested form
+#   preGenes: "Cd36, Pdpn, Meox1"             # legacy alias
+default_genes: [Cd36, Pdpn, Meox1]

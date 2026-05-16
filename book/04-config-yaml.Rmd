@@ -65,6 +65,17 @@ input:
                                             # source, target, NetworkType,
                                             # CellGroup, mi, pearson,
                                             # spearman, rho, pvalue
+
+# Optional: genes the Shiny app loads on launch. Mirrors the scMINER
+# Portal's preGenes field. Any of these four shapes parse to the same
+# normalised character vector internally; pick whichever reads
+# cleanest in your YAML:
+default_genes: [Cd36, Pdpn, Meox1]         # explicit list
+# default_genes: "Cd36, Pdpn, Meox1"       # comma-separated string
+# defaults:                                 # nested form, matches the
+#   genes: [Cd36, Pdpn, Meox1]              #   bundle's defaults/genes
+#                                           #   HDF5 path
+# preGenes: "Cd36, Pdpn, Meox1"            # legacy alias
 ```
 
 ## Field-by-field {-}
@@ -86,6 +97,7 @@ input:
 | `input.expression`  | yes  | —             | Path to the expression ExpressionSet RDS. |
 | `input.activity`    | no   | none          | Path to the activity ExpressionSet RDS. Rows ending in `_TF` / `.TF` go to `activity_tf`; `_SIG` / `.SIG` go to `activity_sig`. |
 | `input.networks`    | no   | none          | Path to the networks TSV. |
+| `default_genes`     | no   | none          | Genes the Shiny app pre-selects on launch. Accepts a YAML list (`[A, B, C]`), a comma- / semicolon- / newline-separated string, the nested form `defaults: { genes: [...] }`, or the legacy alias `preGenes`. Parsed via `parse_default_genes()`; any gene not in the bundle's master index is dropped with a warning, so the on-disk `defaults/genes` is always referentially valid. |
 
 ## Parsing the config without loading the RDS files {-}
 
@@ -122,3 +134,71 @@ Two pieces are auto-filled by `fill_clusters()`:
 Existing values in the clusters data.frame (when one is supplied) are
 **preserved**; only NA / empty cells are filled in. So you can hand-pick
 a few colours and let the rest fall back to ggsci.
+
+## Pre-selecting genes on app launch (`default_genes`) {-}
+
+`prepare_study()` can pre-populate the Shiny app's gene picker with a
+small, curated set of "canonical" genes for that study — the same
+mechanism the scMINER Portal calls `preGenes`. Declare the list in
+your YAML config under any of these keys (they all map to the same
+internal value):
+
+```yaml
+default_genes: [Cd36, Pdpn, Meox1]              # explicit list (recommended)
+
+default_genes: "Cd36, Pdpn, Meox1"              # comma-separated string
+
+defaults:                                        # nested form (mirrors the
+  genes: [Cd36, Pdpn, Meox1]                    #   on-disk HDF5 group)
+
+preGenes: "Cd36, Pdpn, Meox1"                   # legacy alias from the
+                                                 #   scMINER Portal JSON export
+```
+
+`load_study_config()` normalises any of those into a deduplicated
+character vector at `cfg$default_genes`. Internally the helper used is
+`parse_default_genes()`:
+
+```{r parse-default-genes, eval=FALSE}
+scminerViewer::parse_default_genes("Cd36, Pdpn; Meox1\nCd36")
+#> [1] "Cd36"  "Pdpn"  "Meox1"
+```
+
+When you run `prepare_study(config_path)`, the validated subset of
+default genes (only the ones that exist in the bundle's master gene
+index) is written to the HDF5 group `defaults/genes`. The R Shiny app
+and the Python webui both auto-select those genes on launch:
+
+```r
+study <- load_study("study/2327/2327.scminer.h5")
+study$default_genes
+#> [1] "Cd36" "Pdpn" "Meox1"
+```
+
+You can also set default genes **programmatically** from a Biobase
+pipeline (no YAML required):
+
+```{r prepare-default-genes-eset, eval=FALSE}
+prepare_study_from_eset(
+  out_dir         = "study",
+  expression_eset = eset,
+  meta            = list(studyID = "2327", studyAbbr = "Tex",
+                          longTitle = "T-cell exhaustion (Tex)",
+                          shortTitle = "Tex"),
+  default_genes   = c("Cd36", "Pdpn", "Meox1")
+)
+```
+
+`validate_default_genes()` filters the list against the bundle's
+master gene index before write — any unknown symbol is dropped with a
+warning naming the offenders, so the on-disk `defaults/genes` is
+always referentially valid:
+
+```{r validate-default-genes, eval=FALSE}
+scminerViewer::validate_default_genes(
+  c("Cd36", "Pdpn", "MissingGene"),
+  master_genes = c("Cd36", "Pdpn", "Meox1")
+)
+#> Warning: default_genes: 1/3 not in master gene list (dropping): MissingGene
+#> [1] "Cd36" "Pdpn"
+```

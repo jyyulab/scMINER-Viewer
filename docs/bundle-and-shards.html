@@ -23,7 +23,7 @@
 <meta name="author" content="scMINER Team" />
 
 
-<meta name="date" content="2026-05-15" />
+<meta name="date" content="2026-05-16" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -189,6 +189,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#auto-generated-cluster-metadata"><i class="fa fa-check"></i>Auto-generated cluster metadata</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#pre-selecting-genes-on-app-launch-default_genes"><i class="fa fa-check"></i>Pre-selecting genes on app launch (<code>default_genes</code>)</a></li>
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
@@ -352,24 +353,24 @@ that knows where the shards are. No matrix values are loaded.
 <code>study.gene_values(gene, relationship)</code> (Python) reads exactly one
 shard from disk, caches the aligned vector on the study handle, and
 returns it.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="bundle-and-shards.html#cb31-1" tabindex="-1"></a>study <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">load_study</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
-<span id="cb31-2"><a href="bundle-and-shards.html#cb31-2" tabindex="-1"></a>vals  <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">gene_values</span>(study, <span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
-<span id="cb31-3"><a href="bundle-and-shards.html#cb31-3" tabindex="-1"></a><span class="fu">length</span>(vals)   <span class="co"># nrow(study$cells)</span></span></code></pre></div>
-<div class="sourceCode" id="cb32"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb32-1"><a href="bundle-and-shards.html#cb32-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
-<span id="cb32-2"><a href="bundle-and-shards.html#cb32-2" tabindex="-1"></a>study <span class="op">=</span> scminer_viewer.load_study(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
-<span id="cb32-3"><a href="bundle-and-shards.html#cb32-3" tabindex="-1"></a>vals  <span class="op">=</span> study.gene_values(<span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
-<span id="cb32-4"><a href="bundle-and-shards.html#cb32-4" tabindex="-1"></a>vals.shape  <span class="co"># (n_cells,)</span></span></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="bundle-and-shards.html#cb36-1" tabindex="-1"></a>study <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">load_study</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
+<span id="cb36-2"><a href="bundle-and-shards.html#cb36-2" tabindex="-1"></a>vals  <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">gene_values</span>(study, <span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
+<span id="cb36-3"><a href="bundle-and-shards.html#cb36-3" tabindex="-1"></a><span class="fu">length</span>(vals)   <span class="co"># nrow(study$cells)</span></span></code></pre></div>
+<div class="sourceCode" id="cb37"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb37-1"><a href="bundle-and-shards.html#cb37-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
+<span id="cb37-2"><a href="bundle-and-shards.html#cb37-2" tabindex="-1"></a>study <span class="op">=</span> scminer_viewer.load_study(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>)</span>
+<span id="cb37-3"><a href="bundle-and-shards.html#cb37-3" tabindex="-1"></a>vals  <span class="op">=</span> study.gene_values(<span class="st">&quot;Mrpl15&quot;</span>, <span class="st">&quot;Express_normalized&quot;</span>)</span>
+<span id="cb37-4"><a href="bundle-and-shards.html#cb37-4" tabindex="-1"></a>vals.shape  <span class="co"># (n_cells,)</span></span></code></pre></div>
 </div>
 <div id="discovering-studies-under-a-multi-study-root" class="section level2 unnumbered hasAnchor">
 <h2>Discovering studies under a multi-study root<a href="bundle-and-shards.html#discovering-studies-under-a-multi-study-root" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p><code>discover_studies(root_dir)</code> scans for <code>&lt;studyID&gt;/&lt;studyID&gt;.scminer.h5</code>
 patterns and returns a row-per-study data frame. Useful for scripting
 or as the data source for the browser’s card-grid index page.</p>
-<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="bundle-and-shards.html#cb33-1" tabindex="-1"></a>df <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">discover_studies</span>(<span class="st">&quot;data&quot;</span>)</span>
-<span id="cb33-2"><a href="bundle-and-shards.html#cb33-2" tabindex="-1"></a><span class="fu">nrow</span>(df)   <span class="co"># number of studies the browser will list</span></span></code></pre></div>
-<div class="sourceCode" id="cb34"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb34-1"><a href="bundle-and-shards.html#cb34-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
-<span id="cb34-2"><a href="bundle-and-shards.html#cb34-2" tabindex="-1"></a>df <span class="op">=</span> scminer_viewer.discover_studies(<span class="st">&quot;data&quot;</span>)</span>
-<span id="cb34-3"><a href="bundle-and-shards.html#cb34-3" tabindex="-1"></a>df.shape[<span class="dv">0</span>]</span></code></pre></div>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="bundle-and-shards.html#cb38-1" tabindex="-1"></a>df <span class="ot">&lt;-</span> scminerViewer<span class="sc">::</span><span class="fu">discover_studies</span>(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb38-2"><a href="bundle-and-shards.html#cb38-2" tabindex="-1"></a><span class="fu">nrow</span>(df)   <span class="co"># number of studies the browser will list</span></span></code></pre></div>
+<div class="sourceCode" id="cb39"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb39-1"><a href="bundle-and-shards.html#cb39-1" tabindex="-1"></a><span class="im">import</span> scminer_viewer</span>
+<span id="cb39-2"><a href="bundle-and-shards.html#cb39-2" tabindex="-1"></a>df <span class="op">=</span> scminer_viewer.discover_studies(<span class="st">&quot;data&quot;</span>)</span>
+<span id="cb39-3"><a href="bundle-and-shards.html#cb39-3" tabindex="-1"></a>df.shape[<span class="dv">0</span>]</span></code></pre></div>
 
 </div>
 </div>

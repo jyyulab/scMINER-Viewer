@@ -27,6 +27,78 @@ test_that("load_study_config fills in defaults", {
   expect_equal(cfg$cellType, "cellGroup")
   expect_equal(cfg$cellGroup, "cellGroup")  # falls back to cellType
   expect_equal(cfg$geneSymbol, "geneSymbol")
+  expect_null(cfg$default_genes)            # absent in YAML -> NULL
+})
+
+test_that("parse_default_genes normalises all accepted shapes", {
+  # NULL passes through
+  expect_null(parse_default_genes(NULL))
+  expect_null(parse_default_genes(character(0)))
+  expect_null(parse_default_genes(""))
+
+  # Vector form (yaml.load_file emits these for `default_genes: [A, B]`)
+  expect_equal(parse_default_genes(c("Cd36", "Pdpn", "Meox1")),
+               c("Cd36", "Pdpn", "Meox1"))
+
+  # List form (yaml.load_file emits these for nested `defaults: { genes: [...] }`)
+  expect_equal(parse_default_genes(list("Cd36", "Pdpn", "Meox1")),
+               c("Cd36", "Pdpn", "Meox1"))
+
+  # Single comma-separated string (matches the Portal's preGenes field).
+  expect_equal(parse_default_genes("Cd36, Pdpn, Meox1"),
+               c("Cd36", "Pdpn", "Meox1"))
+
+  # Mixed whitespace + newlines + duplicates: trim + dedup.
+  expect_equal(parse_default_genes("Cd36, Pdpn\n  Meox1; Cd36"),
+               c("Cd36", "Pdpn", "Meox1"))
+})
+
+test_that("load_study_config picks up default_genes in all three shapes", {
+  skip_if_not_installed("yaml")
+  base <- c(
+    "output: out",
+    "study:",
+    "  ID: \"42\"",
+    "  studyAbbr: tst",
+    "  longTitle: A test study",
+    "  shortTitle: Tst",
+    "input:",
+    "  expression: /tmp/expr.rds"
+  )
+
+  for (form in list(
+    c("default_genes: [Cd36, Pdpn, Meox1]"),                   # list
+    c('default_genes: "Cd36, Pdpn, Meox1"'),                   # string
+    c("defaults:", "  genes: [Cd36, Pdpn, Meox1]"),            # nested
+    c('preGenes: "Cd36, Pdpn, Meox1"')                         # legacy alias
+  )) {
+    tmp <- tempfile(fileext = ".yml")
+    writeLines(c(base, form), tmp)
+    cfg <- load_study_config(tmp)
+    expect_equal(cfg$default_genes,
+                 c("Cd36", "Pdpn", "Meox1"),
+                 info = paste("form:", paste(form, collapse = "; ")))
+    unlink(tmp)
+  }
+})
+
+test_that("validate_default_genes drops out-of-master entries with warning", {
+  master <- c("Aaa", "Bbb", "Ccc", "Ddd")
+  expect_null(validate_default_genes(NULL, master))
+  expect_null(validate_default_genes(character(0), master))
+  expect_equal(validate_default_genes(c("Aaa", "Bbb"), master),
+               c("Aaa", "Bbb"))
+  expect_warning(
+    out <- validate_default_genes(c("Aaa", "Zzz", "Bbb"), master),
+    regexp = "1/3 not in master"
+  )
+  expect_equal(out, c("Aaa", "Bbb"))   # user order preserved
+  # All missing -> NULL with warning
+  expect_warning(
+    out2 <- validate_default_genes(c("Xxx", "Yyy"), master),
+    regexp = "2/2 not in master"
+  )
+  expect_null(out2)
 })
 
 test_that("load_study_config preserves explicit values", {

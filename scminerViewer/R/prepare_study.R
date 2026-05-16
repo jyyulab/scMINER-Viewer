@@ -187,6 +187,7 @@ prepare_study_from_eset <- function(out_dir,
                                      gene_symbol_col  = "geneSymbol",
                                      clusters         = NULL,
                                      cluster_palette  = "npg",
+                                     default_genes    = NULL,
                                      emit             = c("graph", "bundle"),
                                      verbose          = FALSE) {
   cells <- extract_cells(
@@ -205,6 +206,7 @@ prepare_study_from_eset <- function(out_dir,
     read_networks(networks_path)
   } else list(tf = NULL, sig = NULL)
   meta$coordinate <- meta$coordinate %||% coordinate_col
+  default_genes <- validate_default_genes(default_genes, genes)
 
   prepare_study_data(
     out_dir         = out_dir,
@@ -218,6 +220,7 @@ prepare_study_from_eset <- function(out_dir,
     activity_sig    = act$sig,
     network_tf      = nets$tf,
     network_sig     = nets$sig,
+    default_genes   = default_genes,
     emit            = emit,
     verbose         = verbose
   )
@@ -267,6 +270,7 @@ prepare_study <- function(config_path,
     coordinate_col   = cfg$coordinate,
     gene_symbol_col  = cfg$geneSymbol,
     cluster_palette  = cfg$cluster_palette,
+    default_genes    = cfg$default_genes,
     emit             = emit,
     verbose          = verbose
   )
@@ -325,7 +329,83 @@ load_study_config <- function(config_path) {
   cfg$geneSymbol      <- as.character(cfg$geneSymbol      %||% "geneSymbol")
   cfg$cluster_palette <- as.character(cfg$cluster_palette %||% "npg")
   cfg$output          <- as.character(cfg$output)
+
+  # Default genes: the app loads these on launch (mirrors the scMINER
+  # Portal's `preGenes` field). Accepts any of three YAML shapes:
+  #   default_genes: [GeneA, GeneB, GeneC]      # list
+  #   default_genes: "GeneA, GeneB, GeneC"      # comma- or whitespace-
+  #                                             # separated string
+  #   defaults: { genes: [...] }                # nested form
+  # The legacy `preGenes:` key is accepted as an alias.
+  cfg$default_genes <- parse_default_genes(
+    cfg$default_genes      %||%
+    cfg$defaults$genes     %||%
+    cfg$preGenes           %||%
+    NULL
+  )
   cfg
+}
+
+#' Normalise a YAML `default_genes:` value into a character vector.
+#'
+#' Accepts either:
+#'   * an R list / character vector (returned with whitespace trimmed
+#'     and empty entries dropped),
+#'   * a single string of comma-, semicolon-, whitespace-, or newline-
+#'     separated gene symbols, or
+#'   * `NULL` (returns `NULL`).
+#'
+#' Duplicates are dropped (first occurrence wins). Used by
+#' [load_study_config()]; exported so callers can apply the same
+#' parsing rules to ad-hoc input.
+#'
+#' @param x A YAML-derived value (list, character vector, or string).
+#' @return `NULL` (if `x` is empty) or a deduplicated character vector
+#'   of gene symbols.
+#' @export
+parse_default_genes <- function(x) {
+  if (is.null(x)) return(NULL)
+  if (is.list(x)) x <- unlist(x, use.names = FALSE)
+  if (!is.character(x)) x <- as.character(x)
+  # Split anything that still has internal separators.
+  parts <- unlist(strsplit(x, "[,;[:space:]\n]+"), use.names = FALSE)
+  parts <- trimws(parts)
+  parts <- parts[nzchar(parts)]
+  if (length(parts) == 0L) return(NULL)
+  unique(parts)
+}
+
+#' Filter a default-genes list to those actually present in a master
+#' gene set, warning about any drops.
+#'
+#' Both [prepare_study()] and [prepare_study_from_eset()] call this
+#' before passing `default_genes` to [prepare_study_data()] / the
+#' bundle writer so the on-disk `defaults/genes` only references
+#' genes the app can actually load.
+#'
+#' @param default_genes Character vector or `NULL`.
+#' @param master_genes The bundle's master gene list.
+#' @param warn If `TRUE`, emit a `warning()` listing missing genes.
+#' @return `NULL` if `default_genes` is empty, otherwise the subset
+#'   of `default_genes` present in `master_genes` (in user-specified
+#'   order).
+#' @export
+validate_default_genes <- function(default_genes, master_genes,
+                                     warn = TRUE) {
+  if (is.null(default_genes) || length(default_genes) == 0L) return(NULL)
+  default_genes <- as.character(default_genes)
+  master_genes  <- as.character(master_genes)
+  hit  <- default_genes %in% master_genes
+  miss <- default_genes[!hit]
+  if (length(miss) > 0L && isTRUE(warn)) {
+    warning(sprintf(
+      "default_genes: %d/%d not in master gene list (dropping): %s",
+      length(miss), length(default_genes),
+      paste(utils::head(miss, 6L), collapse = ", ")),
+      call. = FALSE)
+  }
+  kept <- default_genes[hit]
+  if (length(kept) == 0L) NULL else kept
 }
 
 #' Extract the cells data.frame from an `ExpressionSet`.

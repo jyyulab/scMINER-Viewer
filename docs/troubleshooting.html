@@ -23,7 +23,7 @@
 <meta name="author" content="scMINER Team" />
 
 
-<meta name="date" content="2026-05-15" />
+<meta name="date" content="2026-05-16" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -189,6 +189,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#field-by-field"><i class="fa fa-check"></i>Field-by-field</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#parsing-the-config-without-loading-the-rds-files"><i class="fa fa-check"></i>Parsing the config without loading the RDS files</a></li>
 <li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#auto-generated-cluster-metadata"><i class="fa fa-check"></i>Auto-generated cluster metadata</a></li>
+<li class="chapter" data-level="" data-path="config-yaml.html"><a href="config-yaml.html#pre-selecting-genes-on-app-launch-default_genes"><i class="fa fa-check"></i>Pre-selecting genes on app launch (<code>default_genes</code>)</a></li>
 </ul></li>
 <li class="chapter" data-level="5" data-path="bundle-and-shards.html"><a href="bundle-and-shards.html"><i class="fa fa-check"></i><b>5</b> Bundle format &amp; shard tree</a>
 <ul>
@@ -287,7 +288,7 @@ session. Three better options:</p>
 <h3>1. Don’t <code>library()</code> during development — use <code>devtools::load_all()</code><a href="troubleshooting.html#dont-library-during-development-use-devtoolsload_all" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p><code>load_all()</code> reads the package source directly; no <code>.rdb</code> is ever
 written, so the corruption literally cannot happen.</p>
-<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="troubleshooting.html#cb41-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">load_all</span>(<span class="st">&quot;scminerViewer&quot;</span>)     <span class="co"># Cmd/Ctrl + Shift + L in RStudio</span></span></code></pre></div>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="troubleshooting.html#cb46-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">load_all</span>(<span class="st">&quot;scminerViewer&quot;</span>)     <span class="co"># Cmd/Ctrl + Shift + L in RStudio</span></span></code></pre></div>
 <p>This is what 90% of R package developers use day-to-day. <code>library()</code>
 is for end-users.</p>
 </div>
@@ -304,11 +305,11 @@ but guarantees a clean <code>.rdb</code>.</p>
 GCs to release mmap pages, wipes the install dir, then installs in a
 fresh <code>callr</code> subprocess — so the parent R never holds a stale
 handle.</p>
-<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="troubleshooting.html#cb42-1" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">system.file</span>(<span class="st">&quot;scripts&quot;</span>, <span class="st">&quot;install.R&quot;</span>, <span class="at">package =</span> <span class="st">&quot;scminerViewer&quot;</span>))</span>
-<span id="cb42-2"><a href="troubleshooting.html#cb42-2" tabindex="-1"></a><span class="fu">safe_install</span>(<span class="st">&quot;scminerViewer&quot;</span>)                <span class="co"># auto-detects .libPaths()[1]</span></span>
-<span id="cb42-3"><a href="troubleshooting.html#cb42-3" tabindex="-1"></a><span class="fu">safe_install</span>(<span class="st">&quot;scminerViewer&quot;</span>, <span class="at">lib =</span> <span class="st">&quot;/path/to/lib&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="troubleshooting.html#cb47-1" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">system.file</span>(<span class="st">&quot;scripts&quot;</span>, <span class="st">&quot;install.R&quot;</span>, <span class="at">package =</span> <span class="st">&quot;scminerViewer&quot;</span>))</span>
+<span id="cb47-2"><a href="troubleshooting.html#cb47-2" tabindex="-1"></a><span class="fu">safe_install</span>(<span class="st">&quot;scminerViewer&quot;</span>)                <span class="co"># auto-detects .libPaths()[1]</span></span>
+<span id="cb47-3"><a href="troubleshooting.html#cb47-3" tabindex="-1"></a><span class="fu">safe_install</span>(<span class="st">&quot;scminerViewer&quot;</span>, <span class="at">lib =</span> <span class="st">&quot;/path/to/lib&quot;</span>)</span></code></pre></div>
 <p>Or from a shell:</p>
-<div class="sourceCode" id="cb43"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb43-1"><a href="troubleshooting.html#cb43-1" tabindex="-1"></a><span class="ex">Rscript</span> scminerViewer/inst/scripts/install.R scminerViewer</span></code></pre></div>
+<div class="sourceCode" id="cb48"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb48-1"><a href="troubleshooting.html#cb48-1" tabindex="-1"></a><span class="ex">Rscript</span> scminerViewer/inst/scripts/install.R scminerViewer</span></code></pre></div>
 <p>The helper cannot unload the package from <em>other</em> R sessions on the
 same machine — those have to quit on their own first.</p>
 </div>
@@ -321,7 +322,7 @@ use <strong>Session → Quit Session</strong> / <code>Cmd/Ctrl + Q</code>. (Rest
 isn’t enough; the OS still has the old <code>.rdb</code> mmap’d until the
 process <em>exits</em>.)</p></li>
 <li><p>Wipe the install directory from a shell:</p>
-<div class="sourceCode" id="cb44"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb44-1"><a href="troubleshooting.html#cb44-1" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> <span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/StJude/Research/R_lib/scMINERViewer/scminerViewer&quot;</span></span></code></pre></div></li>
+<div class="sourceCode" id="cb49"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb49-1"><a href="troubleshooting.html#cb49-1" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> <span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/StJude/Research/R_lib/scMINERViewer/scminerViewer&quot;</span></span></code></pre></div></li>
 <li><p>Reinstall from a fresh R session.</p></li>
 </ol>
 </div>
@@ -331,20 +332,20 @@ process <em>exits</em>.)</p></li>
 <p>The bundle resolved its <code>shard_dir</code> to its parent directory but the
 shards live somewhere else. Either move the shards into the bundle’s
 parent:</p>
-<div class="sourceCode" id="cb45"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb45-1"><a href="troubleshooting.html#cb45-1" tabindex="-1"></a><span class="fu">mv</span> data/example/expression_files data/2327/</span>
-<span id="cb45-2"><a href="troubleshooting.html#cb45-2" tabindex="-1"></a><span class="fu">mv</span> data/example/activity_files   data/2327/</span></code></pre></div>
+<div class="sourceCode" id="cb50"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb50-1"><a href="troubleshooting.html#cb50-1" tabindex="-1"></a><span class="fu">mv</span> data/example/expression_files data/2327/</span>
+<span id="cb50-2"><a href="troubleshooting.html#cb50-2" tabindex="-1"></a><span class="fu">mv</span> data/example/activity_files   data/2327/</span></code></pre></div>
 <p>…or tell the app where they are at launch time:</p>
-<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="troubleshooting.html#cb46-1" tabindex="-1"></a><span class="fu">run_app</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>,</span>
-<span id="cb46-2"><a href="troubleshooting.html#cb46-2" tabindex="-1"></a>        <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span>
-<span id="cb46-3"><a href="troubleshooting.html#cb46-3" tabindex="-1"></a></span>
-<span id="cb46-4"><a href="troubleshooting.html#cb46-4" tabindex="-1"></a><span class="fu">run_browser</span>(<span class="st">&quot;data&quot;</span>, <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span></code></pre></div>
-<div class="sourceCode" id="cb47"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb47-1"><a href="troubleshooting.html#cb47-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> run data/2327/2327.scminer.h5 <span class="at">--shard-dir</span> data/example</span>
-<span id="cb47-2"><a href="troubleshooting.html#cb47-2" tabindex="-1"></a><span class="ex">scminer-viewer</span> browse data <span class="at">--shard-dir</span> data/example</span></code></pre></div>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="troubleshooting.html#cb51-1" tabindex="-1"></a><span class="fu">run_app</span>(<span class="st">&quot;data/2327/2327.scminer.h5&quot;</span>,</span>
+<span id="cb51-2"><a href="troubleshooting.html#cb51-2" tabindex="-1"></a>        <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span>
+<span id="cb51-3"><a href="troubleshooting.html#cb51-3" tabindex="-1"></a></span>
+<span id="cb51-4"><a href="troubleshooting.html#cb51-4" tabindex="-1"></a><span class="fu">run_browser</span>(<span class="st">&quot;data&quot;</span>, <span class="at">shard_dir =</span> <span class="st">&quot;data/example&quot;</span>, <span class="at">port =</span> <span class="dv">8000</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb52"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb52-1"><a href="troubleshooting.html#cb52-1" tabindex="-1"></a><span class="ex">scminer-viewer</span> run data/2327/2327.scminer.h5 <span class="at">--shard-dir</span> data/example</span>
+<span id="cb52-2"><a href="troubleshooting.html#cb52-2" tabindex="-1"></a><span class="ex">scminer-viewer</span> browse data <span class="at">--shard-dir</span> data/example</span></code></pre></div>
 </div>
 <div id="no-documentation-for-prepare_study" class="section level2 unnumbered hasAnchor">
 <h2><code>No documentation for 'prepare_study'</code><a href="troubleshooting.html#no-documentation-for-prepare_study" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>The package was installed without man pages. Regenerate via roxygen2:</p>
-<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="troubleshooting.html#cb48-1" tabindex="-1"></a>roxygen2<span class="sc">::</span><span class="fu">roxygenise</span>(<span class="st">&quot;scminerViewer&quot;</span>)    <span class="co"># writes NAMESPACE + man/*.Rd</span></span></code></pre></div>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="troubleshooting.html#cb53-1" tabindex="-1"></a>roxygen2<span class="sc">::</span><span class="fu">roxygenise</span>(<span class="st">&quot;scminerViewer&quot;</span>)    <span class="co"># writes NAMESPACE + man/*.Rd</span></span></code></pre></div>
 <p>…then reinstall.</p>
 </div>
 <div id="could-not-find-function" class="section level2 unnumbered hasAnchor">
