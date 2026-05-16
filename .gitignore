@@ -11,4 +11,4 @@ book/libs/
 .Rhistory
 .RData
 .Rproj.user/
-scminer_viewer/tests/__pycache__/
+scminer_viewer/tests/__pycache__/*
