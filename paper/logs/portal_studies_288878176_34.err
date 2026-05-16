@@ -1,0 +1,10 @@
+Warning message:
+package 'BiocGenerics' was built under R version 4.2.3 
+Benchmarking 1 studies (scratch=/lsf_tmp/288878176_34.tmpdir/RtmpKQpbtx/portal_bundle_3bda85522103d5)
+
+=== [1/1] 2347 ===
+  SKIPPED: 2347 -- input.genes (raw matrix + genes.csv layout)
+
+Wrote 1-row TSV to paper/metrics/portal_studies_2347.tsv (0 ok, 1 skipped, 0 error)
+
+Totals: input NA-NA MB, output NA-NA MB, bundle NA-NA MB, prepare NA-NA s, peak NA-NA MB

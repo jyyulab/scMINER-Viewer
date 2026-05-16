@@ -1,0 +1,18 @@
+Warning message:
+package 'BiocGenerics' was built under R version 4.2.3 
+Found 29 config(s) under /home/hzhou98/projects/scMINER-Viewer/paper/configs
+Benchmarking 1 studies (scratch=/lsf_tmp/288918483.tmpdir/Rtmp1kn3Yg/portal_bundle_3182b618eebb70)
+
+=== [1/1] 2317 ===
+[2317] spec source: yaml (/home/hzhou98/projects/scMINER-Viewer/paper/configs/2317.yaml)
+[2317] output dir : /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics/2317
+[2317] readRDS expression.rds (2,793,676,259)
+[2317] expression matrix: 24929 x 647366 (dense), nnz=965,744,336
+[2317] networks: (none)
+[2317] prepare_study_from_eset ...
+  ERROR: unable to load shared object '/research/rgs01/home/clusterHome/hzhou98/R_libs/hdf5r/libs/hdf5r.so':
+  libhdf5.so.101: cannot open shared object file: No such file or directory
+
+Wrote 1-row TSV to paper/metrics/portal_studies_2317.tsv (0 ok, 0 skipped, 0 too-large, 1 error)
+
+Totals: input NA-NA MB, output NA-NA MB, bundle NA-NA MB, prepare NA-NA s, peak NA-NA MB

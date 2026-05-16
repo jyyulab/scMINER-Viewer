@@ -1,0 +1,13 @@
+Warning message:
+package 'BiocGenerics' was built under R version 4.2.3 
+Benchmarking 1 studies (scratch=/lsf_tmp/289008542_2.tmpdir/Rtmpf2TO67/portal_bundle_5e7315df9892f)
+
+=== [1/1] 2203 ===
+[2203] spec source: yaml (/home/hzhou98/projects/scMINER-Viewer/paper/configs/2203.yaml)
+[2203] output dir : /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics/full/2203/full
+[2203] readRDS expression.rds (191,080,783)
+[2203] expression matrix: 33645 x 53958 (dense), nnz=51,815,855
+[2203] readRDS activity.rds (2,195,994,972)
+[2203] activity matrix: 7592 x 53958 (dense), nnz=369,759,265
+[2203] networks: networks.txt (431,328,207)
+[2203] prepare_study_from_eset ...

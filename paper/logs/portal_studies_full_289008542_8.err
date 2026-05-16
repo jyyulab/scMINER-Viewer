@@ -1,0 +1,15 @@
+Warning message:
+package 'BiocGenerics' was built under R version 4.2.3 
+Benchmarking 1 studies (scratch=/lsf_tmp/289008542_8.tmpdir/RtmpTJEf6h/portal_bundle_1e470d7e4e6312)
+
+=== [1/1] 2311 ===
+[2311] spec source: yaml (/home/hzhou98/projects/scMINER-Viewer/paper/configs/2311.yaml)
+[2311] output dir : /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics/full/2311/full
+[2311] readRDS expression.rds (7,173,134)
+[2311] expression matrix: 16383 x 622 (dense), nnz=2,241,841
+[2311] networks: (none)
+[2311] prepare_study_from_eset ...
+
+Wrote 1-row TSV to paper/metrics/portal_studies_2311_full.tsv (1 ok, 0 skipped, 0 too-large, 0 error)
+
+Totals: input 6.8-6.8 MB, output 21.6-21.6 MB, bundle 1.0-1.0 MB, prepare 689.6-689.6 s, peak 578-578 MB

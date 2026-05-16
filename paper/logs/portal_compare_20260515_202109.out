@@ -1,0 +1,43 @@
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@noderome113>
+Subject: Job 288996577: <scminer_cmp_20260515_202109_compare> in cluster <hpcf_research_cluster> Exited
+
+Job <scminer_cmp_20260515_202109_compare> was submitted from host <noderome113> by user <hzhou98> in cluster <hpcf_research_cluster> at Fri May 15 20:21:19 2026
+Job was executed on host(s) <noderome113>, in queue <priority>, as user <hzhou98> in cluster <hpcf_research_cluster> at Fri May 15 20:24:01 2026
+</home/hzhou98> was used as the home directory.
+</home/hzhou98/projects/scMINER-Viewer> was used as the working directory.
+Started at Fri May 15 20:24:01 2026
+Terminated at Fri May 15 20:24:01 2026
+Results reported at Fri May 15 20:24:01 2026
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+Rscript paper/portal/portal_compare.R --expr-only-glob "paper/metrics/portal_studies_*_expression-only.tsv" --full-glob      "paper/metrics/portal_studies_*_full.tsv" --out            "paper/metrics/portal_studies_compare.tsv"
+------------------------------------------------------------
+
+Exited with exit code 127.
+
+Resource usage summary:
+
+    CPU time :                                   0.02 sec.
+    Max Memory :                                 -
+    Average Memory :                             -
+    Total Requested Memory :                     4000.00 MB
+    Delta Memory :                               -
+    Max Swap :                                   -
+    Max Processes :                              -
+    Max Threads :                                -
+    Run time :                                   0 sec.
+    Turnaround time :                            162 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <paper/logs/portal_compare_20260515_202109.err> for stderr output of this job.
+

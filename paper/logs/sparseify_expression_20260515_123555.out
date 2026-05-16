@@ -1,0 +1,54 @@
+[bsub] sparseify_eset job=288938332 host=nodelmr10
+[bsub] src: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Covid650k/expression.rds
+[bsub] dst: <auto>
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@nodelmr10>
+Subject: Job 288938332: <sparseify_expression_20260515_123555> in cluster <hpcf_research_cluster> Exited
+
+Job <sparseify_expression_20260515_123555> was submitted from host <noderome113> by user <hzhou98> in cluster <hpcf_research_cluster> at Fri May 15 12:35:55 2026
+Job was executed on host(s) <nodelmr10>, in queue <large_mem>, as user <hzhou98> in cluster <hpcf_research_cluster> at Fri May 15 12:35:55 2026
+</home/hzhou98> was used as the home directory.
+</home/hzhou98/projects/scMINER-Viewer> was used as the working directory.
+Started at Fri May 15 12:35:55 2026
+Terminated at Fri May 15 12:44:27 2026
+Results reported at Fri May 15 12:44:27 2026
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${LS_SUBCWD:-/home/hzhou98/projects/scMINER-Viewer}"
+module load R/4.2.2-rhel8 2>/dev/null || true
+echo "[bsub] sparseify_eset job=${LSB_JOBID:-?} host=$(hostname)"
+echo "[bsub] src: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Covid650k/expression.rds"
+echo "[bsub] dst: <auto>"
+Rscript paper/portal/sparseify_eset.R '--in' '/research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Covid650k/expression.rds'
+
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   498.94 sec.
+    Max Memory :                                 318729 MB
+    Average Memory :                             141616.42 MB
+    Total Requested Memory :                     500000.00 MB
+    Delta Memory :                               181271.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                6
+    Run time :                                   512 sec.
+    Turnaround time :                            512 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <paper/logs/sparseify_expression_20260515_123555.err> for stderr output of this job.
+
