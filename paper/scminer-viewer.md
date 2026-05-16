@@ -19,7 +19,7 @@ header-includes:
   - \usepackage{microtype}
 ---
 
-# scMINER Viewer: an offline, multi-study browser for single-cell mutual-information networks
+# scMINER Viewer: an offline data-preparation and multi-study browsing toolkit for single-cell mutual-information networks
 
 *Honglei Zhou¹*, xxx, xxx, xxx, ..., *Jiyang Yu*¹\*
 
@@ -40,20 +40,28 @@ identification from single-cell transcriptomic data. Its companion portal
 assumes always-on network access and centralised hosting — which is
 incompatible with sensitive datasets, air-gapped HPC clusters, and
 multi-study labs that want a local source of truth. We present **scMINER
-Viewer**, two sibling packages (R, Python) that consume a shared
-**lazy-mode HDF5 study bundle**: per-study metadata, cluster info, gene
-indexes and TF/SIG networks live in a single `.scminer.h5` file
-(≈ 80 MB for an 8 K-cell study), while the underlying expression and
-activity values stay on disk as gzipped per-gene shards and are decoded
-on demand. Both packages serve a Shiny / Shiny-for-Python webui matching
-the scMINER Portal layout, plus a card-grid **multi-study browser**.
-On the 2327 Tex study (8 464 cells × 9 861 genes, 743 K network edges,
-80.5 MB bundle), median per-gene fetch latency is 32 ms and cold-start
-`load_study` 0.59 s. Across a 5 × 3 synthetic scaling sweep
-(500 – 8 000 cells × 2 – 10 K genes), bundle size stays under 14 MB
-while the underlying shard tree grows linearly to > 80 MB. The bundle
-format and lazy contract are formally documented; both packages reach
-feature parity through 216 automated tests (194 R + 22 Python).
+Viewer**, an end-to-end offline toolkit comprising **(1) a YAML-driven
+data-preparation module** (`prepare_study()`) that converts the raw
+scMINER outputs — Biobase `ExpressionSet`s for expression and activity
+matrices plus the SJARACNe networks TSV — into a shared lazy artifact,
+and **(2) two sibling viewer packages (R, Python)** that consume that
+artifact. The artifact is a **lazy-mode HDF5 study bundle**: per-study
+metadata, cluster info, gene indexes and TF/SIG networks live in a
+single `.scminer.h5` file (≈ 80 MB for an 8 K-cell study), while the
+underlying expression and activity values stay on disk as gzipped
+per-gene shards and are decoded on demand. Both viewers serve a
+Shiny / Shiny-for-Python webui matching the scMINER Portal layout,
+plus a card-grid **multi-study browser**. On the 2327 Tex study
+(8 464 cells × 9 861 genes, 743 K network edges, 80.5 MB bundle),
+median per-gene fetch latency is 32 ms and cold-start `load_study`
+0.59 s. Across a 7 × 4 × 5-replicate synthetic scaling sweep
+(500 – 10 000 cells × 2 – 10 K genes), bundle size stays under 14 MB
+while the shard tree grows roughly linearly to ~ 100 MB; the same
+pipeline applied to the 27 public scMINER Portal studies reproduces
+those properties at production scale (124 – 138 268 cells; bundle
+0.4 – 1 363 MB). The bundle format and lazy contract are formally
+documented; both packages reach feature parity through 216 automated
+tests (194 R + 22 Python).
 
 **Availability and implementation**: R package at
 `scminerViewer/`; Python package (`pip install scminer-viewer`) at
@@ -262,6 +270,32 @@ and the per-study output dir on shared storage. Per-study TSVs at
 `paper/metrics/portal_studies_<id>.tsv` are merged into
 `paper/metrics/portal_studies.tsv` (27 rows, all `status == "ok"`)
 and rendered as six standalone panels in figure 3.
+
+### 3.4 Hardware and software environment
+
+All synthetic-sweep numbers reported in Figure 2 and Table 2 were
+generated on a single laptop:
+
+| Component | Specification |
+| --- | --- |
+| Machine | Apple MacBook Pro, M4 chip |
+| Cores | 10 (4 performance + 6 efficiency); benchmark single-threaded |
+| Memory | 32 GB unified |
+| OS | macOS 26.4.1 (`darwin20`, build 25E253) |
+| R | 4.4.2 (`aarch64-apple-darwin20`) |
+| Key R packages | `scminerViewer` 0.1.0, `Matrix` 1.7.3, `hdf5r` 1.3.12, `Biobase` 2.66.0, `data.table` 1.18.0, `R.utils` 2.13.0, `ggplot2` 4.0.1, `patchwork` 1.3.2, `ggsci` 4.2.0, `scales` 1.4.0 |
+
+The portal-study sweep (Figure 3, Table 1) was instead executed on
+the St. Jude HPC cluster (LSF, Red Hat 8 nodes, R 4.2.2 module).
+Per-study tasks were dispatched via
+`paper/portal/portal_studies_hpc.sh` across a 2–4 queue list
+(`standard`, `priority`, optionally `large_mem` / `superdome`);
+memory requests were sized per the heuristic in
+`paper/README.md` (peak ≈ 1–3× `expression.rds` size, up to 10× for
+dense-stored matrices), ranging from `--mem 8000` for the ground-
+truth set to `--mem 96000 --wall 24:00` for ATRT. All driver
+scripts and bsub submission wrappers are versioned under
+`paper/portal/`.
 
 ![](figures/figure2.pdf){width=100%}
 
