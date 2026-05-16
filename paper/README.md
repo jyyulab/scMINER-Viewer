@@ -23,7 +23,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`portal_studies.bsub`](portal/portal_studies.bsub)         | LSF script: single-job mode and job-array task body. |
 | &nbsp;&nbsp;[`portal_studies_hpc.sh`](portal/portal_studies_hpc.sh)     | One-command HPC driver — submits the array (one task per study) + dependent merge job. |
 | &nbsp;&nbsp;[`portal_studies_single.sh`](portal/portal_studies_single.sh) | One-command HPC driver — submits a single sequential bsub with configurable mem/cores/wall. |
-| &nbsp;&nbsp;[`portal_studies_compare.sh`](portal/portal_studies_compare.sh) | One-command HPC driver — runs the with-vs-without-TFsig comparison (29 studies × 2 modes, back-to-back arrays + compare job). |
+| &nbsp;&nbsp;[`portal_studies_compare.sh`](portal/portal_studies_compare.sh) | One-command HPC driver — runs the with-vs-without-TFsig comparison (29 studies × 2 modes). Defaults to sequential; pass `--parallel` + disjoint `--expr-only-root` / `--full-root` to fire both arrays concurrently. |
 | &nbsp;&nbsp;[`portal_compare.R`](portal/portal_compare.R)               | Joins the per-mode TSVs into one wide comparison table with `delta_*` columns. |
 | &nbsp;&nbsp;[`portal_merge.R`](portal/portal_merge.R)                   | Concatenates per-study TSVs into `metrics/portal_studies.tsv`. |
 | &nbsp;&nbsp;[`sparseify_eset.R`](portal/sparseify_eset.R)               | One-time converter: rewrites a dense-backed `ExpressionSet` rds into a `dgCMatrix`-backed one. |
@@ -227,31 +227,57 @@ latency, and on-disk bundle size:
   `networks_path = NULL`.
 * **`full`** — historical default: expression + activity + networks.
 
-Modes write into separate per-study subdirs
-(`<cfg$output>/<studyID>/<mode>/`) so the bundles don't clobber. The
-driver submits two 29-task arrays back-to-back, chained on
-`ended(expression-only)` so the page cache and the parallel filesystem
-aren't shared between modes (which would smear the warm-load timing),
-then a small compare job that joins the two TSVs:
+The two modes share each YAML's `output:` directory, so concurrent
+execution would race on the same `<output>/<studyID>/` path. The
+driver therefore offers two execution modes:
+
+* **Sequential (default)** — submits `expression-only` first, then
+  `full` with `-w "ended(expression-only)"`. Safe on a single shared
+  output folder (no two tasks ever touch the same path at once).
+* **`--parallel`** — both 29-task arrays fire concurrently. Requires
+  disjoint output roots, threaded through to `portal_studies.R`'s
+  `--output-root` flag via the bsub task body's `OUT_ROOT` env var:
+  ```
+  <expr-only-root>/<studyID>/<studyID>.scminer.h5
+  <full-root>/<studyID>/<studyID>.scminer.h5      # written in parallel, no race
+  ```
+
+Both modes produce per-study TSVs whose names already include the
+mode (`portal_studies_<id>_full.tsv` vs `..._expression-only.tsv`),
+so the `paper/metrics/` directory is unaffected by the choice. A
+small compare job depends on **both** arrays ending and joins the
+TSVs.
 
 ```sh
-# Dry-run: print the bsub commands without submitting
-./paper/portal/portal_studies_compare.sh --configs-dir paper/configs --dry-run
-
-# Submit (29 expression-only -> 29 full -> 1 compare)
+# Sequential (default) -- one shared output root, safest:
 ./paper/portal/portal_studies_compare.sh --configs-dir paper/configs \
     --mem 64000 --wall 8:00 --queue "standard priority"
+
+# Parallel -- two arrays run concurrently, ~half the wall time. Both
+# --expr-only-root and --full-root are required so the on-disk trees
+# don't collide:
+./paper/portal/portal_studies_compare.sh --configs-dir paper/configs \
+    --parallel \
+    --expr-only-root /research_jude/.../scMINERViewerMetrics/expression-only \
+    --full-root      /research_jude/.../scMINERViewerMetrics/full \
+    --mem 64000 --wall 8:00 --queue "standard priority"
+
+# Dry-run: print the bsub commands without submitting
+./paper/portal/portal_studies_compare.sh --configs-dir paper/configs --dry-run
 
 # Re-run a subset (e.g. after fixing one study's input)
 ./paper/portal/portal_studies_compare.sh --configs-dir paper/configs \
     --only 2317,2327
 ```
 
-Driver flags (same shape as `portal_studies_hpc.sh`):
+Driver flags:
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--configs-dir <dir>` | `paper/configs` | Folder of YAML configs. |
+| `--parallel` | — | Fire both arrays concurrently. Requires `--expr-only-root` + `--full-root`. |
+| `--expr-only-root <dir>` | — | Output root for the `expression-only` mode (overrides YAML's `output:`). |
+| `--full-root <dir>` | — | Output root for the `full` mode (overrides YAML's `output:`). |
 | `--queue "<q1 q2 ...>"` | `"standard priority"` | LSF queue list; tasks per mode are distributed across queues (one sub-array per queue, disjoint index ranges). |
 | `--mem <MB>` | `64000` | Memory per task (higher default than the standard run because some studies need it for `full` mode). |
 | `--cores <n>` | `4` | Cores per task. |

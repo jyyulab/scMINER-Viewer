@@ -37,12 +37,19 @@
 #                  per-study TSV is named portal_studies_<id>_<mode>.tsv.
 #                  Used by portal_studies_compare.sh to produce a
 #                  with-vs-without-TFsig comparison without clobbering.
+#   OUT_ROOT       (optional) override the YAML's `output:` value. When set,
+#                  the R driver receives --output-root $OUT_ROOT and writes
+#                  every study's bundle / shards / graph files under
+#                  $OUT_ROOT/<studyID>/. Used by the compare driver in
+#                  --parallel mode so the two modes write to disjoint
+#                  on-disk trees and won't race.
 #
 # Env read by single mode (use exactly one):
 #   CONFIGS_DIR    folder containing the 21 YAML configs.
 #   STUDIES_ROOT   folder containing one subdir per study.
 #   ONLY           (optional) CSV of study IDs to restrict to.
 #   MODE           (optional) as above; also propagated in single mode.
+#   OUT_ROOT       (optional) as above; also propagated in single mode.
 
 set -euo pipefail
 
@@ -78,13 +85,25 @@ if [[ -n "${LSB_JOBINDEX:-}" && "${LSB_JOBINDEX}" != "0" ]]; then
     out_tsv="paper/metrics/portal_studies_${study_id}_${RUN_MODE}.tsv"
   fi
 
+  # Optional per-task output-root override (compare driver --parallel
+  # mode uses this so expression-only and full modes don't race on
+  # the same <output>/<studyID>/ tree).
+  R_EXTRA=()
+  if [[ -n "${OUT_ROOT:-}" ]]; then
+    R_EXTRA+=(--output-root "$OUT_ROOT")
+  fi
+
   echo "[bsub] array task $LSB_JOBINDEX -> $study_id ($line) mode=$RUN_MODE"
   echo "[bsub] host=$(hostname) job=${LSB_JOBID:-?}"
+  if [[ -n "${OUT_ROOT:-}" ]]; then
+    echo "[bsub] out-root override: $OUT_ROOT"
+  fi
 
   Rscript paper/portal/portal_studies.R \
       "${mode_flag[@]}" \
       --mode "$RUN_MODE" \
-      --out  "$out_tsv"
+      --out  "$out_tsv" \
+      "${R_EXTRA[@]}"
 
   echo "[bsub] $study_id ($RUN_MODE) done"
 else
@@ -105,6 +124,9 @@ else
   fi
   if [[ -n "${OUT_TSV:-}" ]]; then
     ARGS+=(--out "$OUT_TSV")
+  fi
+  if [[ -n "${OUT_ROOT:-}" ]]; then
+    ARGS+=(--output-root "$OUT_ROOT")
   fi
 
   echo "[bsub] single job=${LSB_JOBID:-?} host=$(hostname)"
