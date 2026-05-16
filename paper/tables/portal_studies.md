@@ -1,4 +1,4 @@
-**Table 1.** Per-study metrics for the 26 real scMINER 
+**Table 1.** Per-study metrics for the 27 real scMINER 
 Portal studies, sorted ascending by `n_cells`. `input MB` is the
 sum of `expression.rds + activity.rds + networks.txt`. `bundle MB`
 is the lazy `.scminer.h5`; `shard MB` is the per-gene gzipped CSV tree.
@@ -36,3 +36,4 @@ networks input.
 | 2338 | 96,305 | 15,778 | 29 | 5,145.4 | 1,363.3 | 7,427.7 | 9,671.8 | 58,263 | 49,074 | 12.27 | 539 | 6,557,601 | 6,973,009 |
 | 2316 | 97,499 | 22,572 | 28 | 418.4 | 13.7 | 1,340.6 | 1,372.9 | 7,703 | 17,215 | 0.44 | 824 | — | — |
 | 2341 | 104,905 | 12,982 | 12 | 4,626.8 | 743.2 | 6,579.7 | 7,795.5 | 59,672 | 46,354 | 8.07 | 715 | 2,900,665 | 4,723,739 |
+| 2333 | 138,268 | 18,274 | 15 | 24,414.0 | 105.8 | 3,149.1 | 3,332.5 | 8,795 | 49,284 | 1.56 | 1,249 | 384,817 | 528,311 |
