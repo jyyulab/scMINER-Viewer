@@ -23,6 +23,8 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`portal_studies.bsub`](portal/portal_studies.bsub)         | LSF script: single-job mode and job-array task body. |
 | &nbsp;&nbsp;[`portal_studies_hpc.sh`](portal/portal_studies_hpc.sh)     | One-command HPC driver — submits the array (one task per study) + dependent merge job. |
 | &nbsp;&nbsp;[`portal_studies_single.sh`](portal/portal_studies_single.sh) | One-command HPC driver — submits a single sequential bsub with configurable mem/cores/wall. |
+| &nbsp;&nbsp;[`portal_studies_compare.sh`](portal/portal_studies_compare.sh) | One-command HPC driver — runs the with-vs-without-TFsig comparison (29 studies × 2 modes, back-to-back arrays + compare job). |
+| &nbsp;&nbsp;[`portal_compare.R`](portal/portal_compare.R)               | Joins the per-mode TSVs into one wide comparison table with `delta_*` columns. |
 | &nbsp;&nbsp;[`portal_merge.R`](portal/portal_merge.R)                   | Concatenates per-study TSVs into `metrics/portal_studies.tsv`. |
 | &nbsp;&nbsp;[`sparseify_eset.R`](portal/sparseify_eset.R)               | One-time converter: rewrites a dense-backed `ExpressionSet` rds into a `dgCMatrix`-backed one. |
 | &nbsp;&nbsp;[`sparseify_eset.sh`](portal/sparseify_eset.sh)             | LSF bsub wrapper around `sparseify_eset.R` with high-mem defaults. |
@@ -213,6 +215,117 @@ the per-study TSVs directly. The status-count summary lands at
 `paper/metrics/portal_studies_summary.tsv` so the manuscript can cite
 how many runs landed in each status bucket.
 
+### With-vs-without-TFsig comparison (29 studies × 2 modes)
+
+[`portal_studies_compare.sh`](portal/portal_studies_compare.sh) runs
+the benchmark twice per study so you can quantify what TF/sig data
+costs in `prepare_study()` time, peak memory, cold/warm `load_study()`
+latency, and on-disk bundle size:
+
+* **`expression-only`** — `activity.rds` and `networks.txt` are skipped;
+  `prepare_study_from_eset()` receives `activity_eset = NULL` and
+  `networks_path = NULL`.
+* **`full`** — historical default: expression + activity + networks.
+
+Modes write into separate per-study subdirs
+(`<cfg$output>/<studyID>/<mode>/`) so the bundles don't clobber. The
+driver submits two 29-task arrays back-to-back, chained on
+`ended(expression-only)` so the page cache and the parallel filesystem
+aren't shared between modes (which would smear the warm-load timing),
+then a small compare job that joins the two TSVs:
+
+```sh
+# Dry-run: print the bsub commands without submitting
+./paper/portal/portal_studies_compare.sh --configs-dir paper/configs --dry-run
+
+# Submit (29 expression-only -> 29 full -> 1 compare)
+./paper/portal/portal_studies_compare.sh --configs-dir paper/configs \
+    --mem 64000 --wall 8:00 --queue "standard priority"
+
+# Re-run a subset (e.g. after fixing one study's input)
+./paper/portal/portal_studies_compare.sh --configs-dir paper/configs \
+    --only 2317,2327
+```
+
+Driver flags (same shape as `portal_studies_hpc.sh`):
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--configs-dir <dir>` | `paper/configs` | Folder of YAML configs. |
+| `--queue "<q1 q2 ...>"` | `"standard priority"` | LSF queue list; tasks per mode are distributed across queues (one sub-array per queue, disjoint index ranges). |
+| `--mem <MB>` | `64000` | Memory per task (higher default than the standard run because some studies need it for `full` mode). |
+| `--cores <n>` | `4` | Cores per task. |
+| `--wall <hh:mm>` | `8:00` | Wall-clock limit per task. |
+| `--project <id>` | `scminer` | LSF charge code. |
+| `--only <csv>` | (all) | Comma-separated study IDs to limit to. |
+| `--dry-run` | — | Print the bsub commands without submitting. |
+
+Per-mode TSVs land at:
+
+```
+paper/metrics/portal_studies_<studyID>_expression-only.tsv
+paper/metrics/portal_studies_<studyID>_full.tsv
+```
+
+The dependent compare job produces the joined wide table:
+
+```sh
+paper/metrics/portal_studies_compare.tsv
+```
+
+One row per study, with the following metric triples
+(`*_full`, `*_expr_only`, `delta_*` where the delta is `full − expr_only`,
+so positive = TF/sig adds cost):
+
+| Metric | Columns |
+| --- | --- |
+| Process wall time | `prepare_seconds_full`, `prepare_seconds_expr_only`, `delta_prepare_seconds` |
+| Process peak memory (MB) | `prepare_peak_mb_full`, `prepare_peak_mb_expr_only`, `delta_prepare_peak_mb` |
+| Cold load | `load_seconds_full`, `load_seconds_expr_only`, `delta_load_seconds` |
+| Warm load | `load_seconds_warm_full`, `load_seconds_warm_expr_only`, `delta_load_seconds_warm` |
+| Bundle size | `bundle_bytes_full`, `bundle_bytes_expr_only`, `delta_bundle_bytes` |
+| Total output | `total_output_bytes_full`, `total_output_bytes_expr_only`, `delta_total_output_bytes` |
+
+Identity / sanity columns: `studyID`, `n_cells_full`, `n_genes_full`,
+`n_clusters_full`, `net_tf_edges_full`, `net_sig_edges_full`,
+`status_full`, `status_expr_only`, `note_full`, `note_expr_only`.
+If `net_tf_edges_full` / `net_sig_edges_full` are `0` for a study, the
+`full` run silently dropped its network — the delta is meaningless for
+that row and the YAML's `input.networks` is likely missing or
+unreadable.
+
+Re-run just the aggregator (e.g. after re-submitting one mode) without
+touching LSF:
+
+```sh
+Rscript paper/portal/portal_compare.R \
+    --expr-only-glob "paper/metrics/portal_studies_*_expression-only.tsv" \
+    --full-glob      "paper/metrics/portal_studies_*_full.tsv" \
+    --out            "paper/metrics/portal_studies_compare.tsv"
+```
+
+Monitor:
+
+```sh
+bjobs -A
+bjobs -J 'scminer_cmp_*_expression-only_*'   # mode 1
+bjobs -J 'scminer_cmp_*_full_*'              # mode 2
+bjobs -J 'scminer_cmp_*_compare'             # join
+tail -f paper/logs/portal_studies_expression-only_*_*.out
+tail -f paper/logs/portal_studies_full_*_*.out
+```
+
+Notes:
+
+* The dependency is `ended(...)` (not `done(...)`), so a per-study
+  failure in one mode does **not** block the other 28. Failed per-mode
+  tasks leave no TSV; the compare aggregator handles missing rows with
+  `NA` deltas.
+* For 2317 / Covid650k, prime the dense `expression.rds` with
+  [`sparseify_eset.sh`](portal/sparseify_eset.sh) and update its YAML
+  before submitting the compare run — see [Priming large studies](#priming-large-studies-dense-backed-expressionsets)
+  below.
+
 ### Tables
 
 `paper/benchmarks/tables.R` regenerates two manuscript tables from
@@ -265,6 +378,7 @@ CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
 | `--config <yaml>`     | — | Process exactly one YAML (used by array tasks). |
 | `--studies-root <dir>` | — | Walk per-study subfolders (legacy mode). |
 | `--only a,b,c`        | (all) | CSV of study IDs to restrict to. |
+| `--mode <name>`       | `full` | `full` reads expression + activity + networks (historical default). `expression-only` skips activity and networks; used by [`portal_studies_compare.sh`](portal/portal_studies_compare.sh) to isolate the cost of TF/sig data. Each mode writes into its own per-study subdir (`<out>/<studyID>/<mode>/`) so the bundles don't clobber. |
 | `--out <tsv>`         | `paper/metrics/portal_studies.tsv` | Output TSV path. |
 | `--output-root <dir>` | — | Force every study's bundle / shards / graph files into `<dir>/<studyID>/`, overriding the YAML's `output:` value. |
 | `--scratch <dir>`     | tempfile | Fallback when neither `--output-root` nor the YAML's `output:` is set. |
@@ -274,10 +388,10 @@ CONFIGS_DIR=$(pwd)/paper/configs bsub -R "rusage[mem=64000]" -M 64000 -W 12:00 \
 
 | Group | Columns |
 | --- | --- |
-| Identification | `studyID`, `n_cells`, `n_genes`, `n_clusters`, `out_dir` |
+| Identification | `studyID`, `mode`, `n_cells`, `n_genes`, `n_clusters`, `out_dir` |
 | **Inputs** | `expr_input_bytes`, `act_input_bytes`, `net_input_bytes`, `total_input_bytes` |
 | **Outputs** | `bundle_bytes`, `shard_bytes`, `graph_bytes`, `total_output_bytes` |
-| Wall time & memory | `prepare_seconds`, `prepare_peak_mb`, `load_seconds` |
+| Wall time & memory | `prepare_seconds`, `prepare_peak_mb`, `load_seconds`, `load_seconds_warm` (re-call of `load_study()` in the same R session, isolates parse cost from cold-page-cache cost) |
 | Gene fetch | `fetch_median`, `fetch_mean`, `fetch_max`, `n_fetched` |
 | Networks | `net_tf_edges`, `net_sig_edges` |
 | Status | `status` (`ok` / `skipped` / `error-too-large` / `error`), `note` |
