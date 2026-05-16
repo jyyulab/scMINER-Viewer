@@ -139,12 +139,20 @@ Three ways to avoid it:
 
 ## Quick start
 
-### Demo (no data prep needed)
+### Demo: three ways to see the 2327 (Tex) study
 
-The package ships a curated demo of the 2327 (Tex) study under
+Three paths, in increasing order of "real". Each uses the same study
+(CD8⁺ T-cell exhaustion, 8,464 cells × 9,861 genes × 3 clusters); they
+differ only in how much data you download.
+
+#### 1) In-package mini-bundle — zero downloads {-}
+
+The package ships a curated subset of the 2327 study under
 `inst/extdata/`: the full `.scminer.h5` bundle plus ~200 gene shards
-(67 expression / 67 SIG activity / 66 TF activity). Enough to see the
-viewer in action without preparing your own study:
+(67 expression / 67 SIG activity / 66 TF activity). Adds ~80 MB to the
+installed package; centres on canonical T-cell / exhaustion markers
+(Cd8a, Pdcd1, Tox, Tcf7, Eomes, Mki67, …). Selecting any *other* gene
+in the picker yields an empty plot.
 
 ```r
 library(scminerViewer)
@@ -153,9 +161,56 @@ demo_bundle_path()                # absolute path to the bundle
 demo_genes()                      # data.frame: which genes have shards
 ```
 
-The shipped subset adds ~80 MB to the installed package and centres on
-canonical T-cell / exhaustion markers (Cd8a, Pdcd1, Tox, Tcf7, Eomes,
-Mki67, …); selecting any other gene in the picker yields an empty plot.
+#### 2) Pre-processed bundle — one download, every gene {-}
+
+The full bundle + complete shard tree (every gene, no subsetting) is
+published as `2327-processed.tar.gz` on the
+[`demo-data-v1`](https://github.com/hzhou98/scMINER-Viewer/releases/tag/demo-data-v1)
+GitHub Release. Download once, untar, and `run_app()`:
+
+```sh
+mkdir -p data && cd data
+RELEASE_URL=https://github.com/hzhou98/scMINER-Viewer/releases/download/demo-data-v1
+curl -L -o 2327-processed.tar.gz "$RELEASE_URL/2327-processed.tar.gz"   # ~484 MB
+tar -xzf 2327-processed.tar.gz
+mv 2327-processed 2327
+cd ..
+```
+
+```r
+scminerViewer::run_app("data/2327/2327.scminer.h5", port = 8000)
+```
+
+#### 3) Run `prepare_study()` from scratch — full pipeline {-}
+
+The three source files (Biobase ExpressionSets + tab-separated network)
+are published on the same release. Download them, then point
+`prepare_study()` at the `config-2327.yml` that ships at the repo root.
+
+```sh
+mkdir -p data/input/2327
+RELEASE_URL=https://github.com/hzhou98/scMINER-Viewer/releases/download/demo-data-v1
+curl -L -o data/input/2327/expression.rds "$RELEASE_URL/expression.rds"   #  22 MB
+curl -L -o data/input/2327/activity.rds   "$RELEASE_URL/activity.rds"     # 236 MB
+curl -L -o data/input/2327/networks.txt   "$RELEASE_URL/networks.txt"     #  57 MB
+
+# Optional: verify the downloads (the 236 MB activity.rds especially)
+shasum -a 256 data/input/2327/{expression.rds,activity.rds,networks.txt}
+# expression.rds  9c28047387a181263107cab3076d426aaa32fcc402e6a2af6b4fb1ec5b910960
+# activity.rds    10b94c7826ce513c792ce0cdd57f6c1cad1adb3576f8f6f17779d35b6413c487
+# networks.txt    9096a1c3604a93e19e2ac177728686ca0f45c6de48a9b27149fc6e6e9b8dc856
+```
+
+```r
+library(scminerViewer)
+prepare_study("config-2327.yml")                          # ~1–3 min
+run_app("data/2327/2327.scminer.h5", port = 8000)
+```
+
+`config-2327.yml` already has `output: data`, the correct pData /
+fData column names (`CellID`, `CellGroup`, `GeneSymbol`), and
+`default_genes: [Cd8a, Pdcd1, Tox]` so the first-launch view is
+populated.
 
 ### Your own data
 
