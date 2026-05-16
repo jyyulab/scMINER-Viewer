@@ -31,8 +31,20 @@ suppressPackageStartupMessages({
   library(ggsci)
 })
 
-merged_path   <- "paper/metrics/portal_studies.tsv"
-fallback_glob <- "paper/metrics/portal_studies_*.tsv"
+# CLI overrides:
+#   --metrics-dir <dir>  read TSVs from <dir>/ instead of paper/metrics/
+#   --figures-dir <dir>  write figures into <dir>/ instead of paper/figures/
+#   --summary-out <tsv>  override the status-count TSV path
+.cli <- function(name, default = NULL) {
+  args <- commandArgs(trailingOnly = TRUE)
+  i <- which(args == name)
+  if (length(i) == 0L || i == length(args)) return(default)
+  args[i + 1L]
+}
+metrics_dir   <- .cli("--metrics-dir", "paper/metrics")
+figures_dir   <- .cli("--figures-dir", "paper/figures")
+merged_path   <- file.path(metrics_dir, "portal_studies.tsv")
+fallback_glob <- file.path(metrics_dir, "portal_studies_*.tsv")
 
 # ---- 1. Load + sanity-check ------------------------------------------------
 
@@ -91,9 +103,9 @@ status_summary <- as.data.frame(table(df$status, useNA = "ifany"),
                                   stringsAsFactors = FALSE)
 names(status_summary) <- c("status", "n")
 utils::write.table(status_summary,
-                   "paper/metrics/portal_studies_summary.tsv",
+                   file.path(metrics_dir, "portal_studies_summary.tsv"),
                    sep = "\t", row.names = FALSE, quote = FALSE)
-message("Wrote paper/metrics/portal_studies_summary.tsv")
+message("Wrote ", file.path(metrics_dir, "portal_studies_summary.tsv"))
 
 # ---- 2. Shared theme + saver ----------------------------------------------
 
@@ -113,11 +125,11 @@ theme_paper <- function() {
     )
 }
 
-dir.create("paper/figures", recursive = TRUE, showWarnings = FALSE)
+dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
 
 save_panel <- function(plot, name, width, height) {
-  pdf_path <- file.path("paper/figures", paste0(name, ".pdf"))
-  png_path <- file.path("paper/figures", paste0(name, ".png"))
+  pdf_path <- file.path(figures_dir, paste0(name, ".pdf"))
+  png_path <- file.path(figures_dir, paste0(name, ".png"))
   ggsave(pdf_path, plot, width = width, height = height,
          units = "in", device = cairo_pdf)
   ggsave(png_path, plot, width = width, height = height,
@@ -144,11 +156,11 @@ p_A <- ggplot(df_size, aes(n_cells, mb, colour = kind, shape = kind)) +
   geom_point(size = 2.0, alpha = 0.85) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE,
               linewidth = 0.5, linetype = "dashed", alpha = 0.6) +
-  scale_x_log10(labels = label_comma()) +
-  scale_y_log10(labels = label_comma()) +
+  scale_x_log10(labels = label_log()) +
+  scale_y_log10(labels = label_log()) +
   scale_colour_npg() +
   labs(title = "Bundle + shard tree size vs cell count",
-       x = "Cells (log)", y = "MB (log)",
+       x = "Cells (log10)", y = "MB (log10)",
        colour = NULL, shape = NULL) +
   theme_paper()
 save_panel(p_A, "figure_portal_A_size_vs_cells",   width = 5.5, height = 4.0)
@@ -159,9 +171,9 @@ p_B <- ggplot(ok, aes(cells_genes, prepare_seconds)) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE,
               linewidth = 0.5, linetype = "dashed", colour = "#E64B35") +
   scale_x_log10(labels = label_log()) +
-  scale_y_log10(labels = label_comma()) +
+  scale_y_log10(labels = label_log()) +
   labs(title = "prepare_study() wall time",
-       x = "n_cells x n_genes (log)", y = "Seconds (log)") +
+       x = "n_cells x n_genes (log10)", y = "Seconds (log10)") +
   theme_paper()
 save_panel(p_B, "figure_portal_B_prepare_time",    width = 5.5, height = 4.0)
 
@@ -170,10 +182,10 @@ p_C <- ggplot(ok, aes(in_mb, prepare_peak_mb)) +
   geom_point(size = 2.0, colour = "#00A087", alpha = 0.85) +
   geom_abline(slope = 1, intercept = 0, linetype = "dotted",
               colour = "grey50", linewidth = 0.4) +
-  scale_x_log10(labels = label_comma()) +
-  scale_y_log10(labels = label_comma()) +
+  scale_x_log10(labels = label_log()) +
+  scale_y_log10(labels = label_log()) +
   labs(title = "Peak memory vs total input size",
-       x = "Input MB (log)", y = "Peak Mb (log)") +
+       x = "Input MB (log10)", y = "Peak Mb (log10)") +
   theme_paper()
 save_panel(p_C, "figure_portal_C_peak_memory",     width = 5.5, height = 4.0)
 
@@ -182,9 +194,9 @@ p_D <- ggplot(ok, aes(bundle_mb, load_seconds)) +
   geom_point(size = 2.0, colour = "#3C5488", alpha = 0.85) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE,
               linewidth = 0.5, linetype = "dashed", colour = "#3C5488") +
-  scale_x_log10(labels = label_comma()) +
+  scale_x_log10(labels = label_log()) +
   labs(title = "load_study() cold-start latency",
-       x = "Bundle MB (log)", y = "Seconds") +
+       x = "Bundle MB (log10)", y = "Seconds") +
   theme_paper()
 save_panel(p_D, "figure_portal_D_load_latency",    width = 5.5, height = 4.0)
 
@@ -193,10 +205,10 @@ p_E <- ggplot(ok, aes(n_genes, fetch_ms)) +
   geom_point(size = 2.0, colour = "#F39B7F", alpha = 0.85) +
   geom_smooth(method = "lm", formula = y ~ x, se = FALSE,
               linewidth = 0.5, linetype = "dashed", colour = "#F39B7F") +
-  scale_x_log10(labels = label_comma()) +
-  scale_y_log10(labels = label_comma()) +
+  scale_x_log10(labels = label_log()) +
+  scale_y_log10(labels = label_log()) +
   labs(title = "gene_values() fetch latency (median)",
-       x = "Genes (log)", y = "Milliseconds (log)") +
+       x = "Genes (log10)", y = "Milliseconds (log10)") +
   theme_paper()
 save_panel(p_E, "figure_portal_E_fetch_latency",   width = 5.5, height = 4.0)
 
@@ -220,8 +232,8 @@ save_panel(p_F, "figure_portal_F_size_ratio",      width = 7.5, height = 4.0)
 
 # ---- 4. Console summary ---------------------------------------------------
 
-message(sprintf("\nRendered %d standalone panels under paper/figures/",
-                6L))
+message(sprintf("\nRendered %d standalone panels under %s/",
+                6L, figures_dir))
 message("\n=== Portal benchmark summary (n=", nrow(ok), " OK rows) ===")
 disp <- ok[, c("studyID", "n_cells", "n_genes", "n_clusters",
                "in_mb", "out_mb", "bundle_mb", "shard_mb",

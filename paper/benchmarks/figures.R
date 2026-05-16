@@ -227,10 +227,10 @@ p_A <- ggplot(df_long,
                 width = 300, linewidth = 0.4, show.legend = FALSE) +
   geom_point(size = 1.9) +
   scale_x_continuous(labels = label_comma()) +
-  scale_y_log10(labels = label_comma()) +
+  scale_y_log10(labels = label_log()) +
   scale_colour_npg() +
   labs(title = "Bundle size vs shard-tree size",
-       x = "Number of cells", y = "MB (log)",
+       x = "Number of cells", y = "MB (log10)",
        colour = NULL, linetype = NULL, shape = NULL) +
   theme_paper() +
   guides(colour = guide_legend(order = 1, nrow = 1),
