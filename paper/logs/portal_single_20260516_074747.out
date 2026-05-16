@@ -1,0 +1,2 @@
+[bsub] single job=289113343 host=nodelmr16
+[bsub] args: --configs-dir /home/hzhou98/projects/scMINER-Viewer/paper/configs --only 2317 --out paper/metrics/portal_studies_2317.tsv

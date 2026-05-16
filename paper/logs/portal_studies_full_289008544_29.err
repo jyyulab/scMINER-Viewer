@@ -11,3 +11,7 @@ Benchmarking 1 studies (scratch=/lsf_tmp/289008544_29.tmpdir/RtmpCxD3HX/portal_b
 [2341] activity matrix: 7491 x 104905 (dense), nnz=785,843,355
 [2341] networks: networks.txt (529,968,439)
 [2341] prepare_study_from_eset ...
+
+Wrote 1-row TSV to paper/metrics/portal_studies_2341_full.tsv (1 ok, 0 skipped, 0 too-large, 0 error)
+
+Totals: input 4626.8-4626.8 MB, output 7795.5-7795.5 MB, bundle 743.2-743.2 MB, prepare 43116.6-43116.6 s, peak 47192-47192 MB
