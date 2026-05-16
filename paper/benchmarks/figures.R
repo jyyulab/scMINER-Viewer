@@ -224,7 +224,7 @@ p_A <- ggplot(df_long,
   geom_line(linewidth = 0.5) +
   geom_errorbar(aes(ymin = pmax(mb - se, .Machine$double.eps),
                      ymax = mb + se),
-                width = 0, linewidth = 0.4, show.legend = FALSE) +
+                width = 300, linewidth = 0.4, show.legend = FALSE) +
   geom_point(size = 1.9) +
   scale_x_continuous(labels = label_comma()) +
   scale_y_log10(labels = label_comma()) +
@@ -245,7 +245,7 @@ p_B <- ggplot(scaling_summary,
   geom_line(linewidth = 0.5) +
   geom_errorbar(aes(ymin = load_seconds_mean - load_seconds_se,
                      ymax = load_seconds_mean + load_seconds_se),
-                width = 0, linewidth = 0.4) +
+                width = 300, linewidth = 0.4) +
   geom_point(size = 1.9) +
   scale_x_continuous(labels = label_comma()) +
   scale_colour_npg() +
@@ -264,7 +264,7 @@ p_C <- ggplot(scaling_summary,
   geom_line(linewidth = 0.5) +
   geom_errorbar(aes(ymin = fetch_median_ms_mean - fetch_median_ms_se,
                      ymax = fetch_median_ms_mean + fetch_median_ms_se),
-                width = 0, linewidth = 0.4) +
+                width = 300, linewidth = 0.4) +
   geom_point(size = 1.9) +
   scale_x_continuous(labels = label_comma()) +
   scale_colour_npg() +
@@ -280,7 +280,7 @@ p_D <- ggplot(discover_summary,
   geom_line(linewidth = 0.5, colour = "#3C5488") +
   geom_errorbar(aes(ymin = discover_seconds_mean - discover_seconds_se,
                      ymax = discover_seconds_mean + discover_seconds_se),
-                width = 0, linewidth = 0.4, colour = "#3C5488") +
+                width = 1.2, linewidth = 0.4, colour = "#3C5488") +
   geom_point(size = 1.9, colour = "#3C5488") +
   scale_x_continuous(breaks = DISCOVER_GRID) +
   labs(title = "discover_studies() scaling",
@@ -296,7 +296,7 @@ p_E <- ggplot(scaling_summary,
   geom_line(linewidth = 0.5) +
   geom_errorbar(aes(ymin = prepare_seconds_mean - prepare_seconds_se,
                      ymax = prepare_seconds_mean + prepare_seconds_se),
-                width = 0, linewidth = 0.4) +
+                width = 300, linewidth = 0.4) +
   geom_point(size = 1.9) +
   scale_x_continuous(labels = label_comma()) +
   scale_colour_npg() +
@@ -313,7 +313,7 @@ p_F <- ggplot(scaling_summary,
   geom_line(linewidth = 0.5) +
   geom_errorbar(aes(ymin = prepare_peak_mb_mean - prepare_peak_mb_se,
                      ymax = prepare_peak_mb_mean + prepare_peak_mb_se),
-                width = 0, linewidth = 0.4) +
+                width = 300, linewidth = 0.4) +
   geom_point(size = 1.9) +
   scale_x_continuous(labels = label_comma()) +
   scale_colour_npg() +

@@ -95,6 +95,7 @@ INLINE_SCRIPT="$(cat <<EOF
 set -euo pipefail
 cd "\${LS_SUBCWD:-$ROOT}"
 module load R/4.2.2-rhel8 2>/dev/null || true
+module load hdf5 2>/dev/null || module load hdf5/1.10.7 2>/dev/null || module load hdf5/1.10.8 2>/dev/null || true
 echo "[bsub] sparseify_eset job=\${LSB_JOBID:-?} host=\$(hostname)"
 echo "[bsub] src: $SRC"
 echo "[bsub] dst: ${DST:-<auto>}"

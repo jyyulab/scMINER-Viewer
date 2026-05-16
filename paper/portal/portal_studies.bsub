@@ -57,6 +57,14 @@ cd "${LS_SUBCWD:-$PWD}"
 mkdir -p paper/metrics paper/logs
 
 module load R/4.2.2-rhel8 2>/dev/null || true
+# hdf5r links against libhdf5_hl.so.10 (HDF5 1.10.x). Without an hdf5
+# module the loader can't find that .so on the compute nodes. Try the
+# unversioned alias first, then fall back to specific 1.10.x lines if
+# your site uses versioned module names (`module avail hdf5` to list).
+module load hdf5 2>/dev/null \
+  || module load hdf5/1.10.7 2>/dev/null \
+  || module load hdf5/1.10.8 2>/dev/null \
+  || echo "[bsub] WARN: no hdf5 module loaded; hdf5r may fail to load" >&2
 
 if [[ -n "${LSB_JOBINDEX:-}" && "${LSB_JOBINDEX}" != "0" ]]; then
   # ---- Array mode: pick one entry by line number ------------------------
