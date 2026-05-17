@@ -79,8 +79,8 @@ run_local() {
 
   echo
   echo "Done."
-  echo "  figures: paper/figures/figure1_{A..F}_*.{pdf,png}"
-  echo "  table:   paper/tables/figure1_scaling.{md,tsv}"
+  echo "  figures: paper/figures/figure2_{A..F}_*.{pdf,png}"
+  echo "  table:   paper/tables/figure2_scaling.{md,tsv}"
   echo "  metrics: paper/metrics/{bundle_scaling,discover_scaling,real_study}.tsv"
   echo "  log:     $LOG"
 }
@@ -144,8 +144,8 @@ EOF
   echo "    tail -f paper/logs/figure1_${STAMP}.out"
   echo
   echo "When it finishes:"
-  echo "    ls   paper/figures/figure1_*"
-  echo "    cat  paper/tables/figure1_scaling.md"
+  echo "    ls   paper/figures/figure2_*"
+  echo "    cat  paper/tables/figure2_scaling.md"
 }
 
 if [[ "$HPC" == "1" ]]; then

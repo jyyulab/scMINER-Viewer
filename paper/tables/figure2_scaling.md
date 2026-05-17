@@ -1,5 +1,5 @@
 **Table 2.** Synthetic-sweep benchmark (28 configurations, (mean ± SE across 5 replicates)) 
-underlying figure 1. Each configuration is a synthetic study generated
+underlying figure 2. Each configuration is a synthetic study generated
 by `make_synthetic_study(n_cells, n_genes, n_clusters = 4, density = 0.10)`
 and benchmarked end-to-end via `bench_bundle()`: bundle + shard write,
 `load_study()` cold-start, and 25 random `gene_values()` fetches.

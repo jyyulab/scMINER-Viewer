@@ -31,7 +31,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`example.yaml`](portal/example.yaml)                       | Reference YAML schema (annotated template). |
 | [`figures/`](figures/)                           | `architecture.{pdf,png}` (figure 1) + 6 synthetic-sweep standalone panels `figure2_{A..F}_*.{pdf,png}` + combined `figure2.{pdf,png}` + 6 real-portal standalone panels `figure3_{A..F}_*.{pdf,png}` + combined `figure3.{pdf,png}`. |
 | [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv` (per-rep), `bundle_scaling_summary.tsv` (mean / sd / SE per config), `discover_scaling.tsv` + `_summary.tsv`, `real_study.tsv`, `portal_studies.tsv` (merged), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts). |
-| [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). `table 1 = portal_studies`, `table 2 = figure1_scaling`. Re-render with `Rscript paper/benchmarks/tables.R`. |
+| [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). `table 1 = figure3_portal_studies` (real-portal sweep — backs figure 3), `table 2 = figure2_scaling` (synthetic sweep — backs figure 2). Re-render with `Rscript paper/benchmarks/tables.R`. |
 | [`logs/`](logs/), [`hpc/`](hpc/)                 | Runtime artefacts (manifests, bsub stdout/stderr). |
 
 ## Quick reference: regenerate figures, tables, and the manuscript
@@ -52,10 +52,10 @@ Rscript paper/benchmarks/figure_architecture.R
 ./paper/benchmarks/run_figure1.sh --hpc --mem 64000 --wall 6:00
 # Or the R steps directly (skip the wrapper):
 Rscript paper/benchmarks/figures.R          # writes panels + figure2.{pdf,png}
-Rscript paper/benchmarks/tables.R           # writes table 2 (figure1_scaling)
+Rscript paper/benchmarks/tables.R           # writes table 2 (figure2_scaling)
 # Writes: paper/figures/figure2_{A..F}_*.{pdf,png}, figure2.{pdf,png}
 #         paper/metrics/{bundle,discover}_scaling{,_summary}.tsv
-#         paper/tables/figure1_scaling.{md,tsv}
+#         paper/tables/figure2_scaling.{md,tsv}
 
 # --- Figure 3 + Table 1 (28 real portal studies) --------------------
 # Concatenate per-study TSVs (run once after the HPC job array finishes):
@@ -68,7 +68,7 @@ Rscript paper/benchmarks/figure_portal.R
 Rscript paper/benchmarks/tables.R
 # Writes: paper/figures/figure3_{A..F}_*.{pdf,png}, figure3.{pdf,png}
 #         paper/metrics/portal_studies{,_summary}.tsv
-#         paper/tables/portal_studies.{md,tsv}
+#         paper/tables/figure3_portal_studies.{md,tsv}
 
 # --- Manuscript PDF / DOCX ------------------------------------------
 pandoc paper/scminer-viewer.md \
@@ -426,8 +426,8 @@ Outputs land under `paper/tables/`:
 
 | Table | Source | Output |
 | --- | --- | --- |
-| Table 1 — per-study metrics for the 28 real portal studies | `paper/metrics/portal_studies.tsv` (status == `ok`) | `paper/tables/portal_studies.{md,tsv}` |
-| Table 2 — synthetic-sweep grid underlying figure 2 (28 configs once `figures.R` finishes) | `paper/metrics/bundle_scaling.tsv` | `paper/tables/figure1_scaling.{md,tsv}` |
+| Table 1 — per-study metrics for the 28 real portal studies | `paper/metrics/portal_studies.tsv` (status == `ok`) | `paper/tables/figure3_portal_studies.{md,tsv}` |
+| Table 2 — synthetic-sweep grid underlying figure 2 (28 configs once `figures.R` finishes) | `paper/metrics/bundle_scaling.tsv` | `paper/tables/figure2_scaling.{md,tsv}` |
 
 The Markdown files ship a leading caption block and a GFM table that
 pandoc converts to LaTeX (or DOCX) without further intervention.
@@ -497,7 +497,7 @@ The bsub task always exits 0 regardless of status (skip / cap / error are all "e
 ### Resource sizing
 
 Empirical numbers from the 16 May 2026 run over all 28 OK studies
-(see `paper/metrics/portal_studies.tsv` and `paper/tables/portal_studies.md`
+(see `paper/metrics/portal_studies.tsv` and `paper/tables/figure3_portal_studies.md`
 for per-study rows):
 
 | Cell range | Representative studies | `prepare_seconds` | Peak Mb | `--mem` recommendation |

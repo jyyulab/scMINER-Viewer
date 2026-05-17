@@ -91,9 +91,9 @@ portal_tbl$`SIG edges` <- gsub("^0$", "—", portal_tbl$`SIG edges`)
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
 # Write TSV
-write.table(portal_tbl, "paper/tables/portal_studies.tsv",
+write.table(portal_tbl, "paper/tables/figure3_portal_studies.tsv",
             sep = "\t", row.names = FALSE, quote = FALSE)
-message("Wrote paper/tables/portal_studies.tsv")
+message("Wrote paper/tables/figure3_portal_studies.tsv")
 
 # Write Markdown
 md_lines <- c(
@@ -110,8 +110,8 @@ md_lines <- c(
   "",
   md_table(portal_tbl)
 )
-writeLines(md_lines, "paper/tables/portal_studies.md")
-message("Wrote paper/tables/portal_studies.md")
+writeLines(md_lines, "paper/tables/figure3_portal_studies.md")
+message("Wrote paper/tables/figure3_portal_studies.md")
 
 # ---- 2. Figure 1 synthetic-sweep table -------------------------------------
 
@@ -178,14 +178,14 @@ if (file.exists(summary_path)) {
   )
   source_label <- "(single run per configuration)"
 }
-write.table(fig1_tbl, "paper/tables/figure1_scaling.tsv",
+write.table(fig1_tbl, "paper/tables/figure2_scaling.tsv",
             sep = "\t", row.names = FALSE, quote = FALSE)
-message("Wrote paper/tables/figure1_scaling.tsv")
+message("Wrote paper/tables/figure2_scaling.tsv")
 
 md_lines2 <- c(
   sprintf("**Table 2.** Synthetic-sweep benchmark (%d configurations, %s) ",
           nrow(fig1_tbl), source_label),
-  "underlying figure 1. Each configuration is a synthetic study generated",
+  "underlying figure 2. Each configuration is a synthetic study generated",
   "by `make_synthetic_study(n_cells, n_genes, n_clusters = 4, density = 0.10)`",
   "and benchmarked end-to-end via `bench_bundle()`: bundle + shard write,",
   "`load_study()` cold-start, and 25 random `gene_values()` fetches.",
@@ -195,8 +195,8 @@ md_lines2 <- c(
   "",
   md_table(fig1_tbl)
 )
-writeLines(md_lines2, "paper/tables/figure1_scaling.md")
-message("Wrote paper/tables/figure1_scaling.md")
+writeLines(md_lines2, "paper/tables/figure2_scaling.md")
+message("Wrote paper/tables/figure2_scaling.md")
 
 # ---- 3. Console summary ---------------------------------------------------
 
