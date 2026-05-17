@@ -9,3 +9,7 @@ Benchmarking 1 studies (scratch=/lsf_tmp/289008542_1.tmpdir/RtmputcKzf/portal_bu
 [2202] expression matrix: 24929 x 647366 (sparse), nnz=965,744,336
 [2202] networks: (none)
 [2202] prepare_study_from_eset ...
+
+Wrote 1-row TSV to paper/metrics/portal_studies_2202_full.tsv (1 ok, 0 skipped, 0 too-large, 0 error)
+
+Totals: input 2227.6-2227.6 MB, output 8148.0-8148.0 MB, bundle 83.4-83.4 MB, prepare 102247.7-102247.7 s, peak 12230-12230 MB

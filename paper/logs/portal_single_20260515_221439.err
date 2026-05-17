@@ -12,3 +12,4 @@ Benchmarking 1 studies (scratch=/lsf_tmp/289012611.tmpdir/Rtmp3Yxc9Z/portal_bund
 [2322] activity matrix: 8785 x 144810 (dense), nnz=1,060,154,127
 [2322] networks: Network.tsv (208,238,242)
 [2322] prepare_study_from_eset ...
+User defined signal 2
