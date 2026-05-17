@@ -7,12 +7,12 @@
 #   2. the real 2327 (Tex) study at data/2327/2327.scminer.h5 (optional),
 #   3. a discover_studies() scan over 1..32 multi-study roots,
 # and writes:
-#   paper/figures/figure1_A_size_vs_cells.{pdf,png}    bundle + shards
-#   paper/figures/figure1_B_load_latency.{pdf,png}     load_study cold start
-#   paper/figures/figure1_C_fetch_latency.{pdf,png}    gene_values median + max
-#   paper/figures/figure1_D_discover_scaling.{pdf,png} discover_studies()
-#   paper/figures/figure1_E_prepare_time.{pdf,png}     prepare_study_data wall
-#   paper/figures/figure1_F_peak_memory.{pdf,png}      prepare_study_data peak
+#   paper/figures/figure2_A_size_vs_cells.{pdf,png}    bundle + shards
+#   paper/figures/figure2_B_load_latency.{pdf,png}     load_study cold start
+#   paper/figures/figure2_C_fetch_latency.{pdf,png}    gene_values median + max
+#   paper/figures/figure2_D_discover_scaling.{pdf,png} discover_studies()
+#   paper/figures/figure2_E_prepare_time.{pdf,png}     prepare_study_data wall
+#   paper/figures/figure2_F_peak_memory.{pdf,png}      prepare_study_data peak
 #   paper/metrics/bundle_scaling.tsv                   per-config rows
 #   paper/metrics/discover_scaling.tsv
 #   paper/metrics/real_study.tsv                       (if bundle present)
@@ -236,7 +236,7 @@ p_A <- ggplot(df_long,
   guides(colour = guide_legend(order = 1, nrow = 1),
          linetype = guide_legend(order = 2, nrow = 1),
          shape    = guide_legend(order = 2, nrow = 1))
-save_panel(p_A, "figure1_A_size_vs_cells",   width = 6.5, height = 4.2)
+save_panel(p_A, "figure2_A_size_vs_cells",   width = 6.5, height = 4.2)
 
 # B. cold-load latency
 p_B <- ggplot(scaling_summary,
@@ -253,7 +253,7 @@ p_B <- ggplot(scaling_summary,
        x = "Number of cells", y = "Seconds (mean +/- SE)",
        colour = NULL) +
   theme_paper()
-save_panel(p_B, "figure1_B_load_latency",    width = 6.0, height = 4.2)
+save_panel(p_B, "figure2_B_load_latency",    width = 6.0, height = 4.2)
 
 # C. gene_values() median fetch latency (mean +/- SE across replicates).
 scaling_summary$fetch_median_ms_mean <- scaling_summary$fetch_median_mean * 1000
@@ -272,7 +272,7 @@ p_C <- ggplot(scaling_summary,
        x = "Number of cells", y = "Milliseconds (mean +/- SE)",
        colour = NULL) +
   theme_paper()
-save_panel(p_C, "figure1_C_fetch_latency",   width = 6.0, height = 4.2)
+save_panel(p_C, "figure2_C_fetch_latency",   width = 6.0, height = 4.2)
 
 # D. discover_studies() scaling
 p_D <- ggplot(discover_summary,
@@ -287,7 +287,7 @@ p_D <- ggplot(discover_summary,
        x = "Studies under root",
        y = "Seconds (mean +/- SE)") +
   theme_paper()
-save_panel(p_D, "figure1_D_discover_scaling", width = 6.0, height = 4.2)
+save_panel(p_D, "figure2_D_discover_scaling", width = 6.0, height = 4.2)
 
 # E. prepare_study_data() wall time
 p_E <- ggplot(scaling_summary,
@@ -304,7 +304,7 @@ p_E <- ggplot(scaling_summary,
        x = "Number of cells", y = "Seconds (mean +/- SE)",
        colour = NULL) +
   theme_paper()
-save_panel(p_E, "figure1_E_prepare_time",    width = 6.0, height = 4.2)
+save_panel(p_E, "figure2_E_prepare_time",    width = 6.0, height = 4.2)
 
 # F. prepare_study_data() peak memory
 p_F <- ggplot(scaling_summary,
@@ -321,7 +321,7 @@ p_F <- ggplot(scaling_summary,
        x = "Number of cells", y = "Peak Mb (mean +/- SE)",
        colour = NULL) +
   theme_paper()
-save_panel(p_F, "figure1_F_peak_memory",     width = 6.0, height = 4.2)
+save_panel(p_F, "figure2_F_peak_memory",     width = 6.0, height = 4.2)
 
 # Combined 3x2 patchwork grid -- matches the manuscript's "Figure 2"
 # (synthetic-sweep) and renders well as a single insert at full text
