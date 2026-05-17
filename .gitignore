@@ -13,3 +13,6 @@ book/libs/
 .RData
 .Rproj.user/
 scminer_viewer/tests/__pycache__/*
+scminer_viewer/src/scminer_viewer/plots/__pycache__/*
+scminer_viewer/src/scminer_viewer/prepare/__pycache__/*
+scminer_viewer/src/scminer_viewer/__pycache__/*
