@@ -12,7 +12,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | [`benchmarks/`](benchmarks/)                     | Architecture renderer (figure 1) + synthetic-sweep code (figure 2) + real-portal renderer (figure 3) + table generator. |
 | &nbsp;&nbsp;[`figure_architecture.R`](benchmarks/figure_architecture.R) | Renders the architecture diagram (figure 1). No data deps; ~ 1 s. |
 | &nbsp;&nbsp;[`methods.R`](benchmarks/methods.R)                | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
-| &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | 7×4 synthetic-sweep benchmark (cells × genes) × 5 replicates + real 2327 row + discover scaling. Writes 6 standalone figure 2 panels (`figure1_{A..F}_*.{pdf,png}`), the combined `figure2.{pdf,png}`, and the scaling TSVs. |
+| &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | 7×4 synthetic-sweep benchmark (cells × genes) × 5 replicates + real 2327 row + discover scaling. Writes 6 standalone figure 2 panels (`figure2_{A..F}_*.{pdf,png}`), the combined `figure2.{pdf,png}`, and the scaling TSVs. |
 | &nbsp;&nbsp;[`figure_portal.R`](benchmarks/figure_portal.R)             | Renders 6 standalone real-data panels + the combined `figure3.{pdf,png}` from the aggregated 27-portal metrics. |
 | &nbsp;&nbsp;[`tables.R`](benchmarks/tables.R)                           | Generates pandoc-renderable tables (table 1 / portal studies, table 2 / figure 2 sweep) from the benchmark TSVs. Writes both `.md` and `.tsv` under `tables/`. |
 | &nbsp;&nbsp;[`run_figure1.sh`](benchmarks/run_figure1.sh)               | One-command driver: runs `figures.R` then `tables.R`. Local by default; pass `--hpc --mem ... --wall ...` to submit as a single LSF bsub job. |
@@ -29,7 +29,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`sparseify_eset.R`](portal/sparseify_eset.R)               | One-time converter: rewrites a dense-backed `ExpressionSet` rds into a `dgCMatrix`-backed one. |
 | &nbsp;&nbsp;[`sparseify_eset.sh`](portal/sparseify_eset.sh)             | LSF bsub wrapper around `sparseify_eset.R` with high-mem defaults. |
 | &nbsp;&nbsp;[`example.yaml`](portal/example.yaml)                       | Reference YAML schema (annotated template). |
-| [`figures/`](figures/)                           | `architecture.{pdf,png}` (figure 1) + 6 synthetic-sweep standalone panels `figure1_{A..F}_*.{pdf,png}` + combined `figure2.{pdf,png}` + 6 real-portal standalone panels `figure_portal_{A..F}_*.{pdf,png}` + combined `figure3.{pdf,png}`. |
+| [`figures/`](figures/)                           | `architecture.{pdf,png}` (figure 1) + 6 synthetic-sweep standalone panels `figure2_{A..F}_*.{pdf,png}` + combined `figure2.{pdf,png}` + 6 real-portal standalone panels `figure3_{A..F}_*.{pdf,png}` + combined `figure3.{pdf,png}`. |
 | [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv` (per-rep), `bundle_scaling_summary.tsv` (mean / sd / SE per config), `discover_scaling.tsv` + `_summary.tsv`, `real_study.tsv`, `portal_studies.tsv` (merged), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts). |
 | [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). `table 1 = portal_studies`, `table 2 = figure1_scaling`. Re-render with `Rscript paper/benchmarks/tables.R`. |
 | [`logs/`](logs/), [`hpc/`](hpc/)                 | Runtime artefacts (manifests, bsub stdout/stderr). |
@@ -53,7 +53,7 @@ Rscript paper/benchmarks/figure_architecture.R
 # Or the R steps directly (skip the wrapper):
 Rscript paper/benchmarks/figures.R          # writes panels + figure2.{pdf,png}
 Rscript paper/benchmarks/tables.R           # writes table 2 (figure1_scaling)
-# Writes: paper/figures/figure1_{A..F}_*.{pdf,png}, figure2.{pdf,png}
+# Writes: paper/figures/figure2_{A..F}_*.{pdf,png}, figure2.{pdf,png}
 #         paper/metrics/{bundle,discover}_scaling{,_summary}.tsv
 #         paper/tables/figure1_scaling.{md,tsv}
 
@@ -66,7 +66,7 @@ Rscript paper/portal/portal_merge.R \
 Rscript paper/benchmarks/figure_portal.R
 # Regenerate Table 1 (and Table 2 if not done above):
 Rscript paper/benchmarks/tables.R
-# Writes: paper/figures/figure_portal_{A..F}_*.{pdf,png}, figure3.{pdf,png}
+# Writes: paper/figures/figure3_{A..F}_*.{pdf,png}, figure3.{pdf,png}
 #         paper/metrics/portal_studies{,_summary}.tsv
 #         paper/tables/portal_studies.{md,tsv}
 
@@ -147,12 +147,12 @@ Each panel is rendered as its own `{pdf,png}` pair (no patchwork grid):
 
 | File stem | What it shows |
 | --- | --- |
-| `figure1_A_size_vs_cells`     | Bundle + shard tree size vs cells, faceted by gene count |
-| `figure1_B_load_latency`      | `load_study()` cold-start latency |
-| `figure1_C_fetch_latency`     | `gene_values()` median fetch latency (bar to max) |
-| `figure1_D_discover_scaling`  | `discover_studies()` scaling on a multi-study root |
-| `figure1_E_prepare_time`      | `prepare_study_data()` wall time |
-| `figure1_F_peak_memory`       | `prepare_study_data()` peak resident memory |
+| `figure2_A_size_vs_cells`     | Bundle + shard tree size vs cells, faceted by gene count |
+| `figure2_B_load_latency`      | `load_study()` cold-start latency |
+| `figure2_C_fetch_latency`     | `gene_values()` median fetch latency (bar to max) |
+| `figure2_D_discover_scaling`  | `discover_studies()` scaling on a multi-study root |
+| `figure2_E_prepare_time`      | `prepare_study_data()` wall time |
+| `figure2_F_peak_memory`       | `prepare_study_data()` peak resident memory |
 
 Edit `SCALING_GRID` / `DISCOVER_GRID` in `figures.R` to widen or
 shrink the sweep. Outputs land in `paper/figures/` and
@@ -264,12 +264,12 @@ manuscript or supplementary slides — no patchwork grid:
 
 | File stem | What it shows |
 | --- | --- |
-| `figure_portal_A_size_vs_cells` | Bundle + shard tree size vs cell count (log-log) |
-| `figure_portal_B_prepare_time`  | `prepare_study()` wall time vs `n_cells × n_genes` |
-| `figure_portal_C_peak_memory`   | Peak memory vs total input size |
-| `figure_portal_D_load_latency`  | `load_study()` cold-start latency vs bundle size |
-| `figure_portal_E_fetch_latency` | `gene_values()` median fetch latency vs gene count |
-| `figure_portal_F_size_ratio`    | Output : input compression ratio per study (split by activity presence) |
+| `figure3_A_size_vs_cells` | Bundle + shard tree size vs cell count (log-log) |
+| `figure3_B_prepare_time`  | `prepare_study()` wall time vs `n_cells × n_genes` |
+| `figure3_C_peak_memory`   | Peak memory vs total input size |
+| `figure3_D_load_latency`  | `load_study()` cold-start latency vs bundle size |
+| `figure3_E_fetch_latency` | `gene_values()` median fetch latency vs gene count |
+| `figure3_F_size_ratio`    | Output : input compression ratio per study (split by activity presence) |
 
 If the merged TSV is absent, `figure_portal.R` falls back to globbing
 the per-study TSVs directly. The status-count summary lands at

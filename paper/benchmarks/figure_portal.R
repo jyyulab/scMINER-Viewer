@@ -10,12 +10,12 @@
 # independently in the manuscript (or used in supplementary slides).
 #
 # Outputs (six pairs of {pdf,png} under paper/figures/):
-#   figure_portal_A_size_vs_cells.{pdf,png}   bundle + shard tree size
-#   figure_portal_B_prepare_time.{pdf,png}    wall time of prepare_study()
-#   figure_portal_C_peak_memory.{pdf,png}     R peak memory vs input
-#   figure_portal_D_load_latency.{pdf,png}    cold load_study() latency
-#   figure_portal_E_fetch_latency.{pdf,png}   gene_values() median ms
-#   figure_portal_F_size_ratio.{pdf,png}      output:input ratio per study
+#   figure3_A_size_vs_cells.{pdf,png}   bundle + shard tree size
+#   figure3_B_prepare_time.{pdf,png}    wall time of prepare_study()
+#   figure3_C_peak_memory.{pdf,png}     R peak memory vs input
+#   figure3_D_load_latency.{pdf,png}    cold load_study() latency
+#   figure3_E_fetch_latency.{pdf,png}   gene_values() median ms
+#   figure3_F_size_ratio.{pdf,png}      output:input ratio per study
 # plus:
 #   paper/metrics/portal_studies_summary.tsv  one row per status bucket
 #
@@ -163,7 +163,7 @@ p_A <- ggplot(df_size, aes(n_cells, mb, colour = kind, shape = kind)) +
        x = "Cells (log10)", y = "MB (log10)",
        colour = NULL, shape = NULL) +
   theme_paper()
-save_panel(p_A, "figure_portal_A_size_vs_cells",   width = 5.5, height = 4.0)
+save_panel(p_A, "figure3_A_size_vs_cells",   width = 5.5, height = 4.0)
 
 # B. prepare time vs cells x genes
 p_B <- ggplot(ok, aes(cells_genes, prepare_seconds)) +
@@ -175,7 +175,7 @@ p_B <- ggplot(ok, aes(cells_genes, prepare_seconds)) +
   labs(title = "prepare_study() wall time",
        x = "n_cells x n_genes (log10)", y = "Seconds (log10)") +
   theme_paper()
-save_panel(p_B, "figure_portal_B_prepare_time",    width = 5.5, height = 4.0)
+save_panel(p_B, "figure3_B_prepare_time",    width = 5.5, height = 4.0)
 
 # C. peak memory vs input size
 p_C <- ggplot(ok, aes(in_mb, prepare_peak_mb)) +
@@ -187,7 +187,7 @@ p_C <- ggplot(ok, aes(in_mb, prepare_peak_mb)) +
   labs(title = "Peak memory vs total input size",
        x = "Input MB (log10)", y = "Peak Mb (log10)") +
   theme_paper()
-save_panel(p_C, "figure_portal_C_peak_memory",     width = 5.5, height = 4.0)
+save_panel(p_C, "figure3_C_peak_memory",     width = 5.5, height = 4.0)
 
 # D. cold load latency vs bundle size
 p_D <- ggplot(ok, aes(bundle_mb, load_seconds)) +
@@ -198,7 +198,7 @@ p_D <- ggplot(ok, aes(bundle_mb, load_seconds)) +
   labs(title = "load_study() cold-start latency",
        x = "Bundle MB (log10)", y = "Seconds") +
   theme_paper()
-save_panel(p_D, "figure_portal_D_load_latency",    width = 5.5, height = 4.0)
+save_panel(p_D, "figure3_D_load_latency",    width = 5.5, height = 4.0)
 
 # E. gene-fetch latency vs gene count
 p_E <- ggplot(ok, aes(n_genes, fetch_ms)) +
@@ -210,7 +210,7 @@ p_E <- ggplot(ok, aes(n_genes, fetch_ms)) +
   labs(title = "gene_values() fetch latency (median)",
        x = "Genes (log10)", y = "Milliseconds (log10)") +
   theme_paper()
-save_panel(p_E, "figure_portal_E_fetch_latency",   width = 5.5, height = 4.0)
+save_panel(p_E, "figure3_E_fetch_latency",   width = 5.5, height = 4.0)
 
 # F. output : input ratio per study
 ok$id_label <- factor(ok$studyID,
@@ -228,7 +228,7 @@ p_F <- ggplot(ok, aes(id_label, ratio_out_in, fill = has_activity)) +
        x = NULL, y = "total_output / total_input") +
   theme_paper() +
   theme(axis.text.x = element_text(angle = 60, hjust = 1, size = 8))
-save_panel(p_F, "figure_portal_F_size_ratio",      width = 7.5, height = 4.0)
+save_panel(p_F, "figure3_F_size_ratio",      width = 7.5, height = 4.0)
 
 # Combined 3x2 patchwork grid -- matches the manuscript's "Figure 3"
 # (real portal sweep). Standalone panels above remain available for
