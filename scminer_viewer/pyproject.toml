@@ -27,9 +27,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+prepare = [
+    "anndata>=0.9",
+    "pyyaml>=6.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
+    "anndata>=0.9",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]

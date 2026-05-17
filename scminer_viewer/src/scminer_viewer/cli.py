@@ -55,6 +55,21 @@ def _build_parser() -> argparse.ArgumentParser:
                      help="Directory containing <studyID>/<studyID>"
                           ".scminer.h5 subfolders.")
 
+    # ---- prepare: build a study from a YAML config ------------------------
+    prep = sub.add_parser(
+        "prepare",
+        help="Run prepare_study() from a YAML config. Writes graph layout "
+             "+ .scminer.h5 bundle under config.output/<studyID>/.",
+    )
+    prep.add_argument("config_path",
+                      help="Path to a YAML config (see "
+                           "scminer_viewer.prepare.load_study_config).")
+    prep.add_argument("--emit", default="graph,bundle",
+                      help="Comma-separated subset of {graph,bundle}. "
+                           "Default: graph,bundle.")
+    prep.add_argument("--quiet", action="store_true",
+                      help="Suppress per-shard progress messages.")
+
     return p
 
 
@@ -107,6 +122,23 @@ def main(argv: list[str] | None = None) -> int:
             port=args.port,
             launch_browser=not args.no_browser,
         )
+        return 0
+
+    if args.cmd == "prepare":
+        cfg_path = Path(args.config_path)
+        if not cfg_path.exists():
+            print(f"Config not found: {cfg_path}", file=sys.stderr)
+            return 1
+        emit_tokens = [t.strip() for t in args.emit.split(",") if t.strip()]
+        from .prepare import prepare_study
+        result = prepare_study(
+            str(cfg_path),
+            emit=tuple(emit_tokens),
+            verbose=not args.quiet,
+        )
+        print(f"Output dir:  {result['out_dir']}")
+        if result.get("bundle_path"):
+            print(f"Bundle path: {result['bundle_path']}")
         return 0
 
     return 1

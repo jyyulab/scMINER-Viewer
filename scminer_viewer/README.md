@@ -1,24 +1,39 @@
 # scminer-viewer
 
-Shiny-for-Python webui that loads `.scminer.h5` study bundles produced
-by the companion R package [`scminerViewer`](../scminerViewer/) and
-renders them with the same six-tab layout used at
-<https://scminer.stjude.org/study/Tregs> (Cluster / Heatmap / Bubble /
-Feature / Violin / Network).
+Python-native package that **both prepares and serves** scMINER study
+data:
+
+* **`scminer_viewer.prepare`** — write `.scminer.h5` bundles and the
+  on-disk shard tree from an [AnnData](https://anndata.readthedocs.io)
+  input (Python equivalent of the R-side `scminerViewer::prepare_study`
+  family).
+* **`scminer_viewer`** core — Shiny-for-Python webui that renders
+  bundles with the same six-tab layout used at
+  <https://scminer.stjude.org/study/Tregs> (Cluster / Heatmap / Bubble
+  / Feature / Violin / Network), plus a multi-study card-grid browser.
+
+The bundles produced here are byte-compatible with the ones the R
+package writes; the R `run_app()` / `run_browser()` and Python
+`run` / `browse` are interchangeable readers of the same files.
 
 - **Python ≥ 3.9** required. Runtime deps: `shiny`, `shinywidgets`,
   `h5py`, `numpy`, `scipy`, `pandas`, `plotly`.
 - Optional: `networkx` (better network-graph layout; falls back to a
   circular layout if absent).
+- Prepare extras: `anndata`, `pyyaml` — installed via
+  `pip install scminer-viewer[prepare]`.
 
 ## Install
 
 ```sh
-# From a checkout, editable, with pytest extras
-pip install -e ".[dev]"
+# Viewer only
+pip install -e .
 
-# Or from a built wheel
-pip install scminer_viewer-0.1.0-py3-none-any.whl
+# Viewer + prepare module (anndata + pyyaml)
+pip install -e ".[prepare]"
+
+# Everything including test deps
+pip install -e ".[dev]"
 ```
 
 ## Quick start
@@ -77,12 +92,129 @@ app = build_app("path/to/data/2327.scminer.h5")
 CLI:
 
 ```text
-scminer-viewer info <bundle>            # print a one-line Study summary
-scminer-viewer run  <bundle> [options]  # launch the Shiny app
-  --host HOST          default 127.0.0.1
-  --port PORT          default 8000
-  --no-browser         don't open a browser window
+scminer-viewer info     <bundle>          # print a one-line Study summary
+scminer-viewer run      <bundle> [...]    # launch the Shiny app
+scminer-viewer browse   <root_dir> [...]  # multi-study card-grid browser
+scminer-viewer list     <root_dir>        # enumerate every bundle under root
+scminer-viewer prepare  <config.yaml>     # build a study from a YAML config
+  --emit graph,bundle    subset of {graph,bundle} (default: both)
+  --quiet                suppress per-shard progress messages
 ```
+
+## Preparing a study (`scminer_viewer.prepare`)
+
+The prepare submodule writes the same on-disk artifacts as the R
+package's `prepare_study()`: a per-study folder containing the
+`.scminer.h5` bundle plus the gzipped per-gene shard tree plus the
+graph-import layout (Cell/, Gene/, Network_*/, study_meta/,
+study_gene_*/).
+
+```python
+import anndata
+import scminer_viewer
+
+# 1) Fast path — already have an AnnData (or anndata-compatible) object
+adata = anndata.read_h5ad("path/to/expression.h5ad")
+
+scminer_viewer.prepare_study_from_anndata(
+    out_dir="data",
+    expression_adata=adata,
+    meta={
+        "studyID":    "99",
+        "studyAbbr":  "demo",
+        "longTitle":  "My demo study",
+        "shortTitle": "Demo",
+        "species":    "Mus musculus",
+        "coordinate": "UMAP",
+    },
+)
+# → writes data/99/99.scminer.h5 + shard tree + graph layout
+scminer_viewer.run_app("data/99/99.scminer.h5")
+
+# 2) YAML-driven (same schema as the R config, but `input.expression`
+#    points at an .h5ad instead of an .rds)
+scminer_viewer.prepare_study("config-99.yaml")
+
+# 3) Low-level — bring already-extracted structures yourself
+scminer_viewer.prepare_study_data(
+    out_dir="data", meta=meta, cells=cells_df, genes=gene_list,
+    expression=sparse_matrix,  # genes x cells
+    default_genes=["GeneA", "GeneB"],
+)
+```
+
+### Converting an scMINER `.rds` ExpressionSet to `.h5ad` first
+
+The R-side `prepare_study()` reads Biobase ExpressionSet RDS files.
+The Python prepare consumes [AnnData](https://anndata.readthedocs.io)
+instead — the de-facto Python single-cell standard. If you have RDS
+inputs (the scMINER pipeline's default output), convert them once on
+the R side and the resulting `.h5ad` works with `prepare_study()`:
+
+```r
+# In R, with the sceasy + anndata packages installed
+library(sceasy)
+library(reticulate)
+use_python(Sys.which("python3"))   # or a venv with anndata installed
+
+eset <- readRDS("path/to/expression.rds")
+sceasy::convertFormat(
+  eset,
+  from = "Biobase",
+  to   = "anndata",
+  outFile = "path/to/expression.h5ad",
+)
+```
+
+Activity ExpressionSets convert the same way; the activity AnnData's
+`var_names` must end in `_TF` / `.TF` or `_SIG` / `.SIG` so
+`extract_activity()` can split them.
+
+### YAML config schema
+
+The Python `load_study_config()` accepts the same schema as the R
+loader, with `input.expression` (and optional `input.activity`)
+pointing at `.h5ad` files instead of `.rds`:
+
+```yaml
+output: data
+study:
+  ID:         "99"
+  studyAbbr:  demo
+  longTitle:  My demo study
+  shortTitle: Demo
+species:     Mus musculus
+coordinate:  UMAP
+
+cellID:      cellID
+cellType:    cellGroup
+cellGroup:   cellGroup
+geneSymbol:  geneSymbol
+
+input:
+  expression: ./expression.h5ad
+  activity:   ./activity.h5ad        # optional
+  networks:   ./networks.txt          # optional, plain TSV
+
+cluster_palette: npg
+default_genes: [Cd8a, Pdcd1, Tox]    # auto-selected on app launch
+```
+
+### Prepare public API
+
+| Symbol | Purpose |
+| --- | --- |
+| `prepare_study(config_path)` | YAML-driven; reads the referenced `.h5ad` / `.tsv` files and writes the full output. |
+| `prepare_study_from_anndata(out_dir, expression_adata, ...)` | Accepts one or two `anndata.AnnData` objects. |
+| `prepare_study_data(out_dir, meta, cells, genes, ...)` | Lowest-level form — already-extracted structures. |
+| `write_bundle(bundle_path, meta, cells, clusters, genes, ...)` | HDF5 writer alone (no shard tree). |
+| `read_graph_study(data_dir, study_id)` | Round-trip the on-disk graph layout into a dict the orchestrators consume. |
+| `fill_clusters(cells, palette="npg")` | Per-cluster counts + ggsci-ported palette colors + centroid labels. |
+| `load_study_config(path)` | Parse + validate the YAML; fill in defaults. |
+| `parse_default_genes(x)` | Normalise a YAML value (list / string / `None`) into a deduped list. |
+| `validate_default_genes(defaults, master)` | Filter `defaults` to those in the bundle's master gene list. |
+| `read_networks(path)` | TSV → `{"tf": df_or_None, "sig": df_or_None}`. |
+| `extract_cells/genes/expression/activity(adata, ...)` | AnnData extractors, for granular control. |
 
 ### Multi-study workflow
 
