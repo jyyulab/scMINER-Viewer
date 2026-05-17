@@ -57,8 +57,8 @@ median per-gene fetch latency is 32 ms and cold-start `load_study`
 0.59 s. Across a 7 × 4 × 5-replicate synthetic scaling sweep
 (500 – 10 000 cells × 2 – 10 K genes), bundle size stays under 14 MB
 while the shard tree grows roughly linearly to ~ 100 MB; the same
-pipeline applied to the 27 public scMINER Portal studies reproduces
-those properties at production scale (124 – 138 268 cells; bundle
+pipeline applied to the 28 public scMINER Portal studies reproduces
+those properties at production scale (124 – 647 366 cells; bundle
 0.4 – 1 363 MB). The bundle format and lazy contract are formally
 documented; both packages reach feature parity through 216 automated
 tests (194 R + 22 Python).
@@ -250,11 +250,11 @@ the test isolates the linear file-system scan from any data decoding.
 ### 3.3 Real portal study sweep
 
 Beyond the single 2327 anchor we ran the same end-to-end pipeline
-against the **27 public studies hosted on the live scMINER Portal**
+against the **28 public studies hosted on the live scMINER Portal**
 (<https://scminer.stjude.org>). The studies span four orders of
 magnitude in scale — from 124-cell ground-truth fixtures (Buettner,
-Chung, Klein, ...) to a 138 268-cell × 18 274-gene ATRT cohort
-(study 2333) — and include the full mix of expression-only and
+Chung, Klein, ...) to a 647 366-cell × 24 929-gene Covid650k cohort
+(study 2317) — and include the full mix of expression-only and
 expression-plus-activity-plus-networks inputs. Each study is declared
 by a small YAML config (`paper/configs/<studyID>.yaml`) that points
 at the HPC paths of `expression.rds` (Biobase `ExpressionSet`),
@@ -268,7 +268,7 @@ metric columns we used for the synthetic sweep, augmented with input
 file sizes (`expr_input_bytes`, `act_input_bytes`, `net_input_bytes`)
 and the per-study output dir on shared storage. Per-study TSVs at
 `paper/metrics/portal_studies_<id>.tsv` are merged into
-`paper/metrics/portal_studies.tsv` (27 rows, all `status == "ok"`)
+`paper/metrics/portal_studies.tsv` (28 rows, all `status == "ok"`)
 and rendered as six standalone panels in figure 3.
 
 ### 3.4 Hardware and software environment
@@ -325,12 +325,12 @@ plus `discover_scaling.tsv` / `discover_scaling_summary.tsv`. Table
 2 (`paper/tables/figure1_scaling.md`) lists per-configuration mean
 ± SE for the 28 grid points underlying panels A, B, C, E, F.
 Table 1 (`paper/tables/portal_studies.md`) gives a comparable
-per-study breakdown for the 27 real portal studies underlying
+per-study breakdown for the 28 real portal studies underlying
 figure 3.
 
 ![](figures/figure3.pdf){width=100%}
 
-**Figure 3.** *scMINER Viewer on the 27 real portal studies.* Each
+**Figure 3.** *scMINER Viewer on the 28 real portal studies.* Each
 point is one study; axes are log10 where annotated. **(A)** Bundle
 (`.scminer.h5`) and shard-tree size versus cell count. Bundles span
 0.4 – 1 363 MB while shard trees span 1.7 – 9 672 MB; both grow
@@ -344,7 +344,7 @@ the in-memory sparse + dense intermediates `prepare_study_data()`
 materialises. **(D)** Cold-start `load_study()` latency versus
 bundle size — sub-second for nearly every study; the four largest
 bundles climb past 5 s. **(E)** Median `gene_values()` fetch
-latency versus gene count — a 30× range (38 – 1 249 ms) driven
+latency versus gene count — a 130× range (39 – 5 234 ms) driven
 primarily by per-shard cell count (each fetch decodes one gzipped
 CSV of length `n_cells`). **(F)** Output-to-input size ratio per
 study, sorted ascending and coloured by whether activity matrices
@@ -399,35 +399,40 @@ remain governed only by the per-study `load_study()` cost above
 
 ### 4.3 Real portal study sweep
 
-The same end-to-end pipeline applied to the 27 public scMINER Portal
+The same end-to-end pipeline applied to the 28 public scMINER Portal
 studies (Figure 3; Table 1) reproduces the synthetic-sweep findings
 at production scale. **Lazy storage holds across four orders of
 magnitude of study size.** Bundle size ranges from 0.4 MB (Chung,
 317 cells × 10 897 genes) to 1 363 MB (study 2338, 96 305 cells ×
 15 778 genes); the underlying shard tree ranges from 1.7 MB to
-9 672 MB. The single largest study (ATRT / 2333: 138 268 cells ×
-18 274 genes, 24 GB on-disk input rds) bundles into a 105.8 MB
-`.scminer.h5` plus a 3 GB shard tree — a 7× compression of the
-total input footprint into the served format (Figure 3A, F).
+9 672 MB. The single largest study by cell count (Covid650k / 2317:
+647 366 cells × 24 929 genes) bundles into an 83 MB `.scminer.h5`
+plus an 8 GB shard tree, and the largest by on-disk input
+(ATRT / 2333: 138 268 cells × 18 274 genes, 24 GB on-disk input rds)
+bundles into a 106 MB `.scminer.h5` plus a 3 GB shard tree — a 7×
+compression of the total input footprint into the served format
+(Figure 3A, F).
 
-**Cold-start latency stays sub-second on most studies.** 22 of 27
-studies load in under 1 s; the four 100 k+ cell studies (Covid97k,
-Covid650k, study 2338, GSE155446 / 2332) climb to 5 – 15 s, still
-dominated by HDF5 metadata reads rather than matrix decoding
-(Figure 3D). **Per-gene fetch latency** scales with the per-shard
-cell count: 38 ms median at the small end (124-cell ground-truth
-studies) up to 1 249 ms median on ATRT (Figure 3E). The 25-th to
-75-th percentile of fetch latency across the 27-study set is
-50 – 200 ms — well inside an interactive-feel threshold for a Shiny
-app even on the largest production studies.
+**Cold-start latency stays sub-second on the majority of studies.**
+15 of 28 studies load in under 1 s; the remaining 13 climb to
+1 – 15 s, dominated by HDF5 metadata reads rather than matrix
+decoding (Figure 3D) — and the 100 k+ cell Covid650k still loads in
+under 2 s. **Per-gene fetch latency** scales with the per-shard cell
+count: 39 ms median at the small end (124-cell ground-truth studies)
+up to 5 234 ms median on the 647 K-cell Covid650k (Figure 3E). The
+25-th to 75-th percentile of fetch latency across the 28-study set
+is 53 – 386 ms — well inside an interactive-feel threshold for a
+Shiny app even on the larger production studies; only the single
+647 K-cell outlier pushes into multi-second territory.
 
 **`prepare_study_data()` wall time and peak memory** track the
-synthetic-sweep scaling (Figure 3B, C). The 5-minute to 17-hour range
-across studies reflects the per-gene shard-write cost; peak R
-working-set memory tops out at 49 GB on ATRT, set by the in-memory
-dense expression matrix that some studies still ship (their rds is
-a `dgeMatrix` rather than `dgCMatrix`, see `paper/portal/sparseify_eset.sh`
-for a one-time fix). Because preparation is offline and one-time,
+synthetic-sweep scaling (Figure 3B, C). The 5-minute to 17-hour
+range across studies reflects the per-gene shard-write cost; peak R
+working-set memory tops out at 121 GB on Covid650k (study 2317),
+set by the in-memory dense expression matrix that some studies still
+ship (their rds is a `dgeMatrix` rather than `dgCMatrix`, see
+`paper/portal/sparseify_eset.sh` for a one-time fix). Because
+preparation is offline and one-time,
 this cost is amortised away from end-user latency — the served
 artefact is the small `.scminer.h5` + shard tree.
 

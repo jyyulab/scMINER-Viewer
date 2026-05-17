@@ -13,7 +13,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`figure_architecture.R`](benchmarks/figure_architecture.R) | Renders the architecture diagram (figure 1). No data deps; ~ 1 s. |
 | &nbsp;&nbsp;[`methods.R`](benchmarks/methods.R)                | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
 | &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | 7×4 synthetic-sweep benchmark (cells × genes) × 5 replicates + real 2327 row + discover scaling. Writes 6 standalone figure 2 panels (`figure2_{A..F}_*.{pdf,png}`), the combined `figure2.{pdf,png}`, and the scaling TSVs. |
-| &nbsp;&nbsp;[`figure_portal.R`](benchmarks/figure_portal.R)             | Renders 6 standalone real-data panels + the combined `figure3.{pdf,png}` from the aggregated 27-portal metrics. |
+| &nbsp;&nbsp;[`figure_portal.R`](benchmarks/figure_portal.R)             | Renders 6 standalone real-data panels + the combined `figure3.{pdf,png}` from the aggregated 28-portal metrics. |
 | &nbsp;&nbsp;[`tables.R`](benchmarks/tables.R)                           | Generates pandoc-renderable tables (table 1 / portal studies, table 2 / figure 2 sweep) from the benchmark TSVs. Writes both `.md` and `.tsv` under `tables/`. |
 | &nbsp;&nbsp;[`run_figure1.sh`](benchmarks/run_figure1.sh)               | One-command driver: runs `figures.R` then `tables.R`. Local by default; pass `--hpc --mem ... --wall ...` to submit as a single LSF bsub job. |
 | [`configs/`](configs/)                           | 29 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
@@ -37,7 +37,7 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 ## Quick reference: regenerate figures, tables, and the manuscript
 
 Run from the **project root** with `scminerViewer` installed (and the
-27 portal-study TSVs in `paper/metrics/portal_studies_<id>.tsv` for
+28 portal-study TSVs in `paper/metrics/portal_studies_<id>.tsv` for
 the real-data block):
 
 ```sh
@@ -57,7 +57,7 @@ Rscript paper/benchmarks/tables.R           # writes table 2 (figure1_scaling)
 #         paper/metrics/{bundle,discover}_scaling{,_summary}.tsv
 #         paper/tables/figure1_scaling.{md,tsv}
 
-# --- Figure 3 + Table 1 (27 real portal studies) --------------------
+# --- Figure 3 + Table 1 (28 real portal studies) --------------------
 # Concatenate per-study TSVs (run once after the HPC job array finishes):
 Rscript paper/portal/portal_merge.R \
     paper/metrics/portal_studies.tsv \
@@ -426,7 +426,7 @@ Outputs land under `paper/tables/`:
 
 | Table | Source | Output |
 | --- | --- | --- |
-| Table 1 — per-study metrics for the 26+ real portal studies | `paper/metrics/portal_studies.tsv` (status == `ok`) | `paper/tables/portal_studies.{md,tsv}` |
+| Table 1 — per-study metrics for the 28 real portal studies | `paper/metrics/portal_studies.tsv` (status == `ok`) | `paper/tables/portal_studies.{md,tsv}` |
 | Table 2 — synthetic-sweep grid underlying figure 2 (28 configs once `figures.R` finishes) | `paper/metrics/bundle_scaling.tsv` | `paper/tables/figure1_scaling.{md,tsv}` |
 
 The Markdown files ship a leading caption block and a GFM table that
@@ -496,7 +496,7 @@ The bsub task always exits 0 regardless of status (skip / cap / error are all "e
 
 ### Resource sizing
 
-Empirical numbers from the 16 May 2026 run over all 27 OK studies
+Empirical numbers from the 16 May 2026 run over all 28 OK studies
 (see `paper/metrics/portal_studies.tsv` and `paper/tables/portal_studies.md`
 for per-study rows):
 
@@ -507,7 +507,7 @@ for per-study rows):
 | 10 k – 50 k cells | Bcell_Dev (2203, 54 k cells × 33 k genes) | 1–2 h | ~ 36 GB | `--mem 64000` |
 | 50 k – 100 k cells | study 2339 (50 k), study 2342 (57 k), HMC76k (76 k), Covid97k (97 k), study 2338 (96 k) | 1–17 h | 17–49 GB | `--mem 64000` (Covid97k) → `--mem 96000` (2338) |
 | 100 k+ cells | study 2341 (105 k), **ATRT / 2333 (138 k cells × 18 k genes)** | 2.5–16 h | 46–49 GB | `--mem 96000 --wall 24:00` |
-| 650 k cells | Covid650k (skipped until source rds is sparseified — see [Priming large studies](#priming-large-studies-dense-backed-expressionsets)) | n/a | n/a | n/a |
+| 650 k cells | **Covid650k / 2317 (647 k cells × 25 k genes)** — completes after sparseification (see [Priming large studies](#priming-large-studies-dense-backed-expressionsets)) | ~15 h | 121 GB | `--mem 130000 --wall 24:00` |
 
 Heuristic for a new study: peak memory ≈ 1–3× the on-disk
 `expression.rds` size. If the rds is stored densely (e.g. ATRT's
@@ -515,9 +515,9 @@ Heuristic for a new study: peak memory ≈ 1–3× the on-disk
 `paper/portal/sparseify_eset.sh --verify-only --in …` to check the
 matrix class before requesting memory.
 
-**Total wall-time for a full 27-task array**: roughly equal to the
-single longest study (~16 h on ATRT), since the array runs in
-parallel across hosts and queues.
+**Total wall-time for a full 28-task array**: roughly equal to the
+single longest study (~17 h on study 2341, ~15 h on Covid650k),
+since the array runs in parallel across hosts and queues.
 
 ### Priming large studies (dense-backed `ExpressionSet`s)
 
