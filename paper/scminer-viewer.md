@@ -9,7 +9,7 @@ geometry:
   - right=0.6in
   - top=0.8in
   - bottom=0.8in
-fontsize: 11pt
+fontsize: 10pt
 linestretch: 1.15
 mainfont: Helvetica
 monofont: Menlo
@@ -480,6 +480,8 @@ Developmental Fund and the National Institutes of Health.
 
 ## References
 
+### Methods cited
+
 * Pan Q., Ding L., Hladyshau S. *et al.* (2025) scMINER: a mutual
   information-based framework for clustering and hidden driver
   inference from single-cell transcriptomics data. *Nature
@@ -487,9 +489,35 @@ Developmental Fund and the National Institutes of Health.
 * Khatamian A., Paull E.O., Califano A., Yu J. (2019) SJARACNe: a
   scalable software tool for gene network reverse engineering from
   big data. *Bioinformatics*, **35**, 2165–2166.
-* Wei T. (2024) ggsci: Scientific Journal and Sci-Fi Themed Color
-  Palettes for ggplot2. CRAN.
-* Chang W. *et al.* (2024) Shiny: Web Application Framework for R.
-  CRAN.
+
+### Related single-cell browsers
+
+* Ouyang J.F., Kamaraj U.S., Cao E.Y., Rackham O.J.L. (2021)
+  ShinyCell: simple and sharable visualisation of single-cell gene
+  expression data. *Bioinformatics*, **37**, 3374–3376.
+* Megill C., Martin B., Weaver C. *et al.* (2021) cellxgene: a
+  performant, scalable exploration platform for high dimensional
+  sparse matrices. *bioRxiv*, 2021.04.05.438318.
+
+### Data formats and core libraries
+
+* The HDF5 Group. (2023) Hierarchical Data Format, version 5.
+  <https://www.hdfgroup.org/HDF5/>
+* Collette A. (2014) *Python and HDF5*. O'Reilly. (`h5py` Python bindings.)
+* Virshup I., Rybakov S., Theis F.J., Angerer P., Wolf F.A. (2024)
+  anndata: access and store annotated data matrices.
+  *Journal of Open Source Software*, **9** (101), 4371.
+* Gentleman R.C., Carey V.J., Bates D.M. *et al.* (2004) Bioconductor:
+  open software development for computational biology and
+  bioinformatics. *Genome Biology*, **5**, R80. (Source of the `Biobase`
+  `ExpressionSet` class consumed by the R `prepare_study()`.)
+* Bates D., Maechler M. (2024) Matrix: Sparse and Dense Matrix
+  Classes and Methods. *R package version 1.7-x*. CRAN.
+
+### Web frameworks and plotting
+
+* Chang W., Cheng J., Allaire J.J. *et al.* (2024) Shiny: Web
+  Application Framework for R. *R package*. CRAN.
 * Posit, PBC. (2024) Shiny for Python. <https://shiny.posit.co/py/>
-* The HDF5 Group. (2023) HDF5 / hdf5r.
+* Wei T. (2024) ggsci: Scientific Journal and Sci-Fi Themed Colour
+  Palettes for ggplot2. *R package*. CRAN.
