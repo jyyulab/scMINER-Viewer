@@ -13,8 +13,10 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`figure_architecture.R`](benchmarks/figure_architecture.R) | Renders the architecture diagram (figure 1). No data deps; ~ 1 s. |
 | &nbsp;&nbsp;[`methods.R`](benchmarks/methods.R)                | Synthetic study generator + bench primitives. Sourced by `figures.R`. |
 | &nbsp;&nbsp;[`figures.R`](benchmarks/figures.R)                | 7×4 synthetic-sweep benchmark (cells × genes) × 5 replicates + real 2327 row + discover scaling. Writes 6 standalone figure 2 panels (`figure2_{A..F}_*.{pdf,png}`), the combined `figure2.{pdf,png}`, and the scaling TSVs. |
-| &nbsp;&nbsp;[`figure_portal.R`](benchmarks/figure_portal.R)             | Renders 6 standalone real-data panels + the combined `figure3.{pdf,png}` from the aggregated 28-portal metrics. |
-| &nbsp;&nbsp;[`tables.R`](benchmarks/tables.R)                           | Generates pandoc-renderable tables (table 1 / portal studies, table 2 / figure 2 sweep) from the benchmark TSVs. Writes both `.md` and `.tsv` under `tables/`. |
+| &nbsp;&nbsp;[`figure_portal.R`](benchmarks/figure_portal.R)             | Renders 6 standalone real-data panels + the combined `figure3.{pdf,png}` for the **13 TF/sig-eligible studies** (sources `paper/metrics/comparison/portal_studies_*_full.tsv`, filtered to rows with non-zero TF/sig edges). |
+| &nbsp;&nbsp;[`figure_portal_compare.R`](benchmarks/figure_portal_compare.R) | Renders Supplemental Figure `figureS_expr_only_{A..D}.{pdf,png}` (expression-only baseline) and the paired `compare_{A..D}.{pdf,png}` (full vs expression-only side by side). |
+| &nbsp;&nbsp;[`tables.R`](benchmarks/tables.R)                           | Generates Table 1 (`figure3_portal_studies.{md,tsv}`; same 13 TF/sig-eligible studies as Figure 3) and Table 2 (`figure2_scaling.{md,tsv}`; synthetic sweep). Writes both `.md` and `.tsv` under `tables/`. |
+| &nbsp;&nbsp;[`tables_compare.R`](benchmarks/tables_compare.R)           | Generates the Supplemental Table `tableS_expr_only.{md,tsv}` and the paired `compare_delta.{md,tsv}` (per-metric full / expr_only / ratio). |
 | &nbsp;&nbsp;[`run_figure1.sh`](benchmarks/run_figure1.sh)               | One-command driver: runs `figures.R` then `tables.R`. Local by default; pass `--hpc --mem ... --wall ...` to submit as a single LSF bsub job. |
 | [`configs/`](configs/)                           | 29 YAML configs (one per study, named `<study.ID>.yaml`) pointing at HPC data. |
 | [`portal/`](portal/)                             | 29-study HPC pipeline: drivers, R workers, bsub task body, helpers. |
@@ -29,9 +31,9 @@ LSF-driven HPC pipeline for the live scMINER Portal studies.
 | &nbsp;&nbsp;[`sparseify_eset.R`](portal/sparseify_eset.R)               | One-time converter: rewrites a dense-backed `ExpressionSet` rds into a `dgCMatrix`-backed one. |
 | &nbsp;&nbsp;[`sparseify_eset.sh`](portal/sparseify_eset.sh)             | LSF bsub wrapper around `sparseify_eset.R` with high-mem defaults. |
 | &nbsp;&nbsp;[`example.yaml`](portal/example.yaml)                       | Reference YAML schema (annotated template). |
-| [`figures/`](figures/)                           | `architecture.{pdf,png}` (figure 1) + 6 synthetic-sweep standalone panels `figure2_{A..F}_*.{pdf,png}` + combined `figure2.{pdf,png}` + 6 real-portal standalone panels `figure3_{A..F}_*.{pdf,png}` + combined `figure3.{pdf,png}`. |
-| [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv` (per-rep), `bundle_scaling_summary.tsv` (mean / sd / SE per config), `discover_scaling.tsv` + `_summary.tsv`, `real_study.tsv`, `portal_studies.tsv` (merged), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts). |
-| [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). `table 1 = figure3_portal_studies` (real-portal sweep — backs figure 3), `table 2 = figure2_scaling` (synthetic sweep — backs figure 2). Re-render with `Rscript paper/benchmarks/tables.R`. |
+| [`figures/`](figures/)                           | `architecture.{pdf,png}` (figure 1) + 6 synthetic-sweep panels `figure2_{A..F}_*.{pdf,png}` + combined `figure2.{pdf,png}` + 6 real-portal panels `figure3_{A..F}_*.{pdf,png}` + combined `figure3.{pdf,png}`. Supplemental + paired-comparison artefacts live under [`figures/compare/`](figures/compare/) — `figureS_expr_only_{A..D}.{pdf,png}` (+ `figureS_expr_only.{pdf,png}`) and `compare_{A..D}.{pdf,png}` (+ `compare.{pdf,png}`). |
+| [`metrics/`](metrics/)                           | Generated TSVs: `bundle_scaling.tsv` (per-rep), `bundle_scaling_summary.tsv` (mean / sd / SE per config), `discover_scaling.tsv` + `_summary.tsv`, `real_study.tsv`, `portal_studies.tsv` (legacy single-mode merge), `portal_studies_<id>.tsv` (per-study), `portal_studies_summary.tsv` (status counts), `portal_studies_compare.tsv` (joined full vs expression-only wide table), `comparison/portal_studies_<id>_{full,expression-only}.tsv` (per-mode per-study). |
+| [`tables/`](tables/)                             | Generated tables (one TSV + one Markdown per table). **Main**: `figure3_portal_studies` (Table 1, 13 TF/sig-eligible studies — backs figure 3) + `figure2_scaling` (Table 2, synthetic sweep — backs figure 2). **Supplemental / comparison**: `tableS_expr_only` (expression-only baseline) + `compare_delta` (paired full vs expr_only). Re-render the main tables with `Rscript paper/benchmarks/tables.R`; the supplemental + paired tables with `Rscript paper/benchmarks/tables_compare.R`. |
 | [`logs/`](logs/), [`hpc/`](hpc/)                 | Runtime artefacts (manifests, bsub stdout/stderr). |
 
 ## Quick reference: regenerate figures, tables, and the manuscript
@@ -57,18 +59,25 @@ Rscript paper/benchmarks/tables.R           # writes table 2 (figure2_scaling)
 #         paper/metrics/{bundle,discover}_scaling{,_summary}.tsv
 #         paper/tables/figure2_scaling.{md,tsv}
 
-# --- Figure 3 + Table 1 (28 real portal studies) --------------------
-# Concatenate per-study TSVs (run once after the HPC job array finishes):
-Rscript paper/portal/portal_merge.R \
-    paper/metrics/portal_studies.tsv \
-    paper/metrics/portal_studies_*.tsv
-# Render 6 standalone panels + the combined Figure 3:
+# --- Figure 3 + Table 1 (13 TF/sig-eligible portal studies) ---------
+# Reads the per-mode full-mode TSVs in paper/metrics/comparison/ and
+# filters to studies with non-zero TF/sig edges. No merge step needed.
 Rscript paper/benchmarks/figure_portal.R
-# Regenerate Table 1 (and Table 2 if not done above):
 Rscript paper/benchmarks/tables.R
 # Writes: paper/figures/figure3_{A..F}_*.{pdf,png}, figure3.{pdf,png}
-#         paper/metrics/portal_studies{,_summary}.tsv
+#         paper/metrics/portal_studies_summary.tsv
 #         paper/tables/figure3_portal_studies.{md,tsv}
+
+# --- Supplemental Figure + Table (expression-only baseline) ---------
+# + the paired full-vs-expression-only comparison figure / table:
+Rscript paper/benchmarks/figure_portal_compare.R
+Rscript paper/benchmarks/tables_compare.R
+# Writes: paper/figures/compare/figureS_expr_only_{A..D}_*.{pdf,png}
+#         paper/figures/compare/figureS_expr_only.{pdf,png}
+#         paper/figures/compare/compare_{A..D}_*.{pdf,png}
+#         paper/figures/compare/compare.{pdf,png}
+#         paper/tables/tableS_expr_only.{md,tsv}
+#         paper/tables/compare_delta.{md,tsv}
 
 # --- Manuscript PDF / DOCX ------------------------------------------
 pandoc paper/scminer-viewer.md \
@@ -84,12 +93,13 @@ pandoc paper/scminer-viewer.md \
 have multiple HPC runs you want to compare):
 
 ```sh
-Rscript paper/portal/portal_merge.R \
-    paper/metrics/05162026/portal_studies.tsv \
-    paper/metrics/05162026/portal_studies_*.tsv
+# figure_portal.R + tables.R both honour --metrics-dir:
 Rscript paper/benchmarks/figure_portal.R \
     --metrics-dir paper/metrics/05162026 \
     --figures-dir paper/figures/05162026
+# (figure_portal.R reads paper/metrics/05162026/comparison/*_full.tsv
+#  and falls back to paper/metrics/05162026/portal_studies.tsv if no
+#  comparison run is present.)
 ```
 
 The detailed walkthroughs below cover what each script does, the
@@ -250,17 +260,15 @@ cat  paper/metrics/portal_studies.tsv      # final merged table
 TSVs are on disk:
 
 ```sh
-# 1. Concatenate all per-study TSVs into paper/metrics/portal_studies.tsv:
-Rscript paper/portal/portal_merge.R paper/metrics/portal_studies.tsv \
-    paper/metrics/portal_studies_*.tsv
-
-# 2. Render 6 standalone panels (one {pdf,png} each)
-#    + the status-count summary TSV:
+# Render Figure 3 + Table 1 from the per-mode full-TFsig data
+# (paper/metrics/comparison/portal_studies_*_full.tsv, filtered to
+# studies whose YAML actually supplies networks.txt):
 Rscript paper/benchmarks/figure_portal.R
+Rscript paper/benchmarks/tables.R
 ```
 
 Each panel is its own file so it can be placed independently in the
-manuscript or supplementary slides — no patchwork grid:
+manuscript — no patchwork grid:
 
 | File stem | What it shows |
 | --- | --- |
@@ -269,12 +277,26 @@ manuscript or supplementary slides — no patchwork grid:
 | `figure3_C_peak_memory`   | Peak memory vs total input size |
 | `figure3_D_load_latency`  | `load_study()` cold-start latency vs bundle size |
 | `figure3_E_fetch_latency` | `gene_values()` median fetch latency vs gene count |
-| `figure3_F_size_ratio`    | Output : input compression ratio per study (split by activity presence) |
+| `figure3_F_size_ratio`    | Output : input compression ratio per study |
 
-If the merged TSV is absent, `figure_portal.R` falls back to globbing
-the per-study TSVs directly. The status-count summary lands at
+Source selection in `figure_portal.R` / `tables.R`:
+
+1. **Default** — read `paper/metrics/comparison/portal_studies_*_full.tsv`
+   (the per-mode full-mode TSVs produced by
+   [`portal_studies_compare.sh`](portal/portal_studies_compare.sh)). Rows are
+   filtered to `net_tf_edges + net_sig_edges > 0` so Figure 3 / Table 1 only
+   contain studies whose YAML actually supplies a `networks.txt`.
+2. **Fallback** — `paper/metrics/portal_studies.tsv` (legacy single-mode
+   merge from `portal_merge.R`), used when the comparison run hasn't been
+   done. Override via `figure_portal.R --metrics-tsv <path>`.
+
+The status-count summary lands at
 `paper/metrics/portal_studies_summary.tsv` so the manuscript can cite
 how many runs landed in each status bucket.
+
+The 13 dropped studies (whose `full` row carries no TF/sig edges) instead
+show up in the Supplemental expression-only figure / table — see the
+next subsection.
 
 ### With-vs-without-TFsig comparison (29 studies × 2 modes)
 
@@ -379,7 +401,25 @@ Identity / sanity columns: `studyID`, `n_cells_full`, `n_genes_full`,
 If `net_tf_edges_full` / `net_sig_edges_full` are `0` for a study, the
 `full` run silently dropped its network — the delta is meaningless for
 that row and the YAML's `input.networks` is likely missing or
-unreadable.
+unreadable. These same studies are filtered out of Figure 3 / Table 1
+by `figure_portal.R` / `tables.R`; their expression-only metrics still
+appear in the Supplemental Figure / Table.
+
+Render the figures and tables that consume this compare TSV:
+
+```sh
+# Supplemental expression-only Figure S + paired compare figure (4 panels each):
+Rscript paper/benchmarks/figure_portal_compare.R
+# Writes paper/figures/compare/figureS_expr_only_{A..D}.{pdf,png}
+#        paper/figures/compare/figureS_expr_only.{pdf,png}    (combined)
+#        paper/figures/compare/compare_{A..D}_*.{pdf,png}
+#        paper/figures/compare/compare.{pdf,png}              (combined)
+
+# Supplemental Table + paired delta table:
+Rscript paper/benchmarks/tables_compare.R
+# Writes paper/tables/tableS_expr_only.{md,tsv}
+#        paper/tables/compare_delta.{md,tsv}
+```
 
 Re-run just the aggregator (e.g. after re-submitting one mode) without
 touching LSF:
@@ -426,8 +466,10 @@ Outputs land under `paper/tables/`:
 
 | Table | Source | Output |
 | --- | --- | --- |
-| Table 1 — per-study metrics for the 28 real portal studies | `paper/metrics/portal_studies.tsv` (status == `ok`) | `paper/tables/figure3_portal_studies.{md,tsv}` |
+| Table 1 — per-study metrics for the 13 TF/sig-eligible portal studies (backs Figure 3) | `paper/metrics/comparison/portal_studies_*_full.tsv` (filtered to `net_tf_edges + net_sig_edges > 0`) | `paper/tables/figure3_portal_studies.{md,tsv}` |
 | Table 2 — synthetic-sweep grid underlying figure 2 (28 configs once `figures.R` finishes) | `paper/metrics/bundle_scaling.tsv` | `paper/tables/figure2_scaling.{md,tsv}` |
+| Supplemental Table — expression-only baseline | `paper/metrics/portal_studies_compare.tsv` (status_expr_only == `ok`) | `paper/tables/tableS_expr_only.{md,tsv}` — run `Rscript paper/benchmarks/tables_compare.R` |
+| Paired delta table — full vs expression-only per metric | same compare TSV | `paper/tables/compare_delta.{md,tsv}` — same script |
 
 The Markdown files ship a leading caption block and a GFM table that
 pandoc converts to LaTeX (or DOCX) without further intervention.

@@ -92,13 +92,17 @@ dt_expr_only <- narrow(load_mode(expr_glob, "expression-only"), "expr_only")
 
 joined <- merge(dt_full, dt_expr_only, by = "studyID", all = TRUE)
 
-# Compute deltas (full - expr_only). Positive = TF/sig adds cost.
+# Compute deltas (full - expr_only). Positive = TF/sig adds cost. Use
+# data.table::set() to mutate `joined` by reference; the previous
+# `dt[[col]] <- value` form ran into R copy-on-modify and silently
+# dropped the deltas, so they never landed in the written TSV.
 .delta <- function(dt, base, suffix_a = "_full", suffix_b = "_expr_only") {
   a <- paste0(base, suffix_a)
   b <- paste0(base, suffix_b)
   if (!a %in% names(dt) || !b %in% names(dt)) return(invisible())
-  dt[[paste0("delta_", base)]] <-
-    as.numeric(dt[[a]]) - as.numeric(dt[[b]])
+  data.table::set(dt,
+                   j = paste0("delta_", base),
+                   value = as.numeric(dt[[a]]) - as.numeric(dt[[b]]))
 }
 for (b in c("prepare_seconds", "prepare_peak_mb",
             "load_seconds", "load_seconds_warm",
@@ -114,7 +118,13 @@ metric_cols <- unlist(lapply(metric_groups, function(b) {
   c(paste0(b, "_full"), paste0(b, "_expr_only"), paste0("delta_", b))
 }))
 identity_cols <- c("studyID",
-                   "n_cells_full", "n_genes_full", "n_clusters_full",
+                   # Keep both `_full` and `_expr_only` shape columns:
+                   # studies that ran only one mode (e.g. 2322 where the
+                   # full-mode job failed) would otherwise show NA shape
+                   # in the joined TSV. Renderers coalesce these.
+                   "n_cells_full",    "n_cells_expr_only",
+                   "n_genes_full",    "n_genes_expr_only",
+                   "n_clusters_full", "n_clusters_expr_only",
                    "net_tf_edges_full", "net_sig_edges_full",
                    "status_full", "status_expr_only",
                    "note_full", "note_expr_only")

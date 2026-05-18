@@ -56,12 +56,15 @@ plus a card-grid **multi-study browser**. On the 2327 Tex study
 median per-gene fetch latency is 32 ms and cold-start `load_study`
 0.59 s. Across a 7 × 4 × 5-replicate synthetic scaling sweep
 (500 – 10 000 cells × 2 – 10 K genes), bundle size stays under 14 MB
-while the shard tree grows roughly linearly to ~ 100 MB; the same
-pipeline applied to the 28 public scMINER Portal studies reproduces
-those properties at production scale (124 – 647 366 cells; bundle
-0.4 – 1 363 MB). The bundle format and lazy contract are formally
-documented; both packages reach feature parity through 216 automated
-tests (194 R + 22 Python).
+while the shard tree grows roughly linearly to ~ 100 MB. The same
+pipeline applied to the **13 scMINER Portal studies with full
+TF/SIG-network inputs** (4 373 – 138 268 cells; bundle 73 – 1 363 MB;
+prepare 50 min – 19.6 h; cold load 2.0 – 34.3 s) reproduces those
+properties at production scale; a parallel 28-study expression-only
+sweep (124 – 647 366 cells) provides the baseline that isolates the
+incremental cost of TF/sig data. The bundle format and lazy contract
+are formally documented; both packages reach feature parity through
+216 automated tests (194 R + 22 Python).
 
 **Availability and implementation**: R package at
 `scminerViewer/`; Python package (`pip install scminer-viewer`) at
@@ -250,26 +253,56 @@ the test isolates the linear file-system scan from any data decoding.
 ### 3.3 Real portal study sweep
 
 Beyond the single 2327 anchor we ran the same end-to-end pipeline
-against the **28 public studies hosted on the live scMINER Portal**
+against the **public studies hosted on the live scMINER Portal**
 (<https://scminer.stjude.org>). The studies span four orders of
 magnitude in scale — from 124-cell ground-truth fixtures (Buettner,
 Chung, Klein, ...) to a 647 366-cell × 24 929-gene Covid650k cohort
-(study 2317) — and include the full mix of expression-only and
+(study 2202) — and include the full mix of expression-only and
 expression-plus-activity-plus-networks inputs. Each study is declared
 by a small YAML config (`paper/configs/<studyID>.yaml`) that points
 at the HPC paths of `expression.rds` (Biobase `ExpressionSet`),
 `activity.rds` (TF + SIG-labelled `ExpressionSet`), and
 `networks.txt` (SJARACNe TSV); the YAML also names the column
 conventions used inside that study's `pData()` (e.g. `cellID:
-CellID`, `cellType: CellGroup`). The benchmark driver
-(`paper/portal/portal_studies_hpc.sh`) submits one bsub task per
-YAML — distributed across multiple LSF queues — and writes the same
-metric columns we used for the synthetic sweep, augmented with input
-file sizes (`expr_input_bytes`, `act_input_bytes`, `net_input_bytes`)
-and the per-study output dir on shared storage. Per-study TSVs at
-`paper/metrics/portal_studies_<id>.tsv` are merged into
-`paper/metrics/portal_studies.tsv` (28 rows, all `status == "ok"`)
-and rendered as six standalone panels in figure 3.
+CellID`, `cellType: CellGroup`).
+
+To separate the cost of TF/sig data from the baseline cost of the
+expression matrix alone, the benchmark driver
+(`paper/portal/portal_studies_compare.sh`) submits **two LSF job
+arrays per study, back-to-back**:
+
+* **`full`** — the full pipeline with `expression.rds` + `activity.rds`
+  + `networks.txt` (TF / SIG subgraph parsing, activity-matrix
+  sharding, full graph emission).
+* **`expression-only`** — the same pipeline with `activity_eset = NULL`
+  and `networks_path = NULL` (no activity shards, no TF / SIG graphs).
+
+Per-mode per-study TSVs land at
+`paper/metrics/comparison/portal_studies_<id>_<mode>.tsv`. A
+dependent merge step
+(`paper/portal/portal_compare.R`) joins them on `studyID` into a
+single wide table (`paper/metrics/portal_studies_compare.tsv`) carrying
+per-metric `<metric>_full`, `<metric>_expr_only`, and
+`delta_<metric>` triples for `prepare_seconds`, `prepare_peak_mb`,
+`load_seconds`, `load_seconds_warm`, `bundle_bytes`, and
+`total_output_bytes`. Two renderer scripts consume that compare
+table:
+
+* **`paper/benchmarks/figure_portal.R` + `tables.R`** restrict to the
+  **13 studies whose YAML actually supplies a `networks.txt`**
+  (`net_tf_edges + net_sig_edges > 0`) and render the six-panel
+  Figure 3 + Table 1 from the full-mode metrics. The other 15
+  studies in the comparison run have full-mode rows that are
+  byte-identical to expression-only and would dilute the figure
+  without adding signal, so they are filtered out.
+* **`paper/benchmarks/figure_portal_compare.R` + `tables_compare.R`**
+  emit the supplemental expression-only figure
+  (`figures/compare/figureS_expr_only_{A..D}.{pdf,png}` +
+  `figureS_expr_only.{pdf,png}`) over all 28 studies whose comparison
+  benchmark ran cleanly end-to-end, and the paired full-vs-expression
+  comparison (`figures/compare/compare_{A..D}.{pdf,png}` +
+  `compare.{pdf,png}`; the matching `compare_delta.{md,tsv}` table is
+  in §4.4).
 
 ### 3.4 Hardware and software environment
 
@@ -285,17 +318,21 @@ generated on a single laptop:
 | R | 4.4.2 (`aarch64-apple-darwin20`) |
 | Key R packages | `scminerViewer` 0.1.0, `Matrix` 1.7.3, `hdf5r` 1.3.12, `Biobase` 2.66.0, `data.table` 1.18.0, `R.utils` 2.13.0, `ggplot2` 4.0.1, `patchwork` 1.3.2, `ggsci` 4.2.0, `scales` 1.4.0 |
 
-The portal-study sweep (Figure 3, Table 1) was instead executed on
-the St. Jude HPC cluster (LSF, Red Hat 8 nodes, R 4.2.2 module).
-Per-study tasks were dispatched via
-`paper/portal/portal_studies_hpc.sh` across a 2–4 queue list
-(`standard`, `priority`, optionally `large_mem` / `superdome`);
-memory requests were sized per the heuristic in
-`paper/README.md` (peak ≈ 1–3× `expression.rds` size, up to 10× for
-dense-stored matrices), ranging from `--mem 8000` for the ground-
-truth set to `--mem 96000 --wall 24:00` for ATRT. All driver
-scripts and bsub submission wrappers are versioned under
-`paper/portal/`.
+The portal-study sweep (Figure 3, Table 1, the supplemental
+expression-only figure, and §4.4's TF/sig cost comparison) was
+instead executed on the St. Jude HPC cluster (LSF, Red Hat 8 nodes,
+R 4.2.2 module). Per-study × per-mode tasks were dispatched via
+`paper/portal/portal_studies_compare.sh`, which submits two
+back-to-back LSF job arrays (one `expression-only`, one `full`)
+across a 2–4 queue list (`standard`, `priority`, optionally
+`large_mem` / `superdome`); a dependent merge job runs
+`paper/portal/portal_compare.R` to produce
+`paper/metrics/portal_studies_compare.tsv`. Memory requests were
+sized per the heuristic in `paper/README.md` (peak ≈ 1–3×
+`expression.rds` size, up to 10× for dense-stored matrices),
+ranging from `--mem 8000` for the ground-truth set to `--mem 96000
+--wall 24:00` for ATRT. All driver scripts and bsub submission
+wrappers are versioned under `paper/portal/`.
 
 ![](figures/figure2.pdf){width=100%}
 
@@ -325,36 +362,48 @@ plus `discover_scaling.tsv` / `discover_scaling_summary.tsv`. Table
 2 (`paper/tables/figure2_scaling.md`) lists per-configuration mean
 ± SE for the 28 grid points underlying panels A, B, C, E, F.
 Table 1 (`paper/tables/figure3_portal_studies.md`) gives a comparable
-per-study breakdown for the 28 real portal studies underlying
-figure 3.
+per-study breakdown for the 13 real portal studies underlying
+figure 3 (those whose YAML supplies a `networks.txt`). The
+supplemental table (`paper/tables/tableS_expr_only.md`) extends the
+listing to the 28-study expression-only baseline; the paired delta
+table (`paper/tables/compare_delta.md`) reports the per-metric full
+vs expression-only ratio for the 13 TF/sig-eligible studies.
 
 ![](figures/figure3.pdf){width=100%}
 
-**Figure 3.** *scMINER Viewer on the 28 real portal studies.* Each
+**Figure 3.** *scMINER Viewer on the 13 TF/sig-eligible real portal
+studies (`net_tf_edges + net_sig_edges > 0` in full mode).* Each
 point is one study; axes are log10 where annotated. **(A)** Bundle
 (`.scminer.h5`) and shard-tree size versus cell count. Bundles span
-0.4 – 1 363 MB while shard trees span 1.7 – 9 672 MB; both grow
-sub-linearly in `n_cells` because per-study density and
-gene-coverage vary. **(B)** `prepare_study_data()` wall time versus
-`n_cells × n_genes` — three orders of magnitude on each axis, with
-a roughly linear log-log relationship. **(C)** Peak R working-set
-memory versus total input rds size; the dotted reference line is
+73 – 1 363 MB while shard trees span 167 – 7 428 MB; both grow
+sub-linearly in `n_cells` because per-study density, gene-coverage,
+and TF/SIG edge count all vary. **(B)** `prepare_study_data()` wall
+time versus `n_cells × n_genes` — roughly linear log-log over the
+two-order-of-magnitude span. **(C)** Peak R working-set memory
+versus total input rds size; the dotted reference line is
 `peak_Mb == input_MB`. Most studies sit above the line because of
 the in-memory sparse + dense intermediates `prepare_study_data()`
-materialises. **(D)** Cold-start `load_study()` latency versus
-bundle size — sub-second for nearly every study; the four largest
-bundles climb past 5 s. **(E)** Median `gene_values()` fetch
-latency versus gene count — a 130× range (39 – 5 234 ms) driven
-primarily by per-shard cell count (each fetch decodes one gzipped
-CSV of length `n_cells`). **(F)** Output-to-input size ratio per
-study, sorted ascending and coloured by whether activity matrices
-were present. Studies with expression + activity (blue) bundle into
-smaller output:input ratios than expression-only studies (teal)
-because the shared cell metadata is amortised across more shards.
-Generated by `paper/benchmarks/figure_portal.R`; raw numbers at
-`paper/metrics/portal_studies.tsv` and per-study TSVs at
-`paper/metrics/portal_studies_<id>.tsv`. The full per-study
-breakdown is in Table 1 (`paper/tables/figure3_portal_studies.md`).
+materialises (in particular, the dense per-cell activity-matrix
+intermediates that the SJARACNe-derived inputs require).
+**(D)** Cold-start `load_study()` latency versus bundle size —
+2.0 – 34.3 s, the high end set by the multi-GB shard / graph
+metadata that the TF/SIG subgraphs add to the bundle index. **(E)**
+Median `gene_values()` fetch latency versus gene count — a 20×
+range (62 – 1 208 ms) driven primarily by per-shard cell count
+(each fetch decodes one gzipped CSV of length `n_cells`).
+**(F)** Output-to-input size ratio per study, sorted ascending —
+12 of 13 studies land between 1.2× and 2.3×; 2333 (ATRT, 138 K
+cells) is the outlier at 0.14× because its on-disk input is
+unusually large for its cell count (24 GB rds of a dense
+`dgeMatrix`). All 13 studies have expression + activity + networks,
+so the legacy "activity present?" split is omitted. Generated by
+`paper/benchmarks/figure_portal.R` from
+`paper/metrics/comparison/portal_studies_*_full.tsv` filtered to
+`net_tf_edges + net_sig_edges > 0`. The full per-study breakdown is
+in Table 1 (`paper/tables/figure3_portal_studies.md`); the broader
+28-study expression-only baseline is in the supplemental figure /
+table (`paper/figures/compare/figureS_expr_only.pdf`,
+`paper/tables/tableS_expr_only.md`).
 
 ## 4 Results and discussion
 
@@ -399,44 +448,88 @@ remain governed only by the per-study `load_study()` cost above
 
 ### 4.3 Real portal study sweep
 
-The same end-to-end pipeline applied to the 28 public scMINER Portal
-studies (Figure 3; Table 1) reproduces the synthetic-sweep findings
-at production scale. **Lazy storage holds across four orders of
-magnitude of study size.** Bundle size ranges from 0.4 MB (Chung,
-317 cells × 10 897 genes) to 1 363 MB (study 2338, 96 305 cells ×
-15 778 genes); the underlying shard tree ranges from 1.7 MB to
-9 672 MB. The single largest study by cell count (Covid650k / 2317:
-647 366 cells × 24 929 genes) bundles into an 83 MB `.scminer.h5`
-plus an 8 GB shard tree, and the largest by on-disk input
-(ATRT / 2333: 138 268 cells × 18 274 genes, 24 GB on-disk input rds)
-bundles into a 106 MB `.scminer.h5` plus a 3 GB shard tree — a 7×
-compression of the total input footprint into the served format
-(Figure 3A, F).
+The same end-to-end pipeline applied to the **13 TF/sig-eligible
+public scMINER Portal studies** (Figure 3; Table 1) reproduces the
+synthetic-sweep findings at production scale. **Lazy storage holds
+across two orders of magnitude of study size.** Bundle size ranges
+from 73 MB (2331 / 2332, ~10 – 15 K cells) to 1 363 MB (2338,
+96 305 cells × 15 778 genes); the underlying shard tree ranges from
+167 MB to 7 428 MB. The largest by on-disk input (2333 / ATRT,
+138 268 cells × 18 274 genes, 24 GB on-disk input rds) bundles into
+a 106 MB `.scminer.h5` plus a 3.1 GB shard tree — a 7× compression
+of the total input footprint into the served format (Figure 3A, F).
+The broader 28-study expression-only baseline (supplemental figure)
+extends this picture to 124-cell ground-truth fixtures and to the
+647 366-cell Covid650k cohort (study 2202), confirming that lazy
+storage holds across the full four-order-of-magnitude span when
+TF/sig data is set aside.
 
-**Cold-start latency stays sub-second on the majority of studies.**
-15 of 28 studies load in under 1 s; the remaining 13 climb to
-1 – 15 s, dominated by HDF5 metadata reads rather than matrix
-decoding (Figure 3D) — and the 100 k+ cell Covid650k still loads in
-under 2 s. **Per-gene fetch latency** scales with the per-shard cell
-count: 39 ms median at the small end (124-cell ground-truth studies)
-up to 5 234 ms median on the 647 K-cell Covid650k (Figure 3E). The
-25-th to 75-th percentile of fetch latency across the 28-study set
-is 53 – 386 ms — well inside an interactive-feel threshold for a
-Shiny app even on the larger production studies; only the single
-647 K-cell outlier pushes into multi-second territory.
+**Cold-start latency stays in the interactive band even at
+production scale.** All 13 TF/sig-eligible studies load in
+2.0 – 34.3 s (Figure 3D), with the upper end set by the multi-GB
+shard / graph metadata that the SJARACNe TF / SIG subgraphs add to
+the bundle index rather than by matrix decoding. On the
+supplemental expression-only baseline the same metric collapses
+into a sub-second band for 27 of 28 studies (0.20 – 1.88 s,
+median 0.27 s) — quantifying the cost of TF/sig data on the user-
+facing cold-start (median ≈ 30× over expression-only; see §4.4).
+**Per-gene fetch latency** scales with per-shard cell count: 62 ms
+median for 2326 (4 K cells) up to 1 208 ms median for 2333 (138 K
+cells, Figure 3E). All but the 138 K-cell outlier sit inside an
+interactive-feel threshold (≤ ~ 800 ms median fetch).
 
 **`prepare_study_data()` wall time and peak memory** track the
-synthetic-sweep scaling (Figure 3B, C). The 5-minute to 17-hour
-range across studies reflects the per-gene shard-write cost; peak R
-working-set memory tops out at 121 GB on Covid650k (study 2317),
-set by the in-memory dense expression matrix that some studies still
-ship (their rds is a `dgeMatrix` rather than `dgCMatrix`, see
-`paper/portal/sparseify_eset.sh` for a one-time fix). Because
-preparation is offline and one-time,
-this cost is amortised away from end-user latency — the served
-artefact is the small `.scminer.h5` + shard tree.
+synthetic-sweep scaling (Figure 3B, C). Across the 13 TF/sig-
+eligible studies, wall time spans **50 minutes to 19.6 hours**
+(3 015 – 70 729 s); peak R working-set memory spans **3.8 – 52.3 GB**.
+Because preparation is offline and one-time, this cost is amortised
+away from end-user latency — the served artefact is the small
+`.scminer.h5` + shard tree. The largest studies in the broader
+28-study supplemental run (Covid650k / 2202: 647 K cells; ATRT /
+2333: 138 K cells) push prepare time to ~ 33 h and peak memory to
+~ 39 GB even in expression-only mode, set by the in-memory dense
+expression matrix that some upstream rds files still ship (their
+`exprs()` slot is a `dgeMatrix` rather than `dgCMatrix`, see
+`paper/portal/sparseify_eset.sh` for the one-time fix).
 
-### 4.4 Cost of data preparation
+### 4.4 Cost of TF/sig data
+
+The two-mode comparison run isolates what TF/sig data — the activity
+matrix and the SJARACNe TF / SIG subgraphs — costs on top of the
+expression-only baseline. Across the 13 TF/sig-eligible studies
+(`paper/tables/compare_delta.md`), the median full ÷ expression-only
+ratio is:
+
+| Metric                              | Median (range) |
+| ---                                 | ---            |
+| `prepare_study_data()` wall time    | 5.6× (1.1 – 9.4×) |
+| `prepare_study_data()` peak memory  | 3.4× (1.3 – 29.9×) |
+| `load_study()` cold-start latency   | 30× (4.6 – 90×)   |
+| Bundle (`.scminer.h5`) size         | 107× (5.9 – 385×) |
+
+The cost is dominated by two effects. First, the activity matrix
+forces a second per-gene shard tree comparable in size to the
+expression shard tree, which inflates `prepare_study_data()` wall
+time and the bundle's HDF5 metadata footprint roughly in proportion
+to TF + SIG gene count. Second, SJARACNe networks (median ≈ 3.6 M
+edges in our set; max 13.5 M for 2338) materialise as two
+named-graph tables that the bundle indexes at load time, which
+explains why `load_study()` latency moves from sub-second to single-
+to multi-second on the TF/sig-eligible set. The 2333 outlier (cost
+ratios near 1×) is a study whose expression-only baseline is
+already heavy (the 24 GB dense `dgeMatrix` input dominates both
+modes), so TF/sig sits in the noise; the high-cost end (2341, 2338,
+2342) are studies whose expression baseline is light but whose
+TF/SIG graphs are dense.
+
+Practical consequence: for groups that only need the
+expression-level browser (UMAP + per-gene plots, no driver
+inference), the expression-only mode produces a working bundle at
+~ 1 % of the disk footprint and ~ 1/30 of the cold-load latency of
+the full pipeline. The TF/sig pipeline is justified specifically
+when downstream interaction needs the activity / network views.
+
+### 4.5 Cost of data preparation
 
 The reverse side of the lazy contract is data preparation, which is
 one-time and runs offline. `prepare_study_data()` wall time grows

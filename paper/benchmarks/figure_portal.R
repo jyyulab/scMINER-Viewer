@@ -28,8 +28,21 @@
 suppressPackageStartupMessages({
   library(ggplot2)
   library(scales)
-  library(ggsci)
 })
+
+# NPG palette: prefer ggsci's scale_colour_npg() when installed; fall
+# back to a manual scale using the same hex codes so the script runs on
+# machines without ggsci.
+.have_ggsci <- requireNamespace("ggsci", quietly = TRUE)
+if (.have_ggsci) {
+  suppressPackageStartupMessages(library(ggsci))
+}
+npg_hex <- c("#E64B35", "#4DBBD5", "#00A087", "#3C5488",
+              "#F39B7F", "#91D1C2", "#8491B4")
+scale_colour_npg_safe <- function() {
+  if (.have_ggsci) ggsci::scale_color_npg()
+  else scale_colour_manual(values = npg_hex)
+}
 
 # CLI overrides:
 #   --metrics-dir <dir>  read TSVs from <dir>/ instead of paper/metrics/
@@ -43,8 +56,22 @@ suppressPackageStartupMessages({
 }
 metrics_dir   <- .cli("--metrics-dir", "paper/metrics")
 figures_dir   <- .cli("--figures-dir", "paper/figures")
+# Figure 3 is the real-portal benchmark restricted to studies that
+# actually exercise the full pipeline (expression + activity + TF/SIG
+# networks). Source priority:
+#   1. Per-mode full-mode TSVs under <metrics_dir>/comparison/ (produced
+#      by portal_studies_compare.sh). Rows are filtered to
+#      net_tf_edges + net_sig_edges > 0 -- studies whose YAML lacked
+#      networks data have a full row that's byte-identical to
+#      expression-only and don't belong in a TF/sig figure.
+#   2. <metrics_dir>/portal_studies.tsv (legacy single-mode merge), used
+#      only as a fallback when the comparison run hasn't been done yet.
+compare_glob  <- file.path(metrics_dir, "comparison",
+                            "portal_studies_*_full.tsv")
 merged_path   <- file.path(metrics_dir, "portal_studies.tsv")
-fallback_glob <- file.path(metrics_dir, "portal_studies_*.tsv")
+# --metrics-tsv lets callers point at any TSV with the per-study schema
+# (overrides both the comparison glob and the legacy merged TSV).
+override_tsv  <- .cli("--metrics-tsv", NULL)
 
 # ---- 1. Load + sanity-check ------------------------------------------------
 
@@ -55,19 +82,7 @@ read_one <- function(p) {
                     na.strings = c("", "NA"))
 }
 
-df <- if (file.exists(merged_path)) {
-  message("Reading merged TSV: ", merged_path)
-  read_one(merged_path)
-} else {
-  files <- Sys.glob(fallback_glob)
-  if (length(files) == 0L) {
-    stop("No per-study TSVs at ", fallback_glob, " and ",
-         "no merged TSV at ", merged_path,
-         ". Run paper/portal/portal_merge.R first.")
-  }
-  message(sprintf("No merged TSV; concat'ing %d per-study TSVs",
-                  length(files)))
-  rows <- lapply(files, read_one)
+bind_rows_fill <- function(rows) {
   all_cols <- unique(unlist(lapply(rows, colnames)))
   rows <- lapply(rows, function(d) {
     miss <- setdiff(all_cols, colnames(d))
@@ -77,14 +92,55 @@ df <- if (file.exists(merged_path)) {
   do.call(rbind, rows)
 }
 
+compare_files <- Sys.glob(compare_glob)
+df <- if (!is.null(override_tsv)) {
+  message("Reading override TSV: ", override_tsv)
+  read_one(override_tsv)
+} else if (length(compare_files) > 0L) {
+  message(sprintf("Reading %d per-mode full TSVs from %s",
+                  length(compare_files), dirname(compare_glob)))
+  bind_rows_fill(lapply(compare_files, read_one))
+} else if (file.exists(merged_path)) {
+  message("Reading legacy merged TSV: ", merged_path)
+  read_one(merged_path)
+} else {
+  stop("No metrics found. Looked under:\n",
+       "  ", compare_glob, "\n",
+       "  ", merged_path, "\n",
+       "Run portal_studies_compare.sh + portal_compare.R first, ",
+       "or pass --metrics-tsv <path>.")
+}
+
 message(sprintf("Loaded %d rows  (status: %s)",
                 nrow(df),
                 paste(sprintf("%s=%d", names(table(df$status)),
                               as.integer(table(df$status))),
                       collapse = ", ")))
 
+# Local %||% (figure_portal.R is its own script; no global helpers)
+`%||%` <- function(a, b) if (is.null(a) || length(a) == 0L) b else a
+
 ok <- df[!is.na(df$status) & df$status == "ok", , drop = FALSE]
 if (nrow(ok) == 0L) stop("No status=='ok' rows to plot.")
+
+# TFsig filter: when the source is the per-mode comparison glob (or any
+# TSV that carries net_tf_edges / net_sig_edges columns), restrict
+# Figure 3 to studies whose full-mode run actually consumed a networks
+# file. Studies whose YAML lacks networks have a full-mode row that's
+# byte-identical to expression-only and would clutter the plot.
+has_tfsig_cols <- all(c("net_tf_edges", "net_sig_edges") %in% names(ok))
+if (has_tfsig_cols) {
+  tfsig_n <- as.numeric(ok$net_tf_edges %||% 0) +
+    as.numeric(ok$net_sig_edges %||% 0)
+  keep_tfsig <- !is.na(tfsig_n) & tfsig_n > 0
+  if (any(keep_tfsig)) {
+    message(sprintf("  filtering to %d TF/sig-eligible studies (dropping %d)",
+                    sum(keep_tfsig), sum(!keep_tfsig)))
+    ok <- ok[keep_tfsig, , drop = FALSE]
+  } else {
+    message("  no TF/sig edges in any row; keeping all status=ok rows")
+  }
+}
 
 # Derived helpers
 ok$studyID      <- as.character(ok$studyID)
@@ -127,11 +183,36 @@ theme_paper <- function() {
 
 dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
 
+# Probe whether cairo_pdf actually works at this R install. Some Mac
+# installs report capabilities("cairo") == TRUE but emit a "failed to
+# load cairo DLL" warning at device creation, which silently truncates
+# the file. Fall back to the default pdf() device when that happens.
+.cairo_ok <- isTRUE(capabilities("cairo")) &&
+  is.null(tryCatch(
+    withCallingHandlers(
+      {
+        grDevices::cairo_pdf(tempfile(fileext = ".pdf"),
+                              width = 1, height = 1)
+        try(grDevices::dev.off(), silent = TRUE)
+        NULL
+      },
+      warning = function(w) {
+        if (grepl("cairo", conditionMessage(w), ignore.case = TRUE)) {
+          stop("cairo unavailable")
+        }
+        invokeRestart("muffleWarning")
+      }),
+    error = function(e) e))
+pdf_device <- if (.cairo_ok) cairo_pdf else grDevices::pdf
+if (!.cairo_ok) {
+  message("(cairo PDF device unavailable; using default pdf() instead)")
+}
+
 save_panel <- function(plot, name, width, height) {
   pdf_path <- file.path(figures_dir, paste0(name, ".pdf"))
   png_path <- file.path(figures_dir, paste0(name, ".png"))
   ggsave(pdf_path, plot, width = width, height = height,
-         units = "in", device = cairo_pdf)
+         units = "in", device = pdf_device)
   ggsave(png_path, plot, width = width, height = height,
          units = "in", dpi = 300)
   message("  ", pdf_path, " + ", basename(png_path))
@@ -158,7 +239,7 @@ p_A <- ggplot(df_size, aes(n_cells, mb, colour = kind, shape = kind)) +
               linewidth = 0.5, linetype = "dashed", alpha = 0.6) +
   scale_x_log10(labels = label_log()) +
   scale_y_log10(labels = label_log()) +
-  scale_colour_npg() +
+  scale_colour_npg_safe() +
   labs(title = "Bundle + shard tree size vs cell count",
        x = "Cells (log10)", y = "MB (log10)",
        colour = NULL, shape = NULL) +
@@ -219,11 +300,16 @@ p_F <- ggplot(ok, aes(id_label, ratio_out_in, fill = has_activity)) +
   geom_col(width = 0.7) +
   geom_hline(yintercept = 1, linetype = "dotted",
              colour = "grey50", linewidth = 0.4) +
+  # Name the label vector explicitly so the legend stays correct even
+  # when has_activity has only one level (e.g. Figure 3's TF/sig-only
+  # subset where every study has activity).
   scale_fill_manual(values = c(`FALSE` = "#91D1C2",
-                                `TRUE` = "#3C5488"),
-                    labels = c("expression only",
-                                "expression + activity"),
-                    name = NULL) +
+                                `TRUE`  = "#3C5488"),
+                    labels = c(`FALSE` = "expression only",
+                                `TRUE`  = "expression + activity"),
+                    name = NULL,
+                    guide = if (length(unique(ok$has_activity)) > 1L)
+                              guide_legend() else "none") +
   labs(title = "Output : input size ratio per study",
        x = NULL, y = "total_output / total_input") +
   theme_paper() +
@@ -241,7 +327,7 @@ if (requireNamespace("patchwork", quietly = TRUE)) {
   combo_pdf <- file.path(figures_dir, "figure3.pdf")
   combo_png <- file.path(figures_dir, "figure3.png")
   ggsave(combo_pdf, fig3,
-         width = 11.5, height = 12.0, units = "in", device = cairo_pdf)
+         width = 11.5, height = 12.0, units = "in", device = pdf_device)
   ggsave(combo_png, fig3,
          width = 11.5, height = 12.0, units = "in", dpi = 300)
   message("  ", combo_pdf, " + figure3.png (combined 3x2)")

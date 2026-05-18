@@ -27,6 +27,38 @@ read_tsv <- function(p) {
                     na.strings = c("", "NA"))
 }
 
+# Local %||% helper (R < 4.4 doesn't ship one). Defined here so it's
+# in scope for all downstream column-fallback uses.
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
+# Same loader as figure_portal.R: prefer the per-mode full TSVs from the
+# compare benchmark (filtered to TF/sig-eligible studies); fall back to
+# the legacy single-mode merged TSV when the comparison run isn't there.
+bind_rows_fill <- function(rows) {
+  all_cols <- unique(unlist(lapply(rows, colnames)))
+  rows <- lapply(rows, function(d) {
+    miss <- setdiff(all_cols, colnames(d))
+    for (m in miss) d[[m]] <- NA
+    d[, all_cols, drop = FALSE]
+  })
+  do.call(rbind, rows)
+}
+
+load_portal_metrics <- function(metrics_dir = "paper/metrics") {
+  compare_glob <- file.path(metrics_dir, "comparison",
+                             "portal_studies_*_full.tsv")
+  merged_path  <- file.path(metrics_dir, "portal_studies.tsv")
+  compare_files <- Sys.glob(compare_glob)
+  if (length(compare_files) > 0L) {
+    message(sprintf("Reading %d per-mode full TSVs for Table 1",
+                    length(compare_files)))
+    bind_rows_fill(lapply(compare_files, read_tsv))
+  } else {
+    message("No comparison/*_full.tsv; falling back to ", merged_path)
+    read_tsv(merged_path)
+  }
+}
+
 # ---- Markdown helpers -----------------------------------------------------
 
 # Build a GFM-style markdown table. `align` accepts "l", "r", or "c"
@@ -60,9 +92,22 @@ fmt_ms    <- function(x, d = 1)
 
 # ---- 1. Portal studies (real data) -----------------------------------------
 
-portal <- read_tsv("paper/metrics/portal_studies.tsv")
+portal <- load_portal_metrics("paper/metrics")
 portal_ok <- portal[!is.na(portal$status) & portal$status == "ok",
                      , drop = FALSE]
+# Table 1 mirrors Figure 3: restrict to TF/sig-eligible studies whenever
+# the source carries network-edge columns. Falls through unchanged on
+# legacy merged TSVs that don't have those columns.
+if (all(c("net_tf_edges", "net_sig_edges") %in% names(portal_ok))) {
+  tfsig_n <- as.numeric(portal_ok$net_tf_edges %||% 0) +
+    as.numeric(portal_ok$net_sig_edges %||% 0)
+  keep <- !is.na(tfsig_n) & tfsig_n > 0
+  if (any(keep)) {
+    message(sprintf("Table 1: restricting to %d TF/sig-eligible studies (dropping %d)",
+                    sum(keep), sum(!keep)))
+    portal_ok <- portal_ok[keep, , drop = FALSE]
+  }
+}
 portal_ok <- portal_ok[order(portal_ok$n_cells), , drop = FALSE]
 
 portal_tbl <- data.frame(
@@ -86,9 +131,6 @@ portal_tbl <- data.frame(
 # Mask zero edge counts so the table doesn't read as 0 vs missing.
 portal_tbl$`TF edges`  <- gsub("^0$", "—", portal_tbl$`TF edges`)
 portal_tbl$`SIG edges` <- gsub("^0$", "—", portal_tbl$`SIG edges`)
-
-# Local %||% helper (R < 4.4 doesn't ship one)
-`%||%` <- function(a, b) if (is.null(a)) b else a
 
 # Write TSV
 write.table(portal_tbl, "paper/tables/figure3_portal_studies.tsv",
