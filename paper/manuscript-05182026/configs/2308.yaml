@@ -1,0 +1,14 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Buettner/expression.rds
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellGroup
+cellGroup: CellGroup
+geneSymbol: geneSymbol
+study:
+    ID: 2308
+    studyAbbr: ground-truth-buettner
+    longTitle: Gene expression pattern of single mouse embryonic stem cells of 3 cell cycle stages
+    shortTitle: Buettner
+debug: FALSE
+species: Mus musculus
+

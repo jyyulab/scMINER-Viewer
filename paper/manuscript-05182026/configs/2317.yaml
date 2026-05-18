@@ -1,0 +1,12 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Covid650k/expression.rds
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellGroup
+cellGroup: CellGroup
+study:
+    ID: 2317
+    studyAbbr: benchmark-covid650k
+    longTitle: Single-cell RNA sequencing of the immune response in COVID-19
+    shortTitle: Covid650k
+debug: FALSE
+species: Homo sapiens
