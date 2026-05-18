@@ -312,7 +312,7 @@ def _server_factory(study: Study):
             )
 
         # Bind by output id used in the UI
-        output("cluster_plot")(cluster_plot_widget)
+        output(id="cluster_plot")(cluster_plot_widget)
 
         @render_widget
         def heatmap_widget():
@@ -323,7 +323,7 @@ def _server_factory(study: Study):
                 cell_mask=sampling_mask(),
             )
 
-        output("heatmap_plot")(heatmap_widget)
+        output(id="heatmap_plot")(heatmap_widget)
 
         @render_widget
         def bubble_widget():
@@ -334,7 +334,7 @@ def _server_factory(study: Study):
                 cell_mask=sampling_mask(),
             )
 
-        output("bubble_plot")(bubble_widget)
+        output(id="bubble_plot")(bubble_widget)
 
         # --- 3-level nested panels: Gene → CellType → Relationship --------
         _cell_types_all = [str(c) for c in study.clusters.index]
@@ -487,7 +487,7 @@ def _register_value(output, study, *, kind, gene, ct, rel, rel_key,
                 active_clusters=eff,
                 cell_mask=sampling_mask(),
             )
-    output(oid)(_w)
+    output(id=oid)(_w)
 
 
 def _register_network(output, study, *, gene, ct, rel,
@@ -503,7 +503,7 @@ def _register_network(output, study, *, gene, ct, rel,
             study, gene=gene_l, network_type=rel_l,
             active_clusters=eff,
         )
-    output(oid)(_w)
+    output(id=oid)(_w)
 
 
 def build_app(
