@@ -2,13 +2,17 @@
 
 Standalone, offline viewer for [scMINER](https://github.com/jyyulab/scMINER)
 single-cell studies. Two sibling packages share a small HDF5 bundle
-format and the on-disk shard tree produced by the existing scMINER
-data-prep pipeline:
+format and the on-disk shard tree:
 
 | Package | Lang. | What it does |
 | --- | --- | --- |
-| [`scminerViewer/`](scminerViewer/)   | R      | Prepares scMINER studies (writes the graph-import layout + the `.scminer.h5` bundle) and serves a Shiny app + multi-study browser. |
-| [`scminer_viewer/`](scminer_viewer/) | Python | Reads the same `.scminer.h5` bundle; serves a Shiny-for-Python single-study viewer and the same multi-study browser. |
+| [`scminerViewer/`](scminerViewer/)   | R      | Prepares scMINER studies **from a Biobase `ExpressionSet`** (writes the graph-import layout + the `.scminer.h5` bundle) and serves a Shiny app + multi-study browser. |
+| [`scminer_viewer/`](scminer_viewer/) | Python | Prepares scMINER studies **from an `AnnData` (.h5ad)** input *and* reads any `.scminer.h5` bundle (R- or Python-written); serves a Shiny-for-Python single-study viewer + multi-study browser. |
+
+Twin writers, twin readers — bundles produced by either side are
+byte-compatible and interchangeable. See
+[`paper/figures/architecture.png`](paper/figures/architecture.png) for
+the full data-flow diagram.
 
 📖 **Full guide**: [`book/`](book/) — a complete bookdown with
 overview, installation, tutorial, YAML reference, bundle/shard
@@ -179,14 +183,23 @@ from a Biobase `ExpressionSet`.
 
 ```sh
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e "scminer_viewer[dev]"
+pip install -e "scminer_viewer[dev]"          # viewer + test deps
+# Add `[prepare]` if you also want to build bundles from AnnData:
+pip install -e "scminer_viewer[prepare,dev]"
 
-scminer-viewer info data/2327.scminer.h5
-scminer-viewer run  data/2327.scminer.h5 --port 8000
+# Read a bundle (either R- or Python-written)
+scminer-viewer info   data/2327/2327.scminer.h5
+scminer-viewer run    data/2327/2327.scminer.h5 --port 8000
+scminer-viewer browse data/                     --port 8000
+scminer-viewer list   data/
+
+# Or write one yourself from an AnnData + YAML config
+scminer-viewer prepare config-2327.yml
 ```
 
 See [`scminer_viewer/README.md`](scminer_viewer/README.md) for the
-`Study` dataclass + programmatic API.
+`Study` dataclass + programmatic API (`load_study`, `gene_values`,
+`prepare_study`, `run_app`, `run_browser`).
 
 ## Bundle format (R ↔ Python contract)
 
@@ -204,10 +217,17 @@ Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:
 
 ## Status
 
-- **R**: 191/191 tests pass, 2 skipped (`scminerViewer/tests/testthat/`).
-- **Python**: 17/17 tests pass (`scminer_viewer/tests/`). Fixtures are
-  built by shelling out to `Rscript`, so the Python reader is verified
-  against bytes produced by the R writer.
+- **R**: 39 `test_that()` blocks / 202 `expect_*()` assertions across 8
+  test files (`scminerViewer/tests/testthat/`). Tests that need
+  optional deps (`R.utils`, `ggsci`, etc.) skip gracefully.
+- **Python**: 43 tests across 4 test files (`scminer_viewer/tests/`).
+  Reader fixtures are built by shelling out to `Rscript`, so the
+  Python reader is verified against bytes produced by the R writer
+  (and vice versa — `test_prepare.py` round-trips a Python-written
+  bundle through the same reader).
+- **Bundle contract**: a `.scminer.h5` written by either side is read
+  by both. `bundleVersion = 1`. See
+  [`IMPLEMENTATION.md`](IMPLEMENTATION.md) for the field-by-field spec.
 - **2327 bundle**: 77 MB at `data/2327/2327.scminer.h5`. 8464 cells ×
   9861 genes × 3 clusters; 9861 expression / 925 TF / 4708 SIG genes
   indexed; 743K total network edges; values fetched lazily from the
