@@ -21,9 +21,62 @@ from .plots import (
 
 _SAFE_ID = re.compile(r"[^A-Za-z0-9_]")
 
+# Constants shared between the static UI placeholders and the reactive
+# panel-sync effect that swaps the placeholder for real gene panels.
+_PLACEHOLDER_VALUE = "__no_gene__"
+_REL_LABELS_VALUE = ["Expression", "TF", "SIG"]
+_REL_LABELS_NETWORK = ["TF", "SIG"]
+_REL_KEY = {"Expression": "Express_normalized",
+            "TF":         "Activity_tf",
+            "SIG":        "Activity_sig"}
+
 
 def _safe_id(s: str) -> str:
     return _SAFE_ID.sub("_", s)
+
+
+def _out_id(kind: str, gene: str, ct: str, rel: str) -> str:
+    return (f"{kind}_{_safe_id(gene)}__{_safe_id(ct)}"
+            f"__{_safe_id(rel)}")
+
+
+def _empty_gene_panel() -> ui.NavPanel:
+    """Placeholder nav_panel shown when no genes are selected."""
+    return ui.nav_panel(
+        ui.span({"class": "text-muted"}, "(no gene)"),
+        ui.div({"class": "no-data-msg"}, "Add gene(s) to view this plot."),
+        value=_PLACEHOLDER_VALUE,
+    )
+
+
+def _build_gene_panel(gene: str, kind: str,
+                      cell_types: list[str]) -> ui.NavPanel:
+    """Build the nested cell-type x relationship navset for one gene."""
+    rels = _REL_LABELS_NETWORK if kind == "network" else _REL_LABELS_VALUE
+    cell_options = ["All"] + cell_types
+    ct_panels = []
+    for ct in cell_options:
+        rel_panels = [
+            ui.nav_panel(rel, output_widget(_out_id(kind, gene, ct, rel)))
+            for rel in rels
+        ]
+        ct_panels.append(
+            ui.nav_panel(
+                ct,
+                ui.navset_card_pill(
+                    *rel_panels,
+                    id=f"{kind}_rel_{_safe_id(gene)}_{_safe_id(ct)}",
+                ),
+            )
+        )
+    return ui.nav_panel(
+        gene,
+        ui.navset_pill(
+            *ct_panels,
+            id=f"{kind}_ct_{_safe_id(gene)}",
+        ),
+        value=gene,
+    )
 
 
 def _ui_factory(study: Study):
@@ -152,9 +205,18 @@ def _ui_factory(study: Study):
             ui.nav_panel("Cluster Plot", output_widget("cluster_plot")),
             ui.nav_panel("Heatmap", output_widget("heatmap_plot")),
             ui.nav_panel("Bubble Plot", output_widget("bubble_plot")),
-            ui.nav_panel("Feature Plot", ui.output_ui("feature_panel")),
-            ui.nav_panel("Violin Plot", ui.output_ui("violin_panel")),
-            ui.nav_panel("Network", ui.output_ui("network_panel")),
+            ui.nav_panel(
+                "Feature Plot",
+                ui.navset_tab(_empty_gene_panel(), id="feature_tabs"),
+            ),
+            ui.nav_panel(
+                "Violin Plot",
+                ui.navset_tab(_empty_gene_panel(), id="violin_tabs"),
+            ),
+            ui.nav_panel(
+                "Network",
+                ui.navset_tab(_empty_gene_panel(), id="network_tabs"),
+            ),
             id="main_tabs",
         ),
         title=f"scMINER Viewer - {study.meta.shortTitle}",
@@ -337,126 +399,127 @@ def _server_factory(study: Study):
         output(id="bubble_plot")(bubble_widget)
 
         # --- 3-level nested panels: Gene → CellType → Relationship --------
+        # Each of the three gene-driven tabs (Feature / Violin / Network)
+        # is a *static* `ui.navset_tab` rendered once at page-build time.
+        # A reactive effect mirrors `input.gene_select()` into those
+        # navsets via `ui.insert_nav_panel` / `ui.remove_nav_panel`, so
+        # removing a gene removes exactly that one nav_panel rather than
+        # rebuilding the entire 3-level navset. This avoids the mass
+        # widget teardown that triggered `OutputManager` close-model
+        # errors in shinywidgets / @jupyter-widgets/html-manager.
         _cell_types_all = [str(c) for c in study.clusters.index]
-        _REL_LABELS_VALUE = ["Expression", "TF", "SIG"]
-        _REL_LABELS_NETWORK = ["TF", "SIG"]
-        _REL_KEY = {"Expression": "Express_normalized",
-                    "TF":         "Activity_tf",
-                    "SIG":        "Activity_sig"}
-
-        def _out_id(kind: str, gene: str, ct: str, rel: str) -> str:
-            return (f"{kind}_{_safe_id(gene)}__{_safe_id(ct)}"
-                    f"__{_safe_id(rel)}")
 
         def _effective_clusters(global_sel, ct):
             if ct == "All":
                 return list(global_sel)
             return [ct] if ct in global_sel else []
 
-        def _three_level_panels(genes: list[str], kind: str) -> ui.TagChild:
-            if not genes:
-                return ui.div(
-                    {"class": "no-data-msg"},
-                    "Add gene(s) to view this plot.",
-                )
-            rels = (_REL_LABELS_NETWORK if kind == "network"
-                    else _REL_LABELS_VALUE)
-            cell_options = ["All"] + _cell_types_all
-            gene_panels = []
-            for g in genes:
-                ct_panels = []
-                for ct in cell_options:
-                    rel_panels = []
-                    for rel in rels:
+        def _register_outputs_for_gene(g: str) -> None:
+            """Lazily register all (ct, rel) outputs for one gene."""
+            for ct in ["All"] + _cell_types_all:
+                for rel in _REL_LABELS_VALUE:
+                    for kind in ("feature", "violin"):
                         oid = _out_id(kind, g, ct, rel)
-                        rel_panels.append(
-                            ui.nav_panel(rel, output_widget(oid))
+                        if oid in _registered:
+                            continue
+                        _registered.add(oid)
+                        _register_value(
+                            output, study,
+                            kind=kind, gene=g, ct=ct, rel=rel,
+                            rel_key=_REL_KEY[rel],
+                            input=input,
+                            active_clusters=active_clusters,
+                            sampling_mask=sampling_mask,
+                            effective_fn=_effective_clusters,
                         )
-                    ct_panels.append(
-                        ui.nav_panel(
-                            ct,
-                            ui.navset_card_pill(
-                                *rel_panels,
-                                id=f"{kind}_rel_{_safe_id(g)}_{_safe_id(ct)}",
-                            ),
-                        )
+                for rel in _REL_LABELS_NETWORK:
+                    oid = _out_id("network", g, ct, rel)
+                    if oid in _registered:
+                        continue
+                    _registered.add(oid)
+                    _register_network(
+                        output, study,
+                        gene=g, ct=ct, rel=rel,
+                        active_clusters=active_clusters,
+                        effective_fn=_effective_clusters,
                     )
-                gene_panels.append(
-                    ui.nav_panel(
-                        g,
-                        ui.navset_pill(
-                            *ct_panels,
-                            id=f"{kind}_ct_{_safe_id(g)}",
-                        ),
-                    )
-                )
-            return ui.navset_tab(*gene_panels, id=f"{kind}_tabs")
 
-        @render.ui
-        def feature_panel():
-            return _three_level_panels(
-                list(input.gene_select() or []), "feature"
-            )
-
-        @render.ui
-        def violin_panel():
-            return _three_level_panels(
-                list(input.gene_select() or []), "violin"
-            )
-
-        @render.ui
-        def network_panel():
-            return _three_level_panels(
-                list(input.gene_select() or []), "network"
-            )
-
-        # Per-(gene, ct, rel) plot renderers — registered dynamically.
-        # Shiny only evaluates outputs that are actually visible, so the
-        # combinatorial output count doesn't translate to upfront work.
+        # Plot-output registry (oid → already wired). Registrations
+        # persist for the session, so re-adding a previously-removed
+        # gene reuses its renderers without re-binding.
         _registered: set[str] = set()
+        # Per-kind list of genes currently mounted in that navset.
+        # Each kind is synced independently the first time its tab is
+        # shown, so DOM insertion always happens in a visible-parent
+        # context (otherwise Shiny stamps the new output as hidden and
+        # never resumes its render effect).
+        _mounted: dict[str, list[str]] = {
+            "feature": [], "violin": [], "network": [],
+        }
+        _kind_for_tab = {
+            "Feature Plot": "feature",
+            "Violin Plot":  "violin",
+            "Network":      "network",
+        }
+
+        def _sync_kind(kind: str, current: list[str]) -> None:
+            navset_id = f"{kind}_tabs"
+            prev = list(_mounted[kind])
+            if current == prev:
+                return
+            prev_set = set(prev)
+            cur_set = set(current)
+            to_add = [g for g in current if g not in prev_set]
+            to_remove = [g for g in prev if g not in cur_set]
+
+            for g in to_add:
+                _register_outputs_for_gene(g)
+
+            if not prev and current:
+                for g in current:
+                    ui.insert_nav_panel(
+                        navset_id,
+                        _build_gene_panel(g, kind, _cell_types_all),
+                        target=_PLACEHOLDER_VALUE, position="before",
+                        session=session,
+                    )
+                ui.remove_nav_panel(
+                    navset_id, target=_PLACEHOLDER_VALUE,
+                    session=session,
+                )
+            elif prev and not current:
+                ui.insert_nav_panel(
+                    navset_id, _empty_gene_panel(),
+                    target=prev[0], position="before",
+                    session=session,
+                )
+                for g in prev:
+                    ui.remove_nav_panel(
+                        navset_id, target=g, session=session,
+                    )
+            else:
+                for g in to_remove:
+                    ui.remove_nav_panel(
+                        navset_id, target=g, session=session,
+                    )
+                for g in to_add:
+                    ui.insert_nav_panel(
+                        navset_id,
+                        _build_gene_panel(g, kind, _cell_types_all),
+                        session=session,
+                    )
+            _mounted[kind] = list(current)
 
         @reactive.effect
-        def _wire_dynamic_outputs():
-            genes = list(input.gene_select() or [])
-            cell_options = ["All"] + _cell_types_all
-
-            for g in genes:
-                for ct in cell_options:
-                    for rel in _REL_LABELS_VALUE:
-                        oid = _out_id("feature", g, ct, rel)
-                        if oid not in _registered:
-                            _registered.add(oid)
-                            _register_value(
-                                output, study,
-                                kind="feature", gene=g, ct=ct, rel=rel,
-                                rel_key=_REL_KEY[rel],
-                                input=input,
-                                active_clusters=active_clusters,
-                                sampling_mask=sampling_mask,
-                                effective_fn=_effective_clusters,
-                            )
-                        oid = _out_id("violin", g, ct, rel)
-                        if oid not in _registered:
-                            _registered.add(oid)
-                            _register_value(
-                                output, study,
-                                kind="violin", gene=g, ct=ct, rel=rel,
-                                rel_key=_REL_KEY[rel],
-                                input=input,
-                                active_clusters=active_clusters,
-                                sampling_mask=sampling_mask,
-                                effective_fn=_effective_clusters,
-                            )
-                    for rel in _REL_LABELS_NETWORK:
-                        oid = _out_id("network", g, ct, rel)
-                        if oid not in _registered:
-                            _registered.add(oid)
-                            _register_network(
-                                output, study,
-                                gene=g, ct=ct, rel=rel,
-                                active_clusters=active_clusters,
-                                effective_fn=_effective_clusters,
-                            )
+        def _sync_visible_navset():
+            # Re-runs on either gene change OR outer-tab change. Only
+            # touches the navset whose outer tab is currently active —
+            # so insert_nav_panel always lands in visible DOM.
+            tab = input.main_tabs()
+            kind = _kind_for_tab.get(tab)
+            if kind is None:
+                return
+            _sync_kind(kind, list(input.gene_select() or []))
 
     return server
 
