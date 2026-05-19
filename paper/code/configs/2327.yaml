@@ -1,0 +1,15 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Tex/expression.rds
+    activity:   /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Tex/activity.rds
+    networks:   /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Tex/networks.txt
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellGroup
+cellGroup: CellGroup
+geneSymbol: GeneSymbol
+study:
+    ID: 2327
+    studyAbbr: tex
+    longTitle: Single-cell RNA sequencing of progenitor, intermediate and terminally exhausted CD8+ T cells from tumors and chronic viral infection
+    shortTitle: Tex
+debug: FALSE
+species: Mus musculus

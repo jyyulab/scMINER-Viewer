@@ -1,0 +1,16 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/scRNASeq/yu3grp/qpan/SummerIntern/Y2025/JoshuaWang/Dataset1/02_processedData/Joshua_R_variables/scMINER_upload/expression.rds
+    activity:   /research_jude/rgs01_jude/groups/yu3grp/projects/scRNASeq/yu3grp/qpan/SummerIntern/Y2025/JoshuaWang/Dataset1/02_processedData/Joshua_R_variables/scMINER_upload/activity.rds
+    networks:   /research_jude/rgs01_jude/groups/yu3grp/projects/scRNASeq/yu3grp/qpan/SummerIntern/Y2025/JoshuaWang/Dataset1/02_processedData/Joshua_R_variables/scMINER_upload/networks.txt
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: celltype_minor
+cellGroup: CellGroup
+cellID: CellID
+geneSymbol: GeneSymbol
+study:
+    ID: 2338
+    studyAbbr: BreastCaWu2021
+    longTitle:  A single-cell and spatially resolved atlas of human breast cancers
+    shortTitle: BreastCaWu2021
+debug: FALSE
+species: Homo sapiens

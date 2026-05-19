@@ -1,0 +1,12 @@
+input:
+    expression: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/Studies/Klein/expression.rds
+output: /research_jude/rgs01_jude/groups/yu3grp/projects/software_JY/yu3grp/yulab_apps/scMINER/scMINER_Portal/scMINERViewerMetrics
+cellType: CellGroup
+cellGroup: CellGroup
+study:
+    ID: 2313
+    studyAbbr: ground-truth-klein
+    longTitle: Droplet barcoding for single cell transcriptomics applied to embryonic stem cells
+    shortTitle: Klein
+debug: FALSE
+species: Mus musculus
