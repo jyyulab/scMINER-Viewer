@@ -123,7 +123,7 @@ asset (315 MB total):
 mkdir -p data/input/2327
 
 # Download the three source files into it
-RELEASE_URL=https://github.com/hzhou98/scMINER-Viewer/releases/download/demo-data-v1
+RELEASE_URL=https://sjcrh-my.sharepoint.com/:f:/r/personal/hzhou98_stjude_org/Documents/DevOps/release-assets?csf=1&web=1&e=uiRyM4
 curl -L -o data/input/2327/expression.rds "$RELEASE_URL/expression.rds"   #  22 MB
 curl -L -o data/input/2327/activity.rds   "$RELEASE_URL/activity.rds"     # 236 MB
 curl -L -o data/input/2327/networks.txt   "$RELEASE_URL/networks.txt"     #  57 MB
