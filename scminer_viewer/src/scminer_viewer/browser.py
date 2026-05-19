@@ -75,22 +75,92 @@ _BROWSER_CSS = """
   .back-link a:hover { color: #2c3e50; }
   .study-card { cursor: pointer; transition: box-shadow 0.15s ease;
                 height: 100%; }
+  .study-card.is-loading { opacity: 0.55; pointer-events: none; }
   .study-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
   .study-card a { color: inherit; text-decoration: none;
                    display: block; height: 100%; }
   .study-card-meta { color: #6c757d; font-size: 12px; }
   .no-data-msg { padding: 30px; text-align: center; color: #6c757d; }
+
+  /* Full-page overlay shown while a study bundle is being loaded.
+     Triggered from the card's onclick; cleared on Shiny's `shiny:idle`. */
+  #study-loading-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(255, 255, 255, 0.72);
+      z-index: 9999;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 14px;
+      backdrop-filter: blur(1px);
+  }
+  #study-loading-overlay.active { display: flex; }
+  #study-loading-overlay .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #dee2e6;
+      border-top-color: #3C5488;
+      border-radius: 50%;
+      animation: scm-spin 0.9s linear infinite;
+  }
+  #study-loading-overlay .label {
+      font-size: 14px; color: #2c3e50;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  #study-loading-overlay .sublabel {
+      font-size: 12px; color: #6c757d;
+  }
+  @keyframes scm-spin { to { transform: rotate(360deg); } }
 """
+
+
+_LOADING_OVERLAY_JS = """
+  (function() {
+    // Hide the overlay whenever Shiny goes idle (load finished or any
+    // recompute settled). Also hide on shiny:error so a failed load
+    // doesn't leave the page locked.
+    function clear() {
+        var el = document.getElementById('study-loading-overlay');
+        if (el) {
+            el.classList.remove('active');
+            el.dataset.sid = '';
+            document.querySelectorAll('.study-card.is-loading')
+                .forEach(function(c) { c.classList.remove('is-loading'); });
+        }
+    }
+    document.addEventListener('shiny:idle',  clear);
+    document.addEventListener('shiny:error',  clear);
+  })();
+"""
+
+
+def _loading_overlay() -> ui.Tag:
+    return ui.tags.div(
+        {"id": "study-loading-overlay", "role": "status",
+         "aria-live": "polite"},
+        ui.tags.div({"class": "spinner"}),
+        ui.tags.div({"class": "label", "id": "study-loading-label"},
+                     "Loading study…"),
+        ui.tags.div({"class": "sublabel"},
+                     "Reading the bundle and warming caches"),
+    )
 
 
 def _study_card(row) -> ui.Tag:
     safe = _safe_id(row["studyID"])
+    short_title = str(row["shortTitle"]).replace("\\", "\\\\").replace("'", "\\'")
     return ui.div(
-        {"class": "card study-card"},
+        {"class": "card study-card", "data-sid": row["studyID"]},
         ui.tags.a(
             {
                 "id": f"open_study_{safe}",
                 "onclick": (
+                    # Show the overlay synchronously, then notify the
+                    # server. Shiny:idle (or :error) clears both.
+                    "var ov = document.getElementById('study-loading-overlay');"
+                    f"var lab = document.getElementById('study-loading-label');"
+                    f"if (lab) lab.textContent = 'Loading ‘{short_title}’…';"
+                    "if (ov) { ov.dataset.sid = "
+                    f"{row['studyID']!r}; ov.classList.add('active'); }}"
+                    "this.closest('.study-card').classList.add('is-loading');"
                     f"Shiny.setInputValue('open_study', "
                     f"{{ sid: {row['studyID']!r}, t: Date.now() }}, "
                     f"{{priority: 'event'}});"
@@ -170,6 +240,8 @@ def build_browser(
                                border-bottom: 1px solid #dee2e6; }
           .panel-card-body { padding: 12px 14px; }
         """),
+        _loading_overlay(),
+        ui.tags.script(_LOADING_OVERLAY_JS),
         ui.output_ui("page_content"),
         title="scMINER Viewer",
     )

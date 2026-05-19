@@ -154,6 +154,8 @@ run_browser <- function(root_dir,
     theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
     title = "scMINER Viewer",
     shiny::tags$style(.app_css()),
+    .loading_overlay(),
+    shiny::tags$script(.loading_overlay_js()),
     shiny::uiOutput("page_content")
   )
 
@@ -216,6 +218,8 @@ build_browser <- function(root_dir, shard_dir = NULL) {
     theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
     title = "scMINER Viewer",
     shiny::tags$style(.app_css()),
+    .loading_overlay(),
+    shiny::tags$script(.loading_overlay_js()),
     shiny::uiOutput("page_content")
   )
   server <- function(input, output, session) {
