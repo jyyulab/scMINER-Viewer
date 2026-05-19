@@ -53,7 +53,10 @@ def _build_gene_panel(gene: str, kind: str,
                       cell_types: list[str]) -> ui.NavPanel:
     """Build the nested cell-type x relationship navset for one gene."""
     rels = _REL_LABELS_NETWORK if kind == "network" else _REL_LABELS_VALUE
-    cell_options = ["All"] + cell_types
+    # No "All" tab — user picks a specific cell type per plot. Global
+    # cluster visibility (the table on the left) still gates which cells
+    # are drawn within each per-cluster panel.
+    cell_options = list(cell_types)
     ct_panels = []
     for ct in cell_options:
         rel_panels = [
@@ -416,7 +419,7 @@ def _server_factory(study: Study):
 
         def _register_outputs_for_gene(g: str) -> None:
             """Lazily register all (ct, rel) outputs for one gene."""
-            for ct in ["All"] + _cell_types_all:
+            for ct in _cell_types_all:
                 for rel in _REL_LABELS_VALUE:
                     for kind in ("feature", "violin"):
                         oid = _out_id(kind, g, ct, rel)

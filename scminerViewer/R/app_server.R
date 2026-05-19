@@ -232,7 +232,10 @@
         return(shiny::div(class = "no-data-msg",
                           "Add gene(s) to view this plot."))
       }
-      cell_options <- c("All", cell_types_all)
+      # No "All" tab — user picks a specific cell type per plot. Global
+      # cluster visibility (the table on the left) still gates which
+      # cells are drawn within each per-cluster panel.
+      cell_options <- cell_types_all
       rels <- if (plot_kind == "network") rel_labels_network
               else rel_labels_value
       gene_panels <- lapply(genes, function(g) {
@@ -289,7 +292,7 @@
     # count is large, only the focused tab does work.
     shiny::observe({
       genes <- selected_genes()
-      cell_options <- c("All", cell_types_all)
+      cell_options <- cell_types_all
       for (g in genes) for (ct in cell_options) {
         for (rel in rel_labels_value) local({
           g_l <- g; ct_l <- ct; rel_l <- rel

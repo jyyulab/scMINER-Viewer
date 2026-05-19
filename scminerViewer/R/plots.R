@@ -333,25 +333,158 @@
   if (!requireNamespace("visNetwork", quietly = TRUE)) {
     return(edges_df)
   }
+
+  # Direction encoding: positive correlation = activator (teal),
+  # negative = repressor (red). We use spearman (rank-based, robust to
+  # outliers — scMINER convention); fall back to pearson if spearman is
+  # NA. Width = |MI| so dominant edges are visually heaviest.
+  dir_score <- ifelse(is.na(edges_df$spearman),
+                       edges_df$pearson, edges_df$spearman)
+  direction <- ifelse(is.na(dir_score), "Unknown",
+                       ifelse(dir_score >= 0, "Activator", "Repressor"))
+  dir_color <- c(Activator = "#2E7D6A", Repressor = "#D7493A",
+                  Unknown   = "#9e9e9e")
+
+  # Per-neighbor dominant direction: the strongest |MI| edge to each
+  # neighbor decides which side of the ring (and which color) it gets.
+  # edges_df is already sorted by descending |MI|, so the first row that
+  # mentions a neighbor carries that neighbor's dominant direction.
+  edge_neighbor <- ifelse(edges_df$source == gene,
+                           edges_df$target, edges_df$source)
+  nb_seen <- !duplicated(edge_neighbor)
+  nb_ids  <- edge_neighbor[nb_seen]
+  nb_dir  <- direction[nb_seen]
+
+  # Sort neighbors by (direction priority, descending MI). Activators
+  # cluster on one arc, repressors on the opposite arc, with the
+  # strongest of each group closest to the seam — reads cleanly at a
+  # glance.
+  dir_priority <- c(Activator = 0L, Unknown = 1L, Repressor = 2L)
+  nb_mi <- abs(edges_df$mi[nb_seen])
+  nb_order <- order(dir_priority[nb_dir], -nb_mi)
+  nb_ids <- nb_ids[nb_order]
+
   nodes <- data.frame(
-    id = unique(c(edges_df$source, edges_df$target)),
+    id = c(gene, nb_ids),
     stringsAsFactors = FALSE
   )
+  n_neighbors <- length(nb_ids)
+  radius <- 260
+
+  # Focus node: warm amber, slightly larger, white border ring.
+  # Neighbor nodes: cool slate, smaller, white border.
   nodes$label <- nodes$id
-  nodes$color <- ifelse(nodes$id == gene, "#e15759", "#4e79a7")
-  nodes$size  <- ifelse(nodes$id == gene, 32, 18)
+  nodes$color <- c("#F2A33A", rep("#3F5775", n_neighbors))
+  nodes$size  <- c(36L, rep(18L, n_neighbors))
+  nodes$font.size  <- c(20L, rep(14L, n_neighbors))
+  nodes$font.color <- "#1f1f1f"
+  nodes$borderWidth <- c(3L, rep(1.5, n_neighbors))
+  nodes$color.border <- "#ffffff"
+
+  # Radial layout — focus at (0,0), neighbors evenly spaced starting at
+  # 12 o'clock and walking clockwise so the sort above shows up visually.
+  nodes$x <- 0
+  nodes$y <- 0
+  nodes$fixed <- c(TRUE, rep(FALSE, n_neighbors))
+  if (n_neighbors >= 1L) {
+    step <- 2 * pi / n_neighbors
+    theta <- pi / 2 - (seq_len(n_neighbors) - 1L) * step
+    nodes$x[-1L] <- radius * cos(theta)
+    nodes$y[-1L] <- radius * sin(theta)
+  }
+
+  # Visual orientation: every edge is drawn as focus → neighbor so the
+  # `to` arrow lands at the rim next to the non-focus gene regardless of
+  # which side is `source` vs `target` in the underlying network. The
+  # hover title preserves the original `source → target` so the true
+  # regulation direction is still readable on hover.
+  focus_is_source <- edges_df$source == gene
+  vis_from <- ifelse(focus_is_source, edges_df$source, edges_df$target)
+  vis_to   <- ifelse(focus_is_source, edges_df$target, edges_df$source)
 
   edges <- data.frame(
-    from  = edges_df$source,
-    to    = edges_df$target,
+    from  = vis_from,
+    to    = vis_to,
     value = pmax(abs(edges_df$mi), 1e-4),
-    title = sprintf("mi=%.3f  pearson=%.3f  cellType=%s",
-                    edges_df$mi, edges_df$pearson, edges_df$cellType),
-    color = ifelse(edges_df$pearson >= 0, "#76b7b2", "#e15759"),
+    title = sprintf(
+      paste0("<b>%s &rarr; %s</b><br>",
+             "Direction: <b>%s</b><br>",
+             "MI: %.3f<br>",
+             "Spearman: %.3f<br>",
+             "Pearson: %.3f<br>",
+             "p-value: %.2g<br>",
+             "Cell type: %s"),
+      edges_df$source, edges_df$target,
+      direction,
+      edges_df$mi, edges_df$spearman, edges_df$pearson,
+      edges_df$pvalue, edges_df$cellType
+    ),
+    color = unname(dir_color[direction]),
+    arrows = "to",
+    arrowStrikethrough = FALSE,
     stringsAsFactors = FALSE
   )
-  visNetwork::visNetwork(nodes, edges, width = "100%", height = "640px") |>
-    visNetwork::visOptions(highlightNearest = list(enabled = TRUE, degree = 1)) |>
-    visNetwork::visPhysics(stabilization = FALSE,
-                            barnesHut = list(gravitationalConstant = -8000))
+
+  ledges <- data.frame(
+    label = c("Activator (+)", "Repressor (−)"),
+    color = c(dir_color["Activator"], dir_color["Repressor"]),
+    arrows = c("to", "to"),
+    font.align = "top",
+    stringsAsFactors = FALSE
+  )
+
+  main_html <- sprintf(
+    paste0("<div style='text-align:center'>",
+           "<span style='font-size:15px;font-weight:600;color:#1f1f1f'>",
+           "%s network for %s</span>",
+           "<br><span style='font-size:11px;color:#666'>",
+           "%d edges &middot; width &prop; |MI| &middot; color = direction",
+           "</span></div>"),
+    network_type, gene, nrow(edges_df)
+  )
+
+  visNetwork::visNetwork(
+      nodes, edges,
+      width = "100%", height = "680px",
+      main = list(text = main_html, style = "padding-top:6px;"),
+      background = "#FBFBF9"
+    ) |>
+    visNetwork::visEdges(
+      smooth = list(enabled = FALSE),       # straight lines so the arrow
+                                             # sits cleanly at the target node
+      scaling = list(min = 1.4, max = 8),
+      # Small, restrained arrowheads — direction is clear from edge
+      # orientation (source -> target) plus the per-edge color, so we
+      # don't need a dominant arrow head. scaleFactor 0.7 keeps the
+      # tip readable next to a node without overwhelming the plot.
+      arrows = list(to = list(enabled = TRUE, scaleFactor = 0.7,
+                               type = "arrow")),
+      arrowStrikethrough = FALSE,            # arrow tip stops at the node border
+      # Force the per-edge `color` column to apply to BOTH the line and
+      # the arrow. Without `inherit = FALSE`, vis.js falls back to its
+      # `inherit = "from"` default for arrow tinting, which can leave
+      # the arrow a different shade than the line.
+      color = list(inherit = FALSE, opacity = 0.78),
+      hoverWidth = 0.5, selectionWidth = 1.2
+    ) |>
+    visNetwork::visNodes(
+      shape = "dot",
+      borderWidth = 2, borderWidthSelected = 3,
+      shadow = list(enabled = TRUE, size = 10, x = 0, y = 2,
+                     color = "rgba(0,0,0,0.15)"),
+      font = list(face = "Helvetica, Arial, sans-serif")
+    ) |>
+    visNetwork::visOptions(
+      highlightNearest = list(enabled = TRUE, degree = 1,
+                               algorithm = "hierarchical")
+    ) |>
+    # Physics disabled so the radial layout we computed for `nodes$x/y`
+    # is exactly what gets drawn — focus gene stays pinned at center.
+    visNetwork::visPhysics(enabled = FALSE) |>
+    visNetwork::visInteraction(dragNodes = TRUE, dragView = TRUE,
+                                zoomView = TRUE, tooltipDelay = 120,
+                                hover = TRUE) |>
+    visNetwork::visLegend(useGroups = FALSE, addEdges = ledges,
+                           position = "right", main = "Direction",
+                           width = 0.12, ncol = 1, zoom = FALSE)
 }
