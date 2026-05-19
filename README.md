@@ -35,7 +35,7 @@ Three ways to see the viewer, in increasing order of "real":
 | Path | Size | How |
 | --- | --- | --- |
 | **In-package demo** — 2327 (Tex) bundle + 200 curated gene shards (canonical T-cell / exhaustion markers). Already shipped inside the R package. | ~80 MB (installed with the package) | `scminerViewer::run_demo()` |
-| **Pre-processed bundle** — full 2327 bundle + complete shard tree (every gene). Fastest way to browse all ~10k genes without running `prepare_study()`. | ~484 MB download | Download `2327-processed.tar.gz` from the [`demo-data-v1`](https://github.com/hzhou98/scMINER-Viewer/releases/tag/demo-data-v1) release, untar into `data/2327/`, then `run_app("data/2327/2327.scminer.h5")`. |
+| **Pre-processed bundle** — full 2327 bundle + complete shard tree (every gene). Fastest way to browse all ~10k genes without running `prepare_study()`. | ~484 MB download | Download `2327-processed.tar.gz` from the [`demo-data-v1`](https://sjcrh-my.sharepoint.com/:f:/r/personal/hzhou98_stjude_org/Documents/DevOps/release-assets?csf=1&web=1&e=uiRyM4) release, untar into `data/2327/`, then `run_app("data/2327/2327.scminer.h5")`. |
 | **Run the full pipeline** — download the source `expression.rds` (22 MB), `activity.rds` (236 MB), `networks.txt` (57 MB), write a YAML, run `prepare_study()`. The closest thing to "I have my own scMINER data". | ~315 MB download + 1–3 min processing | See [Tutorial § A.1](book/03-tutorial.Rmd) (rendered: `docs/tutorial.html`). |
 
 ## Lazy by design + multi-study by default
