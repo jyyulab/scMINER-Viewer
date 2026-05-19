@@ -1,7 +1,0 @@
-[full] 28 files, 28 rows
-[expression-only] 29 files, 29 rows
-Wrote 29-row comparison TSV: paper/metrics/portal_studies_compare.tsv
-Error in eval(jsub, SDenv, parent.frame()) : 
-  object 'delta_prepare_seconds' not found
-Calls: [ -> [.data.table -> eval -> eval
-Execution halted
