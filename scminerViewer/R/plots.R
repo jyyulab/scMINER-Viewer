@@ -452,7 +452,10 @@
     visNetwork::visEdges(
       smooth = list(enabled = FALSE),       # straight lines so the arrow
                                              # sits cleanly at the target node
-      scaling = list(min = 1.4, max = 8),
+      # Width range 1.4 (smallest edge) -> 4 (largest edge). The min is
+      # anchored so weak edges stay visible; the max is intentionally
+      # restrained so heavy edges don't dominate the figure visually.
+      scaling = list(min = 1.4, max = 4),
       # Small, restrained arrowheads — direction is clear from edge
       # orientation (source -> target) plus the per-edge color, so we
       # don't need a dominant arrow head. scaleFactor 0.7 keeps the

@@ -123,11 +123,17 @@ def network_plot(
             node_angles[nb] = theta
 
     # --- Edge widths --------------------------------------------------------
+    # Range 1.4 px (smallest edge) -> 3.5 px (largest edge). The min is
+    # anchored so weak edges stay visible; the max is intentionally
+    # restrained so heavy edges don't dominate the figure visually.
     mi_vals = sub["abs_mi"].to_numpy()
+    _WIDTH_MIN, _WIDTH_MAX = 1.4, 3.5
     if mi_vals.size and float(mi_vals.max()) > 0:
-        widths = 1.4 + 4.6 * (mi_vals / float(mi_vals.max()))
+        widths = _WIDTH_MIN + (_WIDTH_MAX - _WIDTH_MIN) * (
+            mi_vals / float(mi_vals.max())
+        )
     else:
-        widths = np.full(len(sub), 1.8)
+        widths = np.full(len(sub), _WIDTH_MIN)
 
     # --- Decorative backdrop ring ------------------------------------------
     ring_theta = np.linspace(0, 2.0 * np.pi, 180)

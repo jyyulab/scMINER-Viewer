@@ -53,10 +53,15 @@ def _build_gene_panel(gene: str, kind: str,
                       cell_types: list[str]) -> ui.NavPanel:
     """Build the nested cell-type x relationship navset for one gene."""
     rels = _REL_LABELS_NETWORK if kind == "network" else _REL_LABELS_VALUE
-    # No "All" tab — user picks a specific cell type per plot. Global
-    # cluster visibility (the table on the left) still gates which cells
-    # are drawn within each per-cluster panel.
-    cell_options = list(cell_types)
+    # Feature + Violin show an "All" tab that respects the global
+    # cluster-visibility selection plus one tab per cell type. Network
+    # omits "All" — a per-cluster TF/SIG sub-network is the meaningful
+    # unit there, and an "All-clusters" superposition would just blur
+    # the network structure.
+    if kind == "network":
+        cell_options = list(cell_types)
+    else:
+        cell_options = ["All"] + list(cell_types)
     ct_panels = []
     for ct in cell_options:
         rel_panels = [
@@ -418,8 +423,16 @@ def _server_factory(study: Study):
             return [ct] if ct in global_sel else []
 
         def _register_outputs_for_gene(g: str) -> None:
-            """Lazily register all (ct, rel) outputs for one gene."""
-            for ct in _cell_types_all:
+            """Lazily register all (ct, rel) outputs for one gene.
+
+            Feature + Violin include the "All" pseudo-cluster tab;
+            Network is per-cluster only — matches the cell_options
+            split in `_build_gene_panel`.
+            """
+            value_cts   = ["All"] + _cell_types_all
+            network_cts = _cell_types_all
+
+            for ct in value_cts:
                 for rel in _REL_LABELS_VALUE:
                     for kind in ("feature", "violin"):
                         oid = _out_id(kind, g, ct, rel)
@@ -435,6 +448,7 @@ def _server_factory(study: Study):
                             sampling_mask=sampling_mask,
                             effective_fn=_effective_clusters,
                         )
+            for ct in network_cts:
                 for rel in _REL_LABELS_NETWORK:
                     oid = _out_id("network", g, ct, rel)
                     if oid in _registered:

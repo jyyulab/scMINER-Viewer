@@ -232,10 +232,13 @@
         return(shiny::div(class = "no-data-msg",
                           "Add gene(s) to view this plot."))
       }
-      # No "All" tab — user picks a specific cell type per plot. Global
-      # cluster visibility (the table on the left) still gates which
-      # cells are drawn within each per-cluster panel.
-      cell_options <- cell_types_all
+      # Feature + Violin show an "All" tab that respects the global
+      # cluster-visibility selection plus one tab per cell type. Network
+      # omits "All" — a per-cluster TF/SIG sub-network is the meaningful
+      # unit there, and an "All-clusters" superposition would just blur
+      # the network structure.
+      cell_options <- if (plot_kind == "network") cell_types_all
+                      else c("All", cell_types_all)
       rels <- if (plot_kind == "network") rel_labels_network
               else rel_labels_value
       gene_panels <- lapply(genes, function(g) {
@@ -292,9 +295,13 @@
     # count is large, only the focused tab does work.
     shiny::observe({
       genes <- selected_genes()
-      cell_options <- cell_types_all
-      for (g in genes) for (ct in cell_options) {
-        for (rel in rel_labels_value) local({
+      # Feature + Violin tabs include the "All" pseudo-cluster (it
+      # respects the global cluster-visibility selection); Network tabs
+      # don't (its tab set is per-cluster only).
+      value_cts   <- c("All", cell_types_all)
+      network_cts <- cell_types_all
+      for (g in genes) {
+        for (ct in value_cts) for (rel in rel_labels_value) local({
           g_l <- g; ct_l <- ct; rel_l <- rel
           rel_k <- .rel_key(rel_l)
           output[[.out_id("feature", g_l, ct_l, rel_l)]] <-
@@ -315,7 +322,7 @@
                            cell_mask = sampling_mask())
             })
         })
-        for (rel in rel_labels_network) local({
+        for (ct in network_cts) for (rel in rel_labels_network) local({
           g_l <- g; ct_l <- ct; rel_l <- rel
           output[[.out_id("network", g_l, ct_l, rel_l)]] <-
             visNetwork::renderVisNetwork({
