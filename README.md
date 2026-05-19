@@ -201,6 +201,51 @@ See [`scminer_viewer/README.md`](scminer_viewer/README.md) for the
 `Study` dataclass + programmatic API (`load_study`, `gene_values`,
 `prepare_study`, `run_app`, `run_browser`).
 
+## Exposing to a remote host (HPC / cluster nodes)
+
+By default both `run` and `browse` bind to `127.0.0.1`, so only the
+local machine can connect. When you're on an HPC compute node and want
+to view from your workstation, you have two options.
+
+**Option 1 — SSH tunnel (recommended).** Leave the viewer on
+`127.0.0.1` and forward the port back to your workstation. Nothing on
+the cluster's network is opened, and you piggy-back on SSH's auth:
+
+```sh
+# On the HPC node:
+scminer-viewer run /path/to/2327.scminer.h5 --port 8000 --no-browser
+
+# On your workstation (in another shell):
+ssh -L 8000:localhost:8000 user@<hpc-node>
+# Then open http://localhost:8000 in your local browser.
+```
+
+If your HPC requires logging into a head node first, chain a jump:
+`ssh -L 8000:<compute-node>:8000 -J user@head user@<compute-node>`.
+
+**Option 2 — bind to a public interface.** Use `--allow-remote`
+(shortcut for `--host 0.0.0.0 --no-browser`) and connect directly:
+
+```sh
+# On the HPC node:
+scminer-viewer run /path/to/2327.scminer.h5 --port 8000 --allow-remote
+
+# On your workstation:
+# open http://<hpc-node-hostname-or-ip>:8000
+```
+
+Two caveats: (1) the viewer has **no authentication** — anyone routable
+to the node can read the study; (2) most clusters firewall arbitrary
+ports inbound, so you may need to coordinate with admins or pick from
+an allowed range. Prefer Option 1 unless you specifically need
+unauthenticated access from a shared LAN.
+
+`browse` takes the same flags:
+
+```sh
+scminer-viewer browse /path/to/data --port 8000 --allow-remote
+```
+
 ## Bundle format (R ↔ Python contract)
 
 Documented in full in [`IMPLEMENTATION.md`](IMPLEMENTATION.md). Highlights:

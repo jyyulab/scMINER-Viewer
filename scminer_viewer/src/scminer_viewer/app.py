@@ -617,4 +617,20 @@ def run_app(
 
         url = f"http://{host}:{port}"
         webbrowser.open(url)
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info",
+                ws=_pick_ws_backend())
+
+
+def _pick_ws_backend() -> str:
+    """Choose a WebSocket backend that avoids the legacy `websockets`
+    keepalive-ping AssertionError seen over LAN / HPC links."""
+    try:
+        from uvicorn.config import WS_PROTOCOLS
+    except ImportError:
+        return "auto"
+    # Prefer the modern sans-IO implementation; fall back to wsproto if
+    # only that is available; otherwise let uvicorn pick.
+    for name in ("websockets-sansio", "wsproto"):
+        if name in WS_PROTOCOLS:
+            return name
+    return "auto"

@@ -27,6 +27,12 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--port", type=int, default=8000)
     run.add_argument("--no-browser", action="store_true",
                      help="Don't open a browser window.")
+    run.add_argument("--allow-remote", action="store_true",
+                     help="Shortcut for --host 0.0.0.0 --no-browser. "
+                          "Use on HPC / remote nodes when SSH-tunneling "
+                          "isn't an option. No authentication is added; "
+                          "see README for the recommended SSH-tunnel "
+                          "pattern instead.")
 
     # ---- browse: multi-study card-grid index ------------------------------
     browse = sub.add_parser("browse",
@@ -41,6 +47,9 @@ def _build_parser() -> argparse.ArgumentParser:
     browse.add_argument("--port", type=int, default=8000)
     browse.add_argument("--no-browser", action="store_true",
                         help="Don't open a browser window.")
+    browse.add_argument("--allow-remote", action="store_true",
+                        help="Shortcut for --host 0.0.0.0 --no-browser. "
+                             "Same caveats as in `run`.")
 
     # ---- info: print one-line summary -------------------------------------
     info = sub.add_parser("info", help="Print summary of a bundle.")
@@ -73,8 +82,27 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _apply_allow_remote(args: argparse.Namespace) -> None:
+    """Resolve `--allow-remote` into the underlying --host / --no-browser
+    settings and print a security warning to stderr. Honors any explicit
+    --host the user passed alongside the shortcut."""
+    if not getattr(args, "allow_remote", False):
+        return
+    if args.host == "127.0.0.1":
+        args.host = "0.0.0.0"
+    args.no_browser = True
+    print(
+        f"[scminer-viewer] --allow-remote: binding on {args.host}:"
+        f"{args.port}. The viewer has no built-in authentication; "
+        f"prefer an SSH tunnel on shared / public-routable networks "
+        f"(see README \"Exposing to a remote host\").",
+        file=sys.stderr,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    _apply_allow_remote(args)
 
     if args.cmd == "info":
         from .data import load_study

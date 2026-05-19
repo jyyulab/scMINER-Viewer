@@ -283,4 +283,6 @@ def run_browser(
     if launch_browser:
         import webbrowser
         webbrowser.open(f"http://{host}:{port}")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    from .app import _pick_ws_backend
+    uvicorn.run(app, host=host, port=port, log_level="info",
+                ws=_pick_ws_backend())
