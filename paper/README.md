@@ -10,7 +10,7 @@ Portal studies.
 ```
 paper/
 ├── README.md                       (this file)
-├── scminer-viewer.md               manuscript draft (pandoc → PDF / DOCX)
+├── scminer-viewer.md               manuscript draft (Markdown source)
 ├── Manuscript-V1-HZ.docx           Word-formatted submission draft
 ├── Figures.pptx                    figure-assembly working file
 ├── code/                           all reproducibility code
@@ -70,7 +70,7 @@ paper/
 
 | Path | What it is |
 | --- | --- |
-| [`scminer-viewer.md`](scminer-viewer.md)                                                | Manuscript draft (~2 pages, Markdown). Pandoc → PDF / DOCX. |
+| [`scminer-viewer.md`](scminer-viewer.md)                                                | Manuscript draft (~2 pages, Markdown). |
 | [`Manuscript-V1-HZ.docx`](Manuscript-V1-HZ.docx)                                        | Word-formatted draft for review / submission. |
 | [`Figures.pptx`](Figures.pptx)                                                          | PowerPoint workbook used for final figure assembly. |
 | [`code/benchmarks/figure_architecture.R`](code/benchmarks/figure_architecture.R)        | Figure 1 (data-flow diagram). No data deps; ~ 1 s. |
@@ -95,7 +95,7 @@ paper/
 | [`figures/`](figures/)                                                                  | Flat tree of rendered figure PDFs + PNGs (one pair per panel + one combined per figure). |
 | [`tables/`](tables/)                                                                    | Rendered Markdown + TSV tables. |
 
-## Quick reference: regenerate figures, tables, and the manuscript
+## Quick reference: regenerate figures and tables
 
 Run from the **project root** with `scminerViewer` installed. The
 portal figure / Table 1 path expects the per-mode TSVs under
@@ -131,15 +131,6 @@ Rscript paper/code/benchmarks/tables_compare.R
 # Writes: Supplemental panels + figureS_expr_only.{pdf,png}
 #         paper/tables/tableS_expr_only.{md,tsv}
 #         paper/tables/compare_delta.{md,tsv}
-
-# --- Manuscript PDF / DOCX ------------------------------------------
-pandoc paper/scminer-viewer.md \
-       --resource-path=paper \
-       --pdf-engine=xelatex \
-       -o paper/scminer-viewer.pdf
-pandoc paper/scminer-viewer.md \
-       --resource-path=paper \
-       -o paper/scminer-viewer.docx
 ```
 
 **Pointing the portal figure / table at a different snapshot** (e.g.
@@ -455,8 +446,7 @@ Outputs land under `paper/tables/`:
 | Supplemental — expression-only baseline | `paper/metrics/portal_studies/portal_studies_compare.tsv` (status_expr_only == `ok`) | `paper/tables/tableS_expr_only.{md,tsv}` — run `Rscript paper/code/benchmarks/tables_compare.R` |
 | Paired delta — full vs expression-only per metric | same compare TSV | `paper/tables/compare_delta.{md,tsv}` — same script |
 
-The Markdown files ship a leading caption block + a GFM table that
-pandoc converts to LaTeX (or DOCX) without further intervention. The
+The Markdown files ship a leading caption block + a GFM table. The
 TSV versions are clean for any downstream post-processing.
 
 ### Local / sequential modes (development & reruns)
@@ -659,32 +649,3 @@ Flags accepted by `sparseify_eset.sh`:
   exit 143. Fix: see *Priming large studies* above — one-time
   `sparseify_eset.sh` job, then point the YAML at the new
   `.sparse.rds`.
-
-## Manuscript
-
-Plain Markdown so it can be reviewed on GitHub directly or converted
-to PDF / DOCX with pandoc:
-
-```sh
-# PDF -- xelatex (Unicode-safe). Page geometry / fonts come from the
-# YAML frontmatter at the top of scminer-viewer.md.
-pandoc paper/scminer-viewer.md \
-       --resource-path=paper \
-       --pdf-engine=xelatex \
-       -o paper/scminer-viewer.pdf
-
-# DOCX (Unicode-safe; YAML geometry ignored, Word controls layout)
-pandoc paper/scminer-viewer.md \
-       --resource-path=paper \
-       -o paper/scminer-viewer.docx
-```
-
-If `xelatex` is missing, install TinyTeX (no sudo, ~150 MB):
-
-```sh
-Rscript -e 'install.packages("tinytex"); tinytex::install_tinytex()'
-which xelatex      # should resolve to ~/Library/TinyTeX/bin/.../xelatex on macOS
-```
-
-Bibliography is inline (no `.bib`) — short Applications-Note format
-matches the SJARACNe template (Khatamian *et al.*, 2019).
