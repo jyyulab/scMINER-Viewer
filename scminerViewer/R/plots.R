@@ -241,28 +241,138 @@
   if (!requireNamespace("plotly", quietly = TRUE)) {
     return(.empty_plot())
   }
-  agg <- .cluster_aggregate_pair(study, genes, relationship,
-                                  active_clusters, cell_mask)
-  if (is.null(agg)) {
+  index <- .relationship_index(study, relationship)
+  if (is.null(index) || length(genes) == 0) {
     return(.empty_plot("Select gene(s) to build heatmap"))
   }
-  m <- agg$mean
-  # Blue-white-red diverging palette. zmid centres white at 0 so positive
-  # values lean red and negative values (e.g. z-scored activity) lean blue.
-  plotly::plot_ly(
-    z = m,
-    x = colnames(m), y = rownames(m),
+  present <- genes[genes %in% index]
+  if (length(present) == 0) {
+    return(.empty_plot("No data available for the selected genes"))
+  }
+
+  base <- .cells_in_active_clusters(study, active_clusters, cell_mask)
+  if (!any(base)) {
+    return(.empty_plot("No cells in current selection"))
+  }
+  ct <- study$cells$cellType
+  cell_ids <- as.character(study$cells$cellID %||% rownames(study$cells))
+  if (is.null(cell_ids) || length(cell_ids) != length(ct)) {
+    cell_ids <- as.character(seq_along(ct))
+  }
+
+  cluster_order <- if (is.null(active_clusters) ||
+                       length(active_clusters) == 0) {
+    as.character(study$clusters$cellType)
+  } else {
+    as.character(active_clusters)
+  }
+  present_in_sel <- unique(ct[base])
+  ordered_clusters <- cluster_order[cluster_order %in% present_in_sel]
+
+  keep_idx <- which(base)
+  ct_keep <- ct[keep_idx]
+  order_idx <- unlist(lapply(ordered_clusters,
+                              function(c) keep_idx[ct_keep == c]),
+                      use.names = FALSE)
+  if (is.null(order_idx) || length(order_idx) == 0) order_idx <- keep_idx
+
+  sorted_cell_ids <- cell_ids[order_idx]
+  sorted_cell_types <- ct[order_idx]
+
+  z <- matrix(NA_real_, nrow = length(present), ncol = length(order_idx),
+              dimnames = list(present, sorted_cell_ids))
+  for (i in seq_along(present)) {
+    vals <- gene_values(study, present[i], relationship)
+    if (is.null(vals)) next
+    z[i, ] <- vals[order_idx]
+  }
+
+  color_map <- .cluster_color_map(study$clusters)
+  cluster_to_idx <- stats::setNames(seq_along(ordered_clusters) - 1L,
+                                     ordered_clusters)
+  ann_z <- matrix(cluster_to_idx[sorted_cell_types], nrow = 1)
+
+  n_clusters <- length(ordered_clusters)
+  if (n_clusters <= 1) {
+    col <- if (n_clusters == 1) color_map[[ordered_clusters[1]]] else "#cccccc"
+    ann_colorscale <- list(c(0, col), c(1, col))
+    zmin_ann <- -0.5; zmax_ann <- 0.5
+  } else {
+    ann_colorscale <- list()
+    for (i in seq_along(ordered_clusters)) {
+      lo <- (i - 1) / n_clusters
+      hi <- i / n_clusters
+      col <- color_map[[ordered_clusters[i]]]
+      ann_colorscale[[length(ann_colorscale) + 1]] <- c(lo, col)
+      ann_colorscale[[length(ann_colorscale) + 1]] <- c(hi, col)
+    }
+    zmin_ann <- -0.5; zmax_ann <- n_clusters - 0.5
+  }
+
+  ann_fig <- plotly::plot_ly(
+    z = ann_z,
+    x = sorted_cell_ids,
+    y = list("cellType"),
+    type = "heatmap",
+    colorscale = ann_colorscale,
+    zmin = zmin_ann, zmax = zmax_ann,
+    showscale = FALSE,
+    text = matrix(sorted_cell_types, nrow = 1),
+    hovertemplate = "cell: %{x}<br>cellType: %{text}<extra></extra>"
+  ) |>
+    plotly::layout(
+      xaxis = list(showticklabels = FALSE, ticks = "", title = "Cell"),
+      yaxis = list(showticklabels = FALSE, ticks = "")
+    )
+
+  ct_text <- matrix(rep(sorted_cell_types, each = length(present)),
+                    nrow = length(present), byrow = FALSE)
+  main_fig <- plotly::plot_ly(
+    z = z,
+    x = sorted_cell_ids,
+    y = present,
     type = "heatmap",
     colorscale = list(c(0,   "#2166ac"),
                        c(0.5, "#ffffff"),
                        c(1,   "#b2182b")),
     zmid = 0,
-    colorbar = list(title = list(text = "mean"))
+    colorbar = list(title = list(text = "value")),
+    text = ct_text,
+    hovertemplate = paste(
+      "gene: %{y}<br>cell: %{x}<br>",
+      "cellType: %{text}<br>value: %{z:.3f}<extra></extra>",
+      sep = ""
+    )
   ) |>
     plotly::layout(
-      xaxis = list(title = "Cluster"),
-      yaxis = list(title = "Gene"),
-      margin = list(l = 80, r = 20, t = 30, b = 80)
+      xaxis = list(showticklabels = FALSE, ticks = ""),
+      yaxis = list(title = "Gene", autorange = "reversed")
+    )
+
+  # Invisible legend traces for cluster colors.
+  for (c in ordered_clusters) {
+    main_fig <- plotly::add_trace(
+      main_fig,
+      x = list(NA), y = list(NA),
+      type = "scatter", mode = "markers",
+      marker = list(size = 10, color = color_map[[c]],
+                    line = list(width = 0)),
+      name = c, showlegend = TRUE, hoverinfo = "skip",
+      inherit = FALSE
+    )
+  }
+
+  plotly::subplot(main_fig, ann_fig,
+                  nrows = 2, heights = c(0.94, 0.06),
+                  shareX = TRUE, titleX = TRUE, titleY = TRUE) |>
+    plotly::layout(
+      margin = list(l = 80, r = 20, t = 30, b = 100),
+      legend = list(
+        title = list(text = "Cell type"),
+        orientation = "h",
+        x = 0.5, xanchor = "center",
+        y = -0.18, yanchor = "top"
+      )
     )
 }
 

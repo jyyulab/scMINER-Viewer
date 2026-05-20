@@ -41,7 +41,17 @@ def test_heatmap_plot(fixture_bundle):
     s = load_study(fixture_bundle)
     fig = heatmap_plot(s, genes=list(s.genes[:5]))
     assert isinstance(fig, go.Figure)
-    assert len(fig.data) == 1
+    heatmap_traces = [t for t in fig.data if t.type == "heatmap"]
+    # One annotation row (cluster colors) + one main heatmap (genes x cells).
+    assert len(heatmap_traces) == 2
+    # Legend traces — one invisible scatter marker per cluster.
+    legend_traces = [t for t in fig.data
+                     if t.type == "scatter" and getattr(t, "showlegend", False)]
+    assert len(legend_traces) == len(s.clusters)
+    # Main heatmap has one row per gene, one column per cell (not per cluster).
+    main = next(t for t in heatmap_traces if len(t.y) > 1)
+    assert len(main.y) == 5
+    assert len(main.x) == s.n_cells
 
 
 def test_bubble_plot(fixture_bundle):
