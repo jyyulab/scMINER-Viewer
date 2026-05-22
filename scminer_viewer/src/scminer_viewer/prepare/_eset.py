@@ -38,11 +38,15 @@ def extract_cells(
     cell_type_col: str = "cellGroup",
     cell_group_col: Optional[str] = None,
     coordinate_col: str = "UMAP",
+    coord1_col: Optional[str] = None,
+    coord2_col: Optional[str] = None,
 ) -> pd.DataFrame:
     """Build the canonical cells DataFrame from `adata`.
 
-    Reads `adata.obs` plus the UMAP coordinates from either `adata.obs`
-    (`<coordinate_col>_1` / `_2`) or `adata.obsm` (e.g. `adata.obsm["X_umap"]`).
+    Reads `adata.obs` plus the embedding coordinates from either
+    `adata.obs` (`<coordinate_col>_1` / `_2` — or the explicit
+    `coord1_col` / `coord2_col` names) or `adata.obsm` (e.g.
+    `adata.obsm["X_umap"]`).
 
     Args:
         adata: An `anndata.AnnData` (or duck-typed object exposing
@@ -52,7 +56,12 @@ def extract_cells(
         cell_group_col: Column in `obs`; defaults to `cell_type_col`.
         coordinate_col: Either the stem of the coord columns
             (`<stem>_1` / `<stem>_2`) in `obs`, OR an `obsm` key for a
-            ``(n_obs, 2)`` matrix.
+            ``(n_obs, 2)`` matrix. Ignored when both `coord1_col` and
+            `coord2_col` are given.
+        coord1_col, coord2_col: Optional explicit `obs` column names for
+            the first / second coordinate axis. Use these when the
+            embedding columns don't follow the `<stem>_1` / `_2`
+            convention (e.g. spatial layouts with ``X`` / ``Y``).
 
     Returns:
         A DataFrame with columns `cellID, cellType, cellGroup, coord1, coord2`.
@@ -75,7 +84,10 @@ def extract_cells(
             f"adata.obs is missing required cellType column: '{cell_type_col}'"
         )
 
-    coord1, coord2 = _resolve_coords(adata, obs, coordinate_col)
+    coord1, coord2 = _resolve_coords(
+        adata, obs, coordinate_col,
+        coord1_col=coord1_col, coord2_col=coord2_col,
+    )
 
     group_vals = (
         obs[cell_group_col] if cell_group_col in obs.columns
@@ -91,7 +103,25 @@ def extract_cells(
     })
 
 
-def _resolve_coords(adata, obs: pd.DataFrame, coordinate_col: str):
+def _resolve_coords(
+    adata,
+    obs: pd.DataFrame,
+    coordinate_col: str,
+    coord1_col: Optional[str] = None,
+    coord2_col: Optional[str] = None,
+):
+    # Explicit per-axis column names win. Both must be present; if
+    # either is missing fall through to the stem-based resolution so
+    # we can still raise a helpful error.
+    if coord1_col is not None and coord2_col is not None:
+        if coord1_col in obs.columns and coord2_col in obs.columns:
+            return obs[coord1_col].to_numpy(), obs[coord2_col].to_numpy()
+        miss = [c for c in (coord1_col, coord2_col) if c not in obs.columns]
+        raise ValueError(
+            "adata.obs missing explicit coordinate column(s): "
+            + ", ".join(miss)
+        )
+
     c1_name = f"{coordinate_col}_1"
     c2_name = f"{coordinate_col}_2"
     if c1_name in obs.columns and c2_name in obs.columns:
@@ -107,6 +137,7 @@ def _resolve_coords(adata, obs: pd.DataFrame, coordinate_col: str):
                     return arr[:, 0], arr[:, 1]
     raise ValueError(
         f"Coordinates not found: expected obs columns '{c1_name}'/'{c2_name}' "
+        f"(or explicit coord1_col/coord2_col), "
         f"or obsm key '{coordinate_col}' / 'X_{coordinate_col.lower()}'"
     )
 

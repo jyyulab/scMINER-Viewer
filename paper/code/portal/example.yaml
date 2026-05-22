@@ -9,7 +9,11 @@ study:
   longTitle:  T-cell exhaustion (Tex) reference
 
 species:     mouse
-coordinate:  UMAP
+coordinate:  UMAP            # display label + the stem of <coordinate>_1 /
+                             # <coordinate>_2 columns in pData
+# coordinate_1: X            # uncomment + override when the eset's
+# coordinate_2: Y            # coords don't follow the <stem>_1 / _2
+                             # convention (e.g. spatial layouts).
 
 # Column conventions inside the ExpressionSet
 cellID:      CellID

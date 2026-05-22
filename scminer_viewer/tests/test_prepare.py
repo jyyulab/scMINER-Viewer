@@ -338,6 +338,50 @@ def test_prepare_study_from_anndata(tmp_path: Path) -> None:
     np.testing.assert_allclose(vals, X[:, 5], atol=1e-12)
 
 
+def test_prepare_study_from_anndata_explicit_coord_columns(
+    tmp_path: Path,
+) -> None:
+    """Spatial-style studies don't follow the <stem>_1 / _2 convention.
+
+    Verify that passing `coord1_col` / `coord2_col` directly picks
+    arbitrary obs columns (here ``X`` and ``Y``) instead of looking for
+    ``UMAP_1`` / ``UMAP_2``.
+    """
+    anndata = pytest.importorskip("anndata")
+    rng = np.random.default_rng(7)
+    n_cells, n_genes = 24, 10
+    cell_ids = [f"s{i:03d}" for i in range(n_cells)]
+    gene_ids = [f"G{i:03d}" for i in range(n_genes)]
+
+    x_vals = np.linspace(-1.0, 1.0, n_cells)
+    y_vals = np.linspace( 5.0, 7.5, n_cells)
+    obs = pd.DataFrame({
+        "cell_type": rng.choice(["spotA", "spotB"], size=n_cells),
+        "X":         x_vals,
+        "Y":         y_vals,
+    }, index=cell_ids)
+    var = pd.DataFrame({"geneSymbol": gene_ids}, index=gene_ids)
+    X = rng.random((n_cells, n_genes)).astype(np.float64)
+    adata = anndata.AnnData(X=X, obs=obs, var=var)
+
+    meta = {
+        "studyID": "spatial1", "studyAbbr": "sp", "longTitle": "x",
+        "shortTitle": "x", "species": "Mus musculus", "coordinate": "UMAP",
+    }
+    result = prepare_study_from_anndata(
+        out_dir=tmp_path,
+        expression_adata=adata,
+        meta=meta,
+        cell_type_col="cell_type",
+        cell_group_col="cell_type",
+        coord1_col="X",
+        coord2_col="Y",
+    )
+    study = load_study(result["bundle_path"])
+    np.testing.assert_allclose(study.cells["coord1"].to_numpy(), x_vals)
+    np.testing.assert_allclose(study.cells["coord2"].to_numpy(), y_vals)
+
+
 # ---------------------------------------------------------------------------
 # read_graph_study round-trip
 # ---------------------------------------------------------------------------
