@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#BSUB -P scminer
+#BSUB -J scminer-viewer
+#BSUB -q standard
+#BSUB -n 2
+#BSUB -R "rusage[mem=16000]"
+#BSUB -W 24:00
+#BSUB -o hpc/logs/scminer-viewer_%J.out
+#BSUB -e hpc/logs/scminer-viewer_%J.err
+#
+# Launch the Python scminer-viewer multi-study browser on an LSF compute node,
+# bound to 0.0.0.0 so a workstation on the cluster's network can connect
+# directly. The viewer has NO built-in auth -- see README "Exposing to a
+# remote host" for the SSH-tunnel alternative if that matters.
+#
+# Submit:
+#   bsub < hpc/run_viewer.bsub                     # defaults
+#   DATA_ROOT=/path/to/studies PORT=8123 bsub < hpc/run_viewer.bsub
+#   MODE=run BUNDLE=data/2327/2327.scminer.h5 bsub < hpc/run_viewer.bsub
+#
+# Env knobs:
+#   DATA_ROOT  multi-study root passed to `scminer-viewer browse` (browse mode).
+#              Default: data
+#   BUNDLE     bundle path passed to `scminer-viewer run` (run mode).
+#              Default: data/2327/2327.scminer.h5
+#   MODE       browse (default) or run
+#   PORT       TCP port to bind. Default: 8000
+#   CONDA_ENV  name (or absolute path) of the conda env to activate.
+#              Default: scminer-viewer
+
+set -euo pipefail
+
+cd "${LS_SUBCWD:-$PWD}"
+mkdir -p hpc/logs
+
+MODE="${MODE:-browse}"
+PORT="${PORT:-8000}"
+CONDA_ENV="${CONDA_ENV:-scminer_viewer}"
+DATA_ROOT="${DATA_ROOT:-data}"
+BUNDLE="${BUNDLE:-data/2327/2327.scminer.h5}"
+
+module load conda3/202402 2>/dev/null \
+  || module load miniconda3/4.12.0 2>/dev/null \
+  || echo "[bsub] WARN: no conda module loaded; relying on system conda" >&2
+module load hdf5 2>/dev/null \
+  || module load hdf5/1.10.7 2>/dev/null \
+  || echo "[bsub] WARN: no hdf5 module loaded" >&2
+
+if ! command -v conda >/dev/null 2>&1; then
+  echo "[bsub] conda not on PATH after module load" >&2
+  exit 2
+fi
+# `conda activate` needs the shell hook; `conda run` would work too but
+# activation keeps PATH/CONDA_PREFIX set for the exec below.
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+if ! conda activate "$CONDA_ENV" 2>/dev/null; then
+  echo "[bsub] could not activate conda env '$CONDA_ENV' -- create it first:" >&2
+  echo "       conda create -n $CONDA_ENV python=3.11 -y \\" >&2
+  echo "         && conda activate $CONDA_ENV \\" >&2
+  echo "         && pip install -e 'scminer_viewer[dev]'" >&2
+  exit 3
+fi
+
+if ! command -v scminer-viewer >/dev/null 2>&1; then
+  echo "[bsub] scminer-viewer not on PATH after activating $CONDA_ENV" >&2
+  echo "       pip install -e 'scminer_viewer[dev]' from the repo root." >&2
+  exit 4
+fi
+
+HOST_FQDN="$(hostname -f 2>/dev/null || hostname)"
+echo "================================================================"
+echo "[bsub] job=${LSB_JOBID:-?}  host=$HOST_FQDN  mode=$MODE  port=$PORT"
+echo "[bsub] Connect from your workstation:"
+echo "       http://${HOST_FQDN}:${PORT}"
+echo "[bsub] If the cluster firewall blocks that port, SSH-tunnel instead:"
+echo "       ssh -L ${PORT}:${HOST_FQDN}:${PORT} ${USER}@<head-node>"
+echo "       then open http://localhost:${PORT}"
+echo "================================================================"
+
+case "$MODE" in
+  browse)
+    exec scminer-viewer browse "$DATA_ROOT" --port "$PORT" --allow-remote
+    ;;
+  run)
+    exec scminer-viewer run "$BUNDLE" --port "$PORT" --allow-remote
+    ;;
+  *)
+    echo "[bsub] unknown MODE='$MODE' (expected: browse | run)" >&2
+    exit 5
+    ;;
+esac
