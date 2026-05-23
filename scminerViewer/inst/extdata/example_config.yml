@@ -25,7 +25,16 @@ study:
 
 # ---- Sample-level metadata (also used as scminer_study$meta fields) -------
 species:    Mus musculus    # also written into manifests' Species column
-coordinate: UMAP            # also the pData column prefix (UMAP_1, UMAP_2)
+coordinate: UMAP            # default pData column prefix (UMAP_1, UMAP_2)
+# Optional: override the two coordinate column names directly. Use these
+# when pData columns don't follow the `<coordinate>_1` / `<coordinate>_2`
+# convention (e.g. `tSNE.1` / `tSNE.2`, or `X` / `Y`).
+# coordinate_1: UMAP_1
+# coordinate_2: UMAP_2
+# Optional: name-only alias used when `coordinate:` is omitted. Pair this
+# with explicit `coordinate_1:` / `coordinate_2:` to keep the embedding's
+# display name distinct from any column-name stem.
+# coordinateName: tSNE
 
 # ---- Cluster colour palette -----------------------------------------------
 # Auto-fills the Color column of study_meta.csv (and the bundle's

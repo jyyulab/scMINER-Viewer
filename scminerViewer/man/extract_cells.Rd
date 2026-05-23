@@ -9,7 +9,9 @@ extract_cells(
   cell_id_col = "cellID",
   cell_type_col = "cellGroup",
   cell_group_col = cell_type_col,
-  coordinate_col = "UMAP"
+  coordinate_col = "UMAP",
+  coordinate_1_col = NULL,
+  coordinate_2_col = NULL
 )
 }
 \arguments{
@@ -20,7 +22,13 @@ extract_cells(
 rownames if not already a column.}
 
 \item{coordinate_col}{Stem of the coord columns; the eset must have
-`<coordinate_col>_1` and `<coordinate_col>_2`.}
+`<coordinate_col>_1` and `<coordinate_col>_2` unless explicit
+`coordinate_1_col` / `coordinate_2_col` are supplied.}
+
+\item{coordinate_1_col, coordinate_2_col}{Optional explicit pData
+column names for the two coordinate axes. When `NULL` (default),
+they fall back to `paste0(coordinate_col, "_1")` /
+`paste0(coordinate_col, "_2")`.}
 }
 \value{
 data.frame with columns `cellID`, `cellType`, `cellGroup`,
