@@ -126,8 +126,36 @@ _LOADING_OVERLAY_JS = """
                 .forEach(function(c) { c.classList.remove('is-loading'); });
         }
     }
-    document.addEventListener('shiny:idle',  clear);
-    document.addEventListener('shiny:error',  clear);
+
+    // shiny-for-python dispatches `shiny:idle`/`shiny:error` via
+    // `jQuery(document).trigger(...)`. Those custom events are NOT
+    // delivered to native `addEventListener` listeners -- they only
+    // reach `jQuery(document).on(...)` handlers -- so register through
+    // jQuery (bundled with Shiny) once it's available.
+    function bindShinyEvents() {
+        if (window.jQuery) {
+            window.jQuery(document).on('shiny:idle shiny:error', clear);
+            return true;
+        }
+        return false;
+    }
+    if (!bindShinyEvents()) {
+        // jQuery not loaded yet -- retry after DOMContentLoaded.
+        document.addEventListener('DOMContentLoaded', bindShinyEvents);
+    }
+
+    // Backup signal that doesn't rely on jQuery event dispatch at all:
+    // shiny.js toggles a `shiny-busy` class on <html> while a flush is
+    // in flight. Hide the overlay whenever that class transitions off.
+    if (window.MutationObserver) {
+        new MutationObserver(function() {
+            if (!document.documentElement.classList.contains('shiny-busy')) {
+                clear();
+            }
+        }).observe(document.documentElement, {
+            attributes: true, attributeFilter: ['class'],
+        });
+    }
   })();
 """
 
