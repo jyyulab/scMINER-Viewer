@@ -68,7 +68,7 @@ if ! command -v scminer-viewer >/dev/null 2>&1; then
   exit 4
 fi
 
-HOST_FQDN="$(hostname -f 2>/dev/null || hostname)"
+HOST_FQDN="$(hostname -I 2>/dev/null || hostname)"
 echo "================================================================"
 echo "[bsub] job=${LSB_JOBID:-?}  host=$HOST_FQDN  mode=$MODE  port=$PORT"
 echo "[bsub] Connect from your workstation:"
