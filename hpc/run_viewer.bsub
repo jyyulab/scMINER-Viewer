@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #BSUB -P scminer
 #BSUB -J scminer-viewer
-#BSUB -q standard
+#BSUB -q priority
 #BSUB -n 2
-#BSUB -R "rusage[mem=16000]"
+#BSUB -R "rusage[mem=60000]"
 #BSUB -W 24:00
 #BSUB -o hpc/logs/scminer-viewer_%J.out
 #BSUB -e hpc/logs/scminer-viewer_%J.err
