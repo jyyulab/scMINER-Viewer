@@ -114,35 +114,41 @@ _BROWSER_CSS = """
 
 _LOADING_OVERLAY_JS = """
   (function() {
-    // Hide the overlay whenever Shiny goes idle (load finished or any
-    // recompute settled). Also hide on shiny:error so a failed load
-    // doesn't leave the page locked.
+    // Hide the overlay whenever Shiny finishes a flush. Shiny dispatches
+    // its lifecycle events through `jQuery(document).trigger("shiny:idle")`
+    // -- those don't reach native `addEventListener` handlers, so we use
+    // `$(document).on(...)` to match jQuery's dispatch. We also watch the
+    // `shiny-busy` class shiny.js toggles on <html> as a jQuery-free
+    // backup signal. Inline `display:none` is set defensively against
+    // CSS-rule load races.
     function clear() {
         var el = document.getElementById('study-loading-overlay');
         if (el) {
             el.classList.remove('active');
+            el.style.display = 'none';
             el.dataset.sid = '';
             document.querySelectorAll('.study-card.is-loading')
                 .forEach(function(c) { c.classList.remove('is-loading'); });
         }
     }
 
-    // shiny-for-python dispatches `shiny:idle`/`shiny:error` via
-    // `jQuery(document).trigger(...)`. Those custom events are NOT
-    // delivered to native `addEventListener` listeners -- they only
-    // reach `jQuery(document).on(...)` handlers -- so register through
-    // jQuery (bundled with Shiny) once it's available.
-    function bindShinyEvents() {
-        if (window.jQuery) {
-            window.jQuery(document).on('shiny:idle shiny:error', clear);
-            return true;
+    function bind() {
+        if (typeof window.jQuery === 'undefined') {
+            // jQuery hasn't loaded yet (rare -- Shiny depends on it).
+            // Retry after the next tick.
+            setTimeout(bind, 50);
+            return;
         }
-        return false;
+        var $ = window.jQuery;
+        $(document).on('shiny:idle shiny:error', clear);
+        // shiny:value fires per output completion -- clear as soon as the
+        // page_content output is delivered, even if other outputs are
+        // still rendering.
+        $(document).on('shiny:value', function(ev) {
+            if (ev.name === 'page_content') clear();
+        });
     }
-    if (!bindShinyEvents()) {
-        // jQuery not loaded yet -- retry after DOMContentLoaded.
-        document.addEventListener('DOMContentLoaded', bindShinyEvents);
-    }
+    bind();
 
     // Backup signal that doesn't rely on jQuery event dispatch at all:
     // shiny.js toggles a `shiny-busy` class on <html> while a flush is
@@ -182,12 +188,14 @@ def _study_card(row) -> ui.Tag:
                 "id": f"open_study_{safe}",
                 "onclick": (
                     # Show the overlay synchronously, then notify the
-                    # server. Shiny:idle (or :error) clears both.
+                    # server. shiny:value (page_content) clears it.
+                    # Inline `display` mirrors the `.active` class — the
+                    # CSS rule alone wasn't reliable in all environments.
                     "var ov = document.getElementById('study-loading-overlay');"
                     f"var lab = document.getElementById('study-loading-label');"
                     f"if (lab) lab.textContent = 'Loading ‘{short_title}’…';"
                     "if (ov) { ov.dataset.sid = "
-                    f"{row['studyID']!r}; ov.classList.add('active'); }}"
+                    f"{row['studyID']!r}; ov.classList.add('active'); ov.style.display = 'flex'; }}"
                     "this.closest('.study-card').classList.add('is-loading');"
                     f"Shiny.setInputValue('open_study', "
                     f"{{ sid: {row['studyID']!r}, t: Date.now() }}, "

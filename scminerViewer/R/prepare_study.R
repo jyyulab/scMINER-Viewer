@@ -343,7 +343,9 @@ load_study_config <- function(config_path) {
   cfg$coordinate      <- as.character(cfg$coordinate
                                       %||% cfg$coordinateName
                                       %||% "UMAP")
-  # coordinate_1 / coordinate_2: optional explicit column names. When
+  # coordinate_1 / coordinate_2: optional explicit column names. Use
+  # these when the embedding columns don't follow the `<stem>_1` /
+  # `<stem>_2` convention (e.g. spatial layouts with `X` / `Y`). When
   # absent, extract_cells() falls back to <coordinate>_1 / <coordinate>_2.
   # Keep them as NULL (not "") so the fallback fires inside extract_cells.
   if (!is.null(cfg$coordinate_1)) {
@@ -478,6 +480,9 @@ extract_cells <- function(expression_eset,
   })
   p_data[[cell_id_col]] <- rownames(p_data)
 
+  # Explicit per-axis column names win over the stem-based default.
+  # Useful for spatial / non-UMAP layouts whose columns are X/Y or
+  # similar (no shared `<stem>_<n>` prefix).
   coord1_col <- coordinate_1_col %||% paste0(coordinate_col, "_1")
   coord2_col <- coordinate_2_col %||% paste0(coordinate_col, "_2")
   required <- c(cell_id_col, cell_type_col, coord1_col, coord2_col)

@@ -59,7 +59,25 @@ def load_study_config(config_path: str | Path) -> dict[str, Any]:
 
     # Defaults
     cfg["species"] = str(cfg.get("species") or "")
-    cfg["coordinate"] = str(cfg.get("coordinate") or "UMAP")
+    # Coordinate label: stem of `<stem>_1` / `<stem>_2` AND the display
+    # name shown in the viewer's axis labels. `coordinateName` is
+    # accepted as an alias so YAMLs that already split column-names from
+    # the display label keep working.
+    cfg["coordinate"] = str(
+        cfg.get("coordinate") or cfg.get("coordinateName") or "UMAP"
+    )
+    # Optional explicit per-axis column overrides. Use these when the
+    # embedding columns don't follow the `<stem>_1` / `<stem>_2`
+    # convention (e.g. spatial layouts with ``X`` / ``Y``). Stored as
+    # `None` when absent so downstream callers can branch cleanly.
+    cfg["coordinate_1"] = (
+        str(cfg["coordinate_1"]) if cfg.get("coordinate_1") is not None
+        else None
+    )
+    cfg["coordinate_2"] = (
+        str(cfg["coordinate_2"]) if cfg.get("coordinate_2") is not None
+        else None
+    )
     cfg["cellID"] = str(cfg.get("cellID") or "cellID")
     cfg["cellType"] = str(cfg.get("cellType") or "cellGroup")
     cfg["cellGroup"] = str(cfg.get("cellGroup") or cfg["cellType"])

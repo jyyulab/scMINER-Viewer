@@ -25,16 +25,22 @@ study:
 
 # ---- Sample-level metadata (also used as scminer_study$meta fields) -------
 species:    Mus musculus    # also written into manifests' Species column
-coordinate: UMAP            # default pData column prefix (UMAP_1, UMAP_2)
-# Optional: override the two coordinate column names directly. Use these
-# when pData columns don't follow the `<coordinate>_1` / `<coordinate>_2`
-# convention (e.g. `tSNE.1` / `tSNE.2`, or `X` / `Y`).
-# coordinate_1: UMAP_1
-# coordinate_2: UMAP_2
-# Optional: name-only alias used when `coordinate:` is omitted. Pair this
-# with explicit `coordinate_1:` / `coordinate_2:` to keep the embedding's
-# display name distinct from any column-name stem.
-# coordinateName: tSNE
+coordinate: UMAP            # display label AND the pData column prefix —
+                            # i.e. the eset must carry `<coordinate>_1` /
+                            # `<coordinate>_2` columns (here UMAP_1 / UMAP_2).
+                            # `coordinateName:` is accepted as an alias.
+
+# ---- Optional: explicit coordinate column names ---------------------------
+# Use these when the embedding columns DON'T follow the `<stem>_1` /
+# `<stem>_2` convention -- e.g. spatial-transcriptomics studies where
+# the columns are X / Y (or `tSNE.1` / `tSNE.2`). When both are given
+# they override the stem-based lookup above; `coordinate:` is then used
+# only as the display label on the axes. Pair with `coordinateName:` to
+# keep the display name distinct from any column-name stem.
+#
+#   coordinate_1: X
+#   coordinate_2: Y
+#   coordinateName: tSNE
 
 # ---- Cluster colour palette -----------------------------------------------
 # Auto-fills the Color column of study_meta.csv (and the bundle's

@@ -214,6 +214,8 @@ def prepare_study_from_anndata(
     cell_type_col: str = "cellGroup",
     cell_group_col: Optional[str] = None,
     coordinate_col: str = "UMAP",
+    coord1_col: Optional[str] = None,
+    coord2_col: Optional[str] = None,
     gene_symbol_col: str = "geneSymbol",
     clusters: Optional[pd.DataFrame] = None,
     cluster_palette: str = "npg",
@@ -226,6 +228,10 @@ def prepare_study_from_anndata(
     Internally calls :func:`extract_cells`, :func:`extract_genes`,
     :func:`extract_expression`, optionally :func:`extract_activity`,
     optionally :func:`read_networks`, then :func:`prepare_study_data`.
+
+    Pass `coord1_col` / `coord2_col` to override the stem-based
+    `<coordinate_col>_1` / `_2` discovery (e.g. spatial studies whose
+    coordinate columns are named ``X`` / ``Y``).
     """
     cells = extract_cells(
         expression_adata,
@@ -233,6 +239,8 @@ def prepare_study_from_anndata(
         cell_type_col=cell_type_col,
         cell_group_col=cell_group_col,
         coordinate_col=coordinate_col,
+        coord1_col=coord1_col,
+        coord2_col=coord2_col,
     )
     genes = extract_genes(expression_adata, gene_symbol_col=gene_symbol_col)
     expression = extract_expression(expression_adata, genes=genes)
@@ -334,6 +342,8 @@ def prepare_study(
         cell_type_col=cfg["cellType"],
         cell_group_col=cfg["cellGroup"],
         coordinate_col=cfg["coordinate"],
+        coord1_col=cfg.get("coordinate_1"),
+        coord2_col=cfg.get("coordinate_2"),
         gene_symbol_col=cfg["geneSymbol"],
         cluster_palette=cfg["cluster_palette"],
         default_genes=cfg["default_genes"],

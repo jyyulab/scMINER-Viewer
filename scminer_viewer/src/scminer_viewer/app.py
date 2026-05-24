@@ -117,6 +117,26 @@ def _ui_factory(study: Study):
           .cluster-table .ct-color { text-align: center; }
           .cluster-table .ct-count { font-family: monospace;
                                       font-size: 12px; }
+          /* Right column's Clusters card: stretch to match the left
+             column's combined height (Study Info & Controls + Gene
+             Selection), and scroll the body internally when the table
+             overflows. Pure-CSS via flex/grid didn't take effect under
+             bslib's layout_columns wrapping, so the actual height
+             matching is done in JS below (`cluster-panel-sync.js`);
+             the rules here just set the scroll container. */
+          .clusters-panel-card {
+              display: flex;
+              flex-direction: column;
+              margin-bottom: 0;
+          }
+          .clusters-panel-card > .panel-card-header {
+              flex: 0 0 auto;
+          }
+          .clusters-panel-card > .panel-card-body {
+              overflow-y: auto;
+              flex: 1 1 auto;
+              min-height: 0;
+          }
         """),
         ui.div(
             {"class": "study-title"},
@@ -184,12 +204,15 @@ def _ui_factory(study: Study):
                     ui.div({"class": "panel-card-header"}, "Gene Selection"),
                     ui.div(
                         {"class": "panel-card-body"},
+                        # Choices are populated server-side after the page
+                        # is interactive — dumping the full gene list (often
+                        # 10k+) into selectize.js at HTML-render time blocks
+                        # the page-load reactive cycle and the loading
+                        # overlay never clears.
                         ui.input_selectize(
                             "gene_select", label=None,
-                            choices=list(study.genes),
-                            selected=(list(study.default_genes)
-                                      if study.default_genes is not None
-                                      else []),
+                            choices=[],
+                            selected=[],
                             multiple=True,
                             options={
                                 "placeholder": "Type to add gene(s)...",
@@ -200,15 +223,63 @@ def _ui_factory(study: Study):
                 ),
             ),
             ui.div(
-                {"class": "panel-card"},
-                ui.div({"class": "panel-card-header"}, "Clusters"),
+                {"class": "clusters-panel-wrapper"},
                 ui.div(
-                    {"class": "panel-card-body"},
-                    ui.output_ui("clusters_table_ui"),
+                    {"class": "panel-card clusters-panel-card"},
+                    ui.div({"class": "panel-card-header"}, "Clusters"),
+                    ui.div(
+                        {"class": "panel-card-body"},
+                        ui.output_ui("clusters_table_ui"),
+                    ),
                 ),
             ),
             col_widths=[8, 4],
         ),
+        ui.tags.script("""
+          // Match the Clusters panel's height to the left column
+          // (Study Info & Controls + Gene Selection stacked). The
+          // panel-card-body is set to overflow-y: auto via CSS, so a
+          // fixed pixel height makes the table scroll inside that
+          // height instead of pushing the page down.
+          (function() {
+              function sync() {
+                  var wrap = document.querySelector('.clusters-panel-wrapper');
+                  if (!wrap) return;
+                  var card = wrap.querySelector('.clusters-panel-card');
+                  if (!card) return;
+                  // The left column is the *other* bslib-grid-item in the
+                  // same grid row. Walk to the grid container, find both
+                  // grid items, pick the one we're not in.
+                  var item = wrap.closest('.bslib-grid-item');
+                  if (!item) return;
+                  var grid = item.parentElement;
+                  if (!grid) return;
+                  var sibs = grid.querySelectorAll(':scope > .bslib-grid-item');
+                  var leftItem = null;
+                  for (var i = 0; i < sibs.length; i++) {
+                      if (sibs[i] !== item) { leftItem = sibs[i]; break; }
+                  }
+                  if (!leftItem) return;
+                  var h = leftItem.getBoundingClientRect().height;
+                  if (h > 0) card.style.height = h + 'px';
+              }
+              // Sync on initial render, on window resize, and whenever
+              // Shiny re-renders an output (e.g. the cluster table after
+              // a checkbox toggle changes its row count). Wrapped in
+              // requestAnimationFrame so DOM has settled.
+              function schedule() {
+                  requestAnimationFrame(sync);
+              }
+              window.addEventListener('resize', schedule);
+              if (window.jQuery) {
+                  jQuery(document).on('shiny:value', schedule);
+              }
+              schedule();
+              // Initial sync may run before the cluster table populates;
+              // retry a few times in case its first render comes later.
+              [50, 200, 500, 1500].forEach(function(d) { setTimeout(sync, d); });
+          })();
+        """),
         ui.navset_tab(
             ui.nav_panel("Cluster Plot", output_widget("cluster_plot")),
             ui.nav_panel("Heatmap", output_widget("heatmap_plot")),
@@ -233,6 +304,19 @@ def _ui_factory(study: Study):
 
 def _server_factory(study: Study):
     def server(input: Inputs, output: Outputs, session: Session) -> None:
+        # Populate the gene selectize after the page is up — pushing the
+        # full gene list at HTML-render time can stall the page-load
+        # reactive cycle for ~30s+ on large bundles (10k+ genes).
+        ui.update_selectize(
+            "gene_select",
+            choices=list(study.genes),
+            selected=(list(study.default_genes)
+                      if study.default_genes is not None
+                      else []),
+            server=True,
+            session=session,
+        )
+
         clusters_df = study.clusters.reset_index().assign(
             color_swatch=lambda d: d["color"].apply(
                 lambda c: f'<span style="display:inline-block;width:24px;'
