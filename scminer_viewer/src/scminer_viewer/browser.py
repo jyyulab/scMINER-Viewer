@@ -114,33 +114,34 @@ _BROWSER_CSS = """
 
 _LOADING_OVERLAY_JS = """
   (function() {
-    // Hide the overlay whenever Shiny goes idle (load finished or any
-    // recompute settled). Shiny dispatches its lifecycle events through
-    // jQuery's `$(document).trigger("shiny:idle")` — those don't always
-    // bubble to native `addEventListener` handlers (esp. when
-    // shinywidgets / anywidget is on the page), so we use `$(document)
-    // .on(...)` to match jQuery's dispatch. Inline `display:none` is
-    // also set as a defensive override against CSS-rule load races.
+    // Hide the overlay whenever Shiny finishes a flush. Shiny dispatches
+    // its lifecycle events through `jQuery(document).trigger("shiny:idle")`
+    // -- those don't reach native `addEventListener` handlers, so we use
+    // `$(document).on(...)` to match jQuery's dispatch. We also watch the
+    // `shiny-busy` class shiny.js toggles on <html> as a jQuery-free
+    // backup signal. Inline `display:none` is set defensively against
+    // CSS-rule load races.
+    function clear() {
+        var el = document.getElementById('study-loading-overlay');
+        if (el) {
+            el.classList.remove('active');
+            el.style.display = 'none';
+            el.dataset.sid = '';
+            document.querySelectorAll('.study-card.is-loading')
+                .forEach(function(c) { c.classList.remove('is-loading'); });
+        }
+    }
+
     function bind() {
         if (typeof window.jQuery === 'undefined') {
-            // jQuery hasn't loaded yet (rare — Shiny depends on it).
+            // jQuery hasn't loaded yet (rare -- Shiny depends on it).
             // Retry after the next tick.
             setTimeout(bind, 50);
             return;
         }
         var $ = window.jQuery;
-        function clear() {
-            var el = document.getElementById('study-loading-overlay');
-            if (el) {
-                el.classList.remove('active');
-                el.style.display = 'none';
-                el.dataset.sid = '';
-                document.querySelectorAll('.study-card.is-loading')
-                    .forEach(function(c) { c.classList.remove('is-loading'); });
-            }
-        }
-        $(document).on('shiny:idle  shiny:error', clear);
-        // shiny:value fires per output completion — clear as soon as the
+        $(document).on('shiny:idle shiny:error', clear);
+        // shiny:value fires per output completion -- clear as soon as the
         // page_content output is delivered, even if other outputs are
         // still rendering.
         $(document).on('shiny:value', function(ev) {
@@ -148,6 +149,19 @@ _LOADING_OVERLAY_JS = """
         });
     }
     bind();
+
+    // Backup signal that doesn't rely on jQuery event dispatch at all:
+    // shiny.js toggles a `shiny-busy` class on <html> while a flush is
+    // in flight. Hide the overlay whenever that class transitions off.
+    if (window.MutationObserver) {
+        new MutationObserver(function() {
+            if (!document.documentElement.classList.contains('shiny-busy')) {
+                clear();
+            }
+        }).observe(document.documentElement, {
+            attributes: true, attributeFilter: ['class'],
+        });
+    }
   })();
 """
 

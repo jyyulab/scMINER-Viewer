@@ -134,6 +134,78 @@ test_that("load_study_config preserves explicit values", {
   expect_equal(cfg$input$networks, "/c.tsv")
 })
 
+test_that("load_study_config: coordinateName fills in when coordinate is absent", {
+  skip_if_not_installed("yaml")
+  base <- c(
+    "output: out",
+    "study:",
+    "  ID: \"42\"",
+    "  studyAbbr: tst",
+    "  longTitle: A test study",
+    "  shortTitle: Tst",
+    "input:",
+    "  expression: /tmp/expr.rds"
+  )
+
+  # 1. coordinateName alone -> flows through as the meta coordinate value.
+  tmp <- tempfile(fileext = ".yml"); on.exit(unlink(tmp), add = TRUE)
+  writeLines(c(base, "coordinateName: tSNE"), tmp)
+  cfg <- load_study_config(tmp)
+  expect_equal(cfg$coordinate, "tSNE")
+
+  # 2. coordinate takes precedence over coordinateName (stem wins).
+  tmp2 <- tempfile(fileext = ".yml"); on.exit(unlink(tmp2), add = TRUE)
+  writeLines(c(base, "coordinate: UMAP", "coordinateName: tSNE"), tmp2)
+  cfg2 <- load_study_config(tmp2)
+  expect_equal(cfg2$coordinate, "UMAP")
+
+  # 3. Neither -> default to "UMAP" (regression check).
+  tmp3 <- tempfile(fileext = ".yml"); on.exit(unlink(tmp3), add = TRUE)
+  writeLines(base, tmp3)
+  cfg3 <- load_study_config(tmp3)
+  expect_equal(cfg3$coordinate, "UMAP")
+})
+
+test_that("write_graph cells: n_cell.tsv carries the resolved coordinate name", {
+  skip_if_not_installed("Biobase")
+  # The 7th column of <studyID>_n_cell.tsv literally stores the coordinate
+  # name (the header column is labeled "coordinateName"). Verify that a
+  # YAML using `coordinateName:` instead of `coordinate:` produces an
+  # n_cell.tsv whose 7th column matches.
+  out_dir <- tempfile("ngraph-coord-")
+  dir.create(out_dir)
+  on.exit(unlink(out_dir, recursive = TRUE), add = TRUE)
+
+  meta <- list(studyID = "X1", studyAbbr = "x", longTitle = "X", shortTitle = "X",
+               species = "Homo sapiens", coordinate = "tSNE")
+  cells <- data.frame(
+    cellID    = c("a", "b"),
+    cellType  = c("T", "T"),
+    cellGroup = c("T", "T"),
+    coord1    = c(1.0, 2.0),
+    coord2    = c(0.5, 1.5),
+    stringsAsFactors = FALSE
+  )
+  scminerViewer:::.ensure_graph_tree(out_dir)
+  scminerViewer:::.write_graph_cells(out_dir, meta, cells)
+
+  tsv <- readLines(file.path(out_dir, "Cell", "X1_n_cell.tsv"))
+  # Split first row into columns and inspect the 7th (the coordinateName col).
+  cols <- strsplit(tsv[1], "\t", fixed = TRUE)[[1]]
+  expect_length(cols, 7L)
+  expect_equal(cols[7], "tSNE")
+
+  # The header file has 6 cols (cellID is written twice only in the data
+  # row, not the header); positions 4/5 carry the stem-derived axis labels
+  # and position 6 is the literal "coordinateName" column label.
+  hdr <- readLines(file.path(out_dir, "Header", "X1_n_cell.header.tsv"))
+  hcols <- strsplit(hdr, "\t", fixed = TRUE)[[1]]
+  expect_length(hcols, 6L)
+  expect_equal(hcols[4], "tSNE_1:float")
+  expect_equal(hcols[5], "tSNE_2:float")
+  expect_equal(hcols[6], "coordinateName")
+})
+
 test_that("load_study_config rejects missing required keys", {
   skip_if_not_installed("yaml")
   tmp <- tempfile(fileext = ".yml")
@@ -229,6 +301,47 @@ test_that("extract_cells fails loudly on missing pData columns", {
     extract_cells(eset, cell_type_col = "missing_col"),
     "missing_col"
   )
+})
+
+test_that("extract_cells honors explicit coordinate_1_col / coordinate_2_col", {
+  skip_if_not_installed("Biobase")
+  # Build a pData whose coord columns don't follow the <stem>_1 / <stem>_2
+  # convention — emulates real-world inputs with column names like
+  # "tSNE.1" / "tSNE.2" or completely custom names.
+  n_cells  <- 6
+  cell_ids <- paste0("c", seq_len(n_cells))
+  gene_ids <- paste0("g", 1:3)
+  expr_mat <- matrix(seq_len(n_cells * 3),
+                     nrow = 3, ncol = n_cells,
+                     dimnames = list(gene_ids, cell_ids))
+  p_data <- data.frame(
+    cellGroup = rep(c("A", "B"), length.out = n_cells),
+    `tSNE.1`  = seq_len(n_cells) * 1.0,
+    `tSNE.2`  = seq_len(n_cells) * 0.5,
+    row.names = cell_ids,
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+  f_data <- data.frame(geneSymbol = gene_ids, row.names = gene_ids,
+                       stringsAsFactors = FALSE)
+  eset <- Biobase::ExpressionSet(
+    assayData   = expr_mat,
+    phenoData   = methods::new("AnnotatedDataFrame", data = p_data),
+    featureData = methods::new("AnnotatedDataFrame", data = f_data)
+  )
+
+  # Stem-based lookup fails (there is no tSNE_1 column).
+  expect_error(extract_cells(eset, coordinate_col = "tSNE"), "tSNE_1")
+
+  # Explicit column names bypass the stem convention.
+  cells <- extract_cells(
+    eset,
+    coordinate_1_col = "tSNE.1",
+    coordinate_2_col = "tSNE.2"
+  )
+  expect_equal(nrow(cells), n_cells)
+  expect_equal(cells$coord1, seq_len(n_cells) * 1.0)
+  expect_equal(cells$coord2, seq_len(n_cells) * 0.5)
 })
 
 test_that("extract_activity splits by _TF / _SIG suffix", {

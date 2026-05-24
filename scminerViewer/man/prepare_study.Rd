@@ -33,9 +33,12 @@ prepare_study_from_eset(
   cell_type_col = "cellGroup",
   cell_group_col = "cellGroup",
   coordinate_col = "UMAP",
+  coordinate_1_col = NULL,
+  coordinate_2_col = NULL,
   gene_symbol_col = "geneSymbol",
   clusters = NULL,
   cluster_palette = "npg",
+  default_genes = NULL,
   emit = c("graph", "bundle"),
   verbose = FALSE
 )
@@ -79,7 +82,15 @@ columns `source, target, NetworkType, [studyID,] CellGroup, mi,
 pearson, spearman, rho, pvalue` (the format consumed by the original
 `h_networks.R`).}
 
-\item{cell_id_col, cell_type_col, cell_group_col, coordinate_col}{Column names within `pData(expression_eset)`.}
+\item{cell_id_col, cell_type_col, cell_group_col, coordinate_col}{Column names within `pData(expression_eset)`. `coordinate_col` is
+the stem used to build `<stem>_1` / `<stem>_2` when explicit
+`coordinate_1_col` / `coordinate_2_col` are not supplied.}
+
+\item{coordinate_1_col, coordinate_2_col}{Optional explicit pData
+column names for the two coordinate axes. When `NULL` (default),
+they are derived from `coordinate_col` as `<coordinate_col>_1` /
+`<coordinate_col>_2`. Use these to point at columns that do not
+follow that naming convention (e.g. `tSNE.1` / `tSNE.2`).}
 
 \item{gene_symbol_col}{Column name within `fData(expression_eset)`.}
 

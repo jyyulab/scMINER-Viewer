@@ -33,12 +33,14 @@ coordinate: UMAP            # display label AND the pData column prefix —
 # ---- Optional: explicit coordinate column names ---------------------------
 # Use these when the embedding columns DON'T follow the `<stem>_1` /
 # `<stem>_2` convention -- e.g. spatial-transcriptomics studies where
-# the columns are X / Y (or pixel_x / pixel_y, etc.). When both are
-# given they override the stem-based lookup above; `coordinate:` is then
-# used only as the display label on the axes.
+# the columns are X / Y (or `tSNE.1` / `tSNE.2`). When both are given
+# they override the stem-based lookup above; `coordinate:` is then used
+# only as the display label on the axes. Pair with `coordinateName:` to
+# keep the display name distinct from any column-name stem.
 #
 #   coordinate_1: X
 #   coordinate_2: Y
+#   coordinateName: tSNE
 
 # ---- Cluster colour palette -----------------------------------------------
 # Auto-fills the Color column of study_meta.csv (and the bundle's

@@ -166,7 +166,14 @@ prepare_study_data <- function(out_dir,
 #'   pearson, spearman, rho, pvalue` (the format consumed by the original
 #'   `h_networks.R`).
 #' @param cell_id_col,cell_type_col,cell_group_col,coordinate_col
-#'   Column names within `pData(expression_eset)`.
+#'   Column names within `pData(expression_eset)`. `coordinate_col` is
+#'   the stem used to build `<stem>_1` / `<stem>_2` when explicit
+#'   `coordinate_1_col` / `coordinate_2_col` are not supplied.
+#' @param coordinate_1_col,coordinate_2_col Optional explicit pData
+#'   column names for the two coordinate axes. When `NULL` (default),
+#'   they are derived from `coordinate_col` as `<coordinate_col>_1` /
+#'   `<coordinate_col>_2`. Use these to point at columns that do not
+#'   follow that naming convention (e.g. `tSNE.1` / `tSNE.2`).
 #' @param gene_symbol_col Column name within `fData(expression_eset)`.
 #'
 #' @details Internally, `prepare_study_from_eset()` is a thin wrapper
@@ -184,8 +191,8 @@ prepare_study_from_eset <- function(out_dir,
                                      cell_type_col    = "cellGroup",
                                      cell_group_col   = "cellGroup",
                                      coordinate_col   = "UMAP",
-                                     coord1_col       = NULL,
-                                     coord2_col       = NULL,
+                                     coordinate_1_col = NULL,
+                                     coordinate_2_col = NULL,
                                      gene_symbol_col  = "geneSymbol",
                                      clusters         = NULL,
                                      cluster_palette  = "npg",
@@ -194,12 +201,12 @@ prepare_study_from_eset <- function(out_dir,
                                      verbose          = FALSE) {
   cells <- extract_cells(
     expression_eset,
-    cell_id_col    = cell_id_col,
-    cell_type_col  = cell_type_col,
-    cell_group_col = cell_group_col,
-    coordinate_col = coordinate_col,
-    coord1_col     = coord1_col,
-    coord2_col     = coord2_col
+    cell_id_col      = cell_id_col,
+    cell_type_col    = cell_type_col,
+    cell_group_col   = cell_group_col,
+    coordinate_col   = coordinate_col,
+    coordinate_1_col = coordinate_1_col,
+    coordinate_2_col = coordinate_2_col
   )
   genes <- extract_genes(expression_eset, gene_symbol_col = gene_symbol_col)
   expr  <- extract_expression(expression_eset, genes = genes)
@@ -272,8 +279,8 @@ prepare_study <- function(config_path,
     cell_type_col    = cfg$cellType,
     cell_group_col   = cfg$cellGroup,
     coordinate_col   = cfg$coordinate,
-    coord1_col       = cfg$coordinate_1,
-    coord2_col       = cfg$coordinate_2,
+    coordinate_1_col = cfg$coordinate_1,
+    coordinate_2_col = cfg$coordinate_2,
     gene_symbol_col  = cfg$geneSymbol,
     cluster_palette  = cfg$cluster_palette,
     default_genes    = cfg$default_genes,
@@ -328,20 +335,25 @@ load_study_config <- function(config_path) {
 
   # Fill defaults (preserving the existing values where set)
   cfg$species         <- as.character(cfg$species         %||% "")
-  # Coordinate label: stem of `<stem>_1` / `<stem>_2` AND the display
-  # name shown in the viewer's axis labels. `coordinateName` is accepted
-  # as an alias so YAMLs that already split column-names from the
-  # display label keep working.
+  # coordinate: the embedding name written into the bundle's meta and
+  # used as the stem for <stem>_1 / <stem>_2 column lookup when explicit
+  # coordinate_1 / coordinate_2 aren't provided. `coordinateName` is a
+  # name-only alias — handy when you also set explicit coordinate_1 /
+  # coordinate_2 and the stem-style name would be misleading.
   cfg$coordinate      <- as.character(cfg$coordinate
-                                       %||% cfg$coordinateName
-                                       %||% "UMAP")
-  # Optional explicit per-axis column overrides. Use these when the
-  # embedding columns don't follow the `<stem>_1` / `<stem>_2`
-  # convention (e.g. spatial layouts with `X` / `Y`).
-  cfg$coordinate_1    <- if (!is.null(cfg$coordinate_1))
-                           as.character(cfg$coordinate_1) else NULL
-  cfg$coordinate_2    <- if (!is.null(cfg$coordinate_2))
-                           as.character(cfg$coordinate_2) else NULL
+                                      %||% cfg$coordinateName
+                                      %||% "UMAP")
+  # coordinate_1 / coordinate_2: optional explicit column names. Use
+  # these when the embedding columns don't follow the `<stem>_1` /
+  # `<stem>_2` convention (e.g. spatial layouts with `X` / `Y`). When
+  # absent, extract_cells() falls back to <coordinate>_1 / <coordinate>_2.
+  # Keep them as NULL (not "") so the fallback fires inside extract_cells.
+  if (!is.null(cfg$coordinate_1)) {
+    cfg$coordinate_1 <- as.character(cfg$coordinate_1)
+  }
+  if (!is.null(cfg$coordinate_2)) {
+    cfg$coordinate_2 <- as.character(cfg$coordinate_2)
+  }
   cfg$cellID          <- as.character(cfg$cellID          %||% "cellID")
   cfg$cellType        <- as.character(cfg$cellType        %||% "cellGroup")
   cfg$cellGroup       <- as.character(cfg$cellGroup       %||% cfg$cellType)
@@ -441,22 +453,22 @@ validate_default_genes <- function(default_genes, master_genes,
 #'   `pData(expression_eset)`. `cell_id_col` defaults to the eset's
 #'   rownames if not already a column.
 #' @param coordinate_col Stem of the coord columns; the eset must have
-#'   `<coordinate_col>_1` and `<coordinate_col>_2`. Ignored when
-#'   `coord1_col` and `coord2_col` are both given.
-#' @param coord1_col,coord2_col Optional explicit column names in
-#'   `pData()` to use for the first / second coordinate axis. Use these
-#'   when the embedding columns don't follow the `<stem>_1` / `_2`
-#'   convention (e.g. spatial layouts with `X` / `Y`).
+#'   `<coordinate_col>_1` and `<coordinate_col>_2` unless explicit
+#'   `coordinate_1_col` / `coordinate_2_col` are supplied.
+#' @param coordinate_1_col,coordinate_2_col Optional explicit pData
+#'   column names for the two coordinate axes. When `NULL` (default),
+#'   they fall back to `paste0(coordinate_col, "_1")` /
+#'   `paste0(coordinate_col, "_2")`.
 #' @return data.frame with columns `cellID`, `cellType`, `cellGroup`,
 #'   `coord1`, `coord2`.
 #' @export
 extract_cells <- function(expression_eset,
-                           cell_id_col    = "cellID",
-                           cell_type_col  = "cellGroup",
-                           cell_group_col = cell_type_col,
-                           coordinate_col = "UMAP",
-                           coord1_col     = NULL,
-                           coord2_col     = NULL) {
+                          cell_id_col      = "cellID",
+                          cell_type_col    = "cellGroup",
+                          cell_group_col   = cell_type_col,
+                          coordinate_col   = "UMAP",
+                          coordinate_1_col = NULL,
+                          coordinate_2_col = NULL) {
   if (!requireNamespace("Biobase", quietly = TRUE)) {
     stop("Biobase is required for extract_cells(); ",
          "install it from Bioconductor.")
@@ -471,8 +483,8 @@ extract_cells <- function(expression_eset,
   # Explicit per-axis column names win over the stem-based default.
   # Useful for spatial / non-UMAP layouts whose columns are X/Y or
   # similar (no shared `<stem>_<n>` prefix).
-  if (is.null(coord1_col)) coord1_col <- paste0(coordinate_col, "_1")
-  if (is.null(coord2_col)) coord2_col <- paste0(coordinate_col, "_2")
+  coord1_col <- coordinate_1_col %||% paste0(coordinate_col, "_1")
+  coord2_col <- coordinate_2_col %||% paste0(coordinate_col, "_2")
   required <- c(cell_id_col, cell_type_col, coord1_col, coord2_col)
   miss <- setdiff(required, colnames(p_data))
   if (length(miss) > 0) {
