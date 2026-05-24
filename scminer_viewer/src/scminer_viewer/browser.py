@@ -115,19 +115,39 @@ _BROWSER_CSS = """
 _LOADING_OVERLAY_JS = """
   (function() {
     // Hide the overlay whenever Shiny goes idle (load finished or any
-    // recompute settled). Also hide on shiny:error so a failed load
-    // doesn't leave the page locked.
-    function clear() {
-        var el = document.getElementById('study-loading-overlay');
-        if (el) {
-            el.classList.remove('active');
-            el.dataset.sid = '';
-            document.querySelectorAll('.study-card.is-loading')
-                .forEach(function(c) { c.classList.remove('is-loading'); });
+    // recompute settled). Shiny dispatches its lifecycle events through
+    // jQuery's `$(document).trigger("shiny:idle")` — those don't always
+    // bubble to native `addEventListener` handlers (esp. when
+    // shinywidgets / anywidget is on the page), so we use `$(document)
+    // .on(...)` to match jQuery's dispatch. Inline `display:none` is
+    // also set as a defensive override against CSS-rule load races.
+    function bind() {
+        if (typeof window.jQuery === 'undefined') {
+            // jQuery hasn't loaded yet (rare — Shiny depends on it).
+            // Retry after the next tick.
+            setTimeout(bind, 50);
+            return;
         }
+        var $ = window.jQuery;
+        function clear() {
+            var el = document.getElementById('study-loading-overlay');
+            if (el) {
+                el.classList.remove('active');
+                el.style.display = 'none';
+                el.dataset.sid = '';
+                document.querySelectorAll('.study-card.is-loading')
+                    .forEach(function(c) { c.classList.remove('is-loading'); });
+            }
+        }
+        $(document).on('shiny:idle  shiny:error', clear);
+        // shiny:value fires per output completion — clear as soon as the
+        // page_content output is delivered, even if other outputs are
+        // still rendering.
+        $(document).on('shiny:value', function(ev) {
+            if (ev.name === 'page_content') clear();
+        });
     }
-    document.addEventListener('shiny:idle',  clear);
-    document.addEventListener('shiny:error',  clear);
+    bind();
   })();
 """
 
@@ -154,12 +174,14 @@ def _study_card(row) -> ui.Tag:
                 "id": f"open_study_{safe}",
                 "onclick": (
                     # Show the overlay synchronously, then notify the
-                    # server. Shiny:idle (or :error) clears both.
+                    # server. shiny:value (page_content) clears it.
+                    # Inline `display` mirrors the `.active` class — the
+                    # CSS rule alone wasn't reliable in all environments.
                     "var ov = document.getElementById('study-loading-overlay');"
                     f"var lab = document.getElementById('study-loading-label');"
                     f"if (lab) lab.textContent = 'Loading ‘{short_title}’…';"
                     "if (ov) { ov.dataset.sid = "
-                    f"{row['studyID']!r}; ov.classList.add('active'); }}"
+                    f"{row['studyID']!r}; ov.classList.add('active'); ov.style.display = 'flex'; }}"
                     "this.closest('.study-card').classList.add('is-loading');"
                     f"Shiny.setInputValue('open_study', "
                     f"{{ sid: {row['studyID']!r}, t: Date.now() }}, "
