@@ -8,6 +8,8 @@ screenshots and labels apply to both.
 
 ```
 +-----------------------------------------------------------+
+| [scMINER logo]  scMINER Viewer                             |  ← header
++-----------------------------------------------------------+
 |  Study title (long title + species + n_cells + n_genes)   |
 +-----------------------------------------------------------+
 |  Study Info & Controls  |  Clusters                        |
@@ -25,7 +27,36 @@ screenshots and labels apply to both.
 |  (active tab content here)                                 |
 |                                                            |
 +-----------------------------------------------------------+
+| [St. Jude]   Copyright © YYYY | Powered by the Yu Lab …  ⌘|  ← footer
++-----------------------------------------------------------+
 ```
+
+## Page chrome (header & footer) {-}
+
+Both `run_app()` and `run_browser()` wrap their content in a shared
+header + footer, matching the scMINER portal's visual identity:
+
+* **Header** — scMINER logo + "scMINER Viewer" wordmark on a light
+  band (`#e6e9ed`). Renders at the very top of every page (single-study
+  viewer, multi-study browser, and embedded study pages inside the
+  browser).
+* **Footer** — St. Jude logo (left), "Copyright © `{year}` | Powered
+  by [the Yu Lab](https://www.stjude.org/research/labs/yu-lab.html) at
+  St. Jude Children's Research Hospital" (centre), GitHub icon linking
+  to [`github.com/jyyulab`](https://github.com/jyyulab) (right).
+
+The logos ship with each package:
+
+| Package          | Path                                                 | Mount route         |
+|------------------|------------------------------------------------------|---------------------|
+| `scminerViewer`  | `inst/assets/{scMINER_logo,StJude,github-mark}.png`  | `/scviewer-assets/` |
+| `scminer_viewer` | `src/scminer_viewer/assets/…`                        | `/scviewer-assets/` |
+
+The R side registers the route via `shiny::addResourcePath()` from
+`.onLoad` in `R/zzz.R`; the Python side passes it through
+`App(static_assets={"/scviewer-assets": …})`. The browser passes
+`with_chrome = FALSE` when embedding the single-study UI so the bands
+don't render twice on one page.
 
 ## Study Info & Controls {-}
 

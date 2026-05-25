@@ -19,6 +19,12 @@ from shiny import App, Inputs, Outputs, Session, reactive, render, ui
 from .app import _server_factory as _study_server, _safe_id
 from .app import _ui_factory as _study_ui_factory  # noqa: F401  (kept for symmetry)
 from .data import Study, load_study
+from .layout import (
+    page_chrome_css,
+    page_footer,
+    page_header,
+    static_assets_mount,
+)
 
 
 def discover_studies(root_dir: str | Path) -> pd.DataFrame:
@@ -267,6 +273,7 @@ def build_browser(
                     for _, row in studies.iterrows()}
 
     app_ui = ui.page_fluid(
+        page_chrome_css(),
         ui.tags.style(_BROWSER_CSS),
         ui.tags.style("""
           .panel-card { border: 1px solid #dee2e6; border-radius: 6px;
@@ -276,9 +283,11 @@ def build_browser(
                                border-bottom: 1px solid #dee2e6; }
           .panel-card-body { padding: 12px 14px; }
         """),
+        page_header(),
         _loading_overlay(),
         ui.tags.script(_LOADING_OVERLAY_JS),
-        ui.output_ui("page_content"),
+        ui.div({"class": "scv-content"}, ui.output_ui("page_content")),
+        page_footer(),
         title="scMINER Viewer",
     )
 
@@ -360,21 +369,21 @@ def build_browser(
             _study_server(study)(input, output, session)
             wired_studies.add(sid)
 
-    return App(app_ui, server)
+    return App(app_ui, server, static_assets=static_assets_mount())
 
 
 def _study_inner_ui(study: Study):
     """The single-study viewer UI body without page_fluid/title wrapping.
 
-    Mirrors scminer_viewer.app._ui_factory but skips ui.page_fluid so
-    we can embed inside the browser shell.
+    Mirrors scminer_viewer.app._ui_factory but suppresses the shared
+    header/footer chrome -- the browser shell already supplies that, so
+    nesting both would double up the bands.
     """
     from .app import _ui_factory as _full_factory
-    # Reuse the same UI factory — the page_fluid wrapper is harmless
-    # when nested (Bootstrap container-fluid inside container-fluid is
-    # fine). This keeps the two surfaces in sync without duplication.
-    inner = _full_factory(study)
-    return inner
+    # `with_chrome=False` strips the header/footer from the embedded
+    # study UI. The outer page_fluid wrapper itself is harmless when
+    # nested (container-fluid inside container-fluid is fine).
+    return _full_factory(study, with_chrome=False)
 
 
 def run_browser(

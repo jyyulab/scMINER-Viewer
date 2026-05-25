@@ -153,10 +153,14 @@ run_browser <- function(root_dir,
   ui <- bslib::page_fluid(
     theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
     title = "scMINER Viewer",
+    .page_chrome_css(),
     shiny::tags$style(.app_css()),
+    .page_header(),
     .loading_overlay(),
     shiny::tags$script(.loading_overlay_js()),
-    shiny::uiOutput("page_content")
+    shiny::div(class = "scv-content",
+               shiny::uiOutput("page_content")),
+    .page_footer()
   )
 
   server <- function(input, output, session) {
@@ -217,10 +221,14 @@ build_browser <- function(root_dir, shard_dir = NULL) {
   ui <- bslib::page_fluid(
     theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
     title = "scMINER Viewer",
+    .page_chrome_css(),
     shiny::tags$style(.app_css()),
+    .page_header(),
     .loading_overlay(),
     shiny::tags$script(.loading_overlay_js()),
-    shiny::uiOutput("page_content")
+    shiny::div(class = "scv-content",
+               shiny::uiOutput("page_content")),
+    .page_footer()
   )
   server <- function(input, output, session) {
     chosen <- shiny::reactive({

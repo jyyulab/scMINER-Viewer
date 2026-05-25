@@ -9,6 +9,12 @@ from shiny import App, Inputs, Outputs, Session, reactive, render, ui
 from shinywidgets import output_widget, render_widget
 
 from .data import Study, load_study
+from .layout import (
+    page_chrome_css,
+    page_footer,
+    page_header,
+    static_assets_mount,
+)
 from .plots import (
     bubble_plot,
     cluster_plot,
@@ -87,10 +93,17 @@ def _build_gene_panel(gene: str, kind: str,
     )
 
 
-def _ui_factory(study: Study):
+def _ui_factory(study: Study, with_chrome: bool = True):
+    """Build the single-study viewer UI.
+
+    `with_chrome` toggles the shared scMINER header + footer. Pass
+    `False` when embedding inside the multi-study browser, which
+    provides its own chrome (otherwise both render and you get a
+    duplicate header/footer band per page).
+    """
     cell_count_total = f"{study.n_cells:,}"
 
-    return ui.page_fluid(
+    body = ui.TagList(
         ui.tags.style("""
           .panel-card { border: 1px solid #dee2e6; border-radius: 6px;
                         background: #fff; margin-bottom: 10px; }
@@ -298,8 +311,18 @@ def _ui_factory(study: Study):
             ),
             id="main_tabs",
         ),
-        title=f"scMINER Viewer - {study.meta.shortTitle}",
     )
+
+    title = f"scMINER Viewer - {study.meta.shortTitle}"
+    if with_chrome:
+        return ui.page_fluid(
+            page_chrome_css(),
+            page_header(),
+            ui.div({"class": "scv-content"}, body),
+            page_footer(),
+            title=title,
+        )
+    return ui.page_fluid(body, title=title)
 
 
 def _server_factory(study: Study):
@@ -682,7 +705,11 @@ def build_app(
             ``None`` (default) uses `Path(bundle_path).parent`.
     """
     study = load_study(bundle_path, shard_dir=shard_dir)
-    return App(_ui_factory(study), _server_factory(study))
+    return App(
+        _ui_factory(study),
+        _server_factory(study),
+        static_assets=static_assets_mount(),
+    )
 
 
 def run_app(

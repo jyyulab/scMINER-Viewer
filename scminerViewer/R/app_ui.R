@@ -268,7 +268,11 @@
   bslib::page_fluid(
     theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
     title = sprintf("scMINER Viewer - %s", study$meta$shortTitle),
+    .page_chrome_css(),
     shiny::tags$style(.app_css()),
-    .app_ui_content(study, with_back_link = FALSE)
+    .page_header(),
+    shiny::div(class = "scv-content",
+               .app_ui_content(study, with_back_link = FALSE)),
+    .page_footer()
   )
 }
