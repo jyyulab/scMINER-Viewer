@@ -110,7 +110,7 @@
       }
       function hide() {
         var ov = document.getElementById('study-loading-overlay');
-        if (ov) ov.classList.remove('active');
+        if (ov) { ov.classList.remove('active'); ov.style.display = 'none'; }
         document.querySelectorAll('.study-card.is-loading')
           .forEach(function(c) { c.classList.remove('is-loading'); });
       }
@@ -121,8 +121,37 @@
         setLabel('Loading study…');
         show();
       }
-      document.addEventListener('shiny:idle',  hide);
-      document.addEventListener('shiny:error', hide);
+      // Shiny dispatches `shiny:idle` / `shiny:error` via
+      // `jQuery(document).trigger(...)`. Those custom events are NOT
+      // delivered to native `addEventListener` listeners -- they only
+      // reach `jQuery(document).on(...)` handlers -- so register through
+      // jQuery (bundled with Shiny). Retry once if jQuery loads after
+      // this IIFE.
+      function bindShinyEvents() {
+        if (typeof window.jQuery === 'undefined') {
+          setTimeout(bindShinyEvents, 50);
+          return;
+        }
+        window.jQuery(document).on('shiny:idle shiny:error', hide);
+        // shiny:value fires per output completion -- clear as soon as
+        // page_content is delivered, even if other outputs lag.
+        window.jQuery(document).on('shiny:value', function(ev) {
+          if (ev.name === 'page_content') hide();
+        });
+      }
+      bindShinyEvents();
+      // Backup signal that doesn't depend on jQuery event dispatch at
+      // all: shiny.js toggles a `shiny-busy` class on <html> while a
+      // flush is in flight. Hide whenever that class transitions off.
+      if (window.MutationObserver) {
+        new MutationObserver(function() {
+          if (!document.documentElement.classList.contains('shiny-busy')) {
+            hide();
+          }
+        }).observe(document.documentElement, {
+          attributes: true, attributeFilter: ['class']
+        });
+      }
       // Index-page card click: dim the card and show overlay, then let
       // the <a href=\"?study=...\"> navigation continue.
       document.addEventListener('click', function(e) {
