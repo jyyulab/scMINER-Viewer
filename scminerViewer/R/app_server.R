@@ -29,7 +29,9 @@
       selected = defaults,
       server = TRUE,
       options = list(maxOptions = 200,
-                     placeholder = "Type to add gene(s)...")
+                     placeholder = "Type to add gene(s)...",
+                     plugins = list("remove_button"))
+    
     )
 
     # Reactive: which clusters are visible? Driven by DT row selection
