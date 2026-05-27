@@ -60,12 +60,7 @@ def cluster_plot(
 
     fig.update_layout(
         xaxis=dict(title=f"{study.meta.coordinate}_1", zeroline=False),
-        yaxis=dict(
-            title=f"{study.meta.coordinate}_2",
-            zeroline=False,
-            scaleanchor="x",
-            scaleratio=1,
-        ),
+        yaxis=dict(title=f"{study.meta.coordinate}_2", zeroline=False),
         legend=dict(title=dict(text="Cluster")),
         margin=dict(l=50, r=20, t=30, b=50),
     )

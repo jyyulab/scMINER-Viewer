@@ -9,12 +9,6 @@ from shiny import App, Inputs, Outputs, Session, reactive, render, ui
 from shinywidgets import output_widget, render_widget
 
 from .data import Study, load_study
-from .layout import (
-    page_chrome_css,
-    page_footer,
-    page_header,
-    static_assets_mount,
-)
 from .plots import (
     bubble_plot,
     cluster_plot,
@@ -23,6 +17,7 @@ from .plots import (
     network_plot,
     violin_plot,
 )
+from .plots._common import ASPECT_CORRECT_JS
 
 
 _SAFE_ID = re.compile(r"[^A-Za-z0-9_]")
@@ -93,17 +88,11 @@ def _build_gene_panel(gene: str, kind: str,
     )
 
 
-def _ui_factory(study: Study, with_chrome: bool = True):
-    """Build the single-study viewer UI.
-
-    `with_chrome` toggles the shared scMINER header + footer. Pass
-    `False` when embedding inside the multi-study browser, which
-    provides its own chrome (otherwise both render and you get a
-    duplicate header/footer band per page).
-    """
+def _ui_factory(study: Study):
     cell_count_total = f"{study.n_cells:,}"
 
-    body = ui.TagList(
+    return ui.page_fluid(
+        ui.tags.script(ASPECT_CORRECT_JS),
         ui.tags.style("""
           .panel-card { border: 1px solid #dee2e6; border-radius: 6px;
                         background: #fff; margin-bottom: 10px; }
@@ -130,26 +119,6 @@ def _ui_factory(study: Study, with_chrome: bool = True):
           .cluster-table .ct-color { text-align: center; }
           .cluster-table .ct-count { font-family: monospace;
                                       font-size: 12px; }
-          /* Right column's Clusters card: stretch to match the left
-             column's combined height (Study Info & Controls + Gene
-             Selection), and scroll the body internally when the table
-             overflows. Pure-CSS via flex/grid didn't take effect under
-             bslib's layout_columns wrapping, so the actual height
-             matching is done in JS below (`cluster-panel-sync.js`);
-             the rules here just set the scroll container. */
-          .clusters-panel-card {
-              display: flex;
-              flex-direction: column;
-              margin-bottom: 0;
-          }
-          .clusters-panel-card > .panel-card-header {
-              flex: 0 0 auto;
-          }
-          .clusters-panel-card > .panel-card-body {
-              overflow-y: auto;
-              flex: 1 1 auto;
-              min-height: 0;
-          }
         """),
         ui.div(
             {"class": "study-title"},
@@ -217,15 +186,12 @@ def _ui_factory(study: Study, with_chrome: bool = True):
                     ui.div({"class": "panel-card-header"}, "Gene Selection"),
                     ui.div(
                         {"class": "panel-card-body"},
-                        # Choices are populated server-side after the page
-                        # is interactive — dumping the full gene list (often
-                        # 10k+) into selectize.js at HTML-render time blocks
-                        # the page-load reactive cycle and the loading
-                        # overlay never clears.
                         ui.input_selectize(
                             "gene_select", label=None,
-                            choices=[],
-                            selected=[],
+                            choices=list(study.genes),
+                            selected=(list(study.default_genes)
+                                      if study.default_genes is not None
+                                      else []),
                             multiple=True,
                             options={
                                 "placeholder": "Type to add gene(s)...",
@@ -236,63 +202,15 @@ def _ui_factory(study: Study, with_chrome: bool = True):
                 ),
             ),
             ui.div(
-                {"class": "clusters-panel-wrapper"},
+                {"class": "panel-card"},
+                ui.div({"class": "panel-card-header"}, "Clusters"),
                 ui.div(
-                    {"class": "panel-card clusters-panel-card"},
-                    ui.div({"class": "panel-card-header"}, "Clusters"),
-                    ui.div(
-                        {"class": "panel-card-body"},
-                        ui.output_ui("clusters_table_ui"),
-                    ),
+                    {"class": "panel-card-body"},
+                    ui.output_ui("clusters_table_ui"),
                 ),
             ),
             col_widths=[8, 4],
         ),
-        ui.tags.script("""
-          // Match the Clusters panel's height to the left column
-          // (Study Info & Controls + Gene Selection stacked). The
-          // panel-card-body is set to overflow-y: auto via CSS, so a
-          // fixed pixel height makes the table scroll inside that
-          // height instead of pushing the page down.
-          (function() {
-              function sync() {
-                  var wrap = document.querySelector('.clusters-panel-wrapper');
-                  if (!wrap) return;
-                  var card = wrap.querySelector('.clusters-panel-card');
-                  if (!card) return;
-                  // The left column is the *other* bslib-grid-item in the
-                  // same grid row. Walk to the grid container, find both
-                  // grid items, pick the one we're not in.
-                  var item = wrap.closest('.bslib-grid-item');
-                  if (!item) return;
-                  var grid = item.parentElement;
-                  if (!grid) return;
-                  var sibs = grid.querySelectorAll(':scope > .bslib-grid-item');
-                  var leftItem = null;
-                  for (var i = 0; i < sibs.length; i++) {
-                      if (sibs[i] !== item) { leftItem = sibs[i]; break; }
-                  }
-                  if (!leftItem) return;
-                  var h = leftItem.getBoundingClientRect().height;
-                  if (h > 0) card.style.height = h + 'px';
-              }
-              // Sync on initial render, on window resize, and whenever
-              // Shiny re-renders an output (e.g. the cluster table after
-              // a checkbox toggle changes its row count). Wrapped in
-              // requestAnimationFrame so DOM has settled.
-              function schedule() {
-                  requestAnimationFrame(sync);
-              }
-              window.addEventListener('resize', schedule);
-              if (window.jQuery) {
-                  jQuery(document).on('shiny:value', schedule);
-              }
-              schedule();
-              // Initial sync may run before the cluster table populates;
-              // retry a few times in case its first render comes later.
-              [50, 200, 500, 1500].forEach(function(d) { setTimeout(sync, d); });
-          })();
-        """),
         ui.navset_tab(
             ui.nav_panel("Cluster Plot", output_widget("cluster_plot")),
             ui.nav_panel("Heatmap", output_widget("heatmap_plot")),
@@ -311,35 +229,12 @@ def _ui_factory(study: Study, with_chrome: bool = True):
             ),
             id="main_tabs",
         ),
+        title=f"scMINER Viewer - {study.meta.shortTitle}",
     )
-
-    title = f"scMINER Viewer - {study.meta.shortTitle}"
-    if with_chrome:
-        return ui.page_fluid(
-            page_chrome_css(),
-            page_header(),
-            ui.div({"class": "scv-content"}, body),
-            page_footer(),
-            title=title,
-        )
-    return ui.page_fluid(body, title=title)
 
 
 def _server_factory(study: Study):
     def server(input: Inputs, output: Outputs, session: Session) -> None:
-        # Populate the gene selectize after the page is up — pushing the
-        # full gene list at HTML-render time can stall the page-load
-        # reactive cycle for ~30s+ on large bundles (10k+ genes).
-        ui.update_selectize(
-            "gene_select",
-            choices=list(study.genes),
-            selected=(list(study.default_genes)
-                      if study.default_genes is not None
-                      else []),
-            server=True,
-            session=session,
-        )
-
         clusters_df = study.clusters.reset_index().assign(
             color_swatch=lambda d: d["color"].apply(
                 lambda c: f'<span style="display:inline-block;width:24px;'
@@ -705,11 +600,7 @@ def build_app(
             ``None`` (default) uses `Path(bundle_path).parent`.
     """
     study = load_study(bundle_path, shard_dir=shard_dir)
-    return App(
-        _ui_factory(study),
-        _server_factory(study),
-        static_assets=static_assets_mount(),
-    )
+    return App(_ui_factory(study), _server_factory(study))
 
 
 def run_app(
