@@ -249,7 +249,7 @@
                 multiple = TRUE,
                 options = list(
                   placeholder = "Type to add gene(s)...",
-                  plugins = list("remove_button"),
+                  #plugins = list("remove_button"),
                   maxOptions = 200
                 )
               )

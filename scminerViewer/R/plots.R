@@ -62,6 +62,48 @@
   gene_values(study, gene, relationship)
 }
 
+# JS injected into scatter plots to enforce equal-aspect ratio after a box
+# zoom without using scaleanchor (which makes the drawn box expand beyond the
+# cursor). After every zoom relayout, we compute units-per-pixel on each axis
+# and expand whichever axis is too compressed so the scales match.
+.aspect_correct_js <- function() {
+  "function(el) {
+    var busy = false;
+    function correctAspect() {
+      if (busy) return;
+      var xa    = el._fullLayout.xaxis;
+      var ya    = el._fullLayout.yaxis;
+      var xSpan = Math.abs(xa.range[1] - xa.range[0]);
+      var ySpan = Math.abs(ya.range[1] - ya.range[0]);
+      var xPx   = xa._length;
+      var yPx   = ya._length;
+      var xUpp  = xSpan / xPx;
+      var yUpp  = ySpan / yPx;
+      var tol   = 1e-6 * Math.max(xUpp, yUpp);
+      if (Math.abs(xUpp - yUpp) <= tol) return;
+      busy = true;
+      var upd = {};
+      if (xUpp > yUpp) {
+        var halfY = xUpp * yPx / 2;
+        var midY  = (ya.range[0] + ya.range[1]) / 2;
+        upd['yaxis.range[0]'] = midY - halfY;
+        upd['yaxis.range[1]'] = midY + halfY;
+      } else {
+        var halfX = yUpp * xPx / 2;
+        var midX  = (xa.range[0] + xa.range[1]) / 2;
+        upd['xaxis.range[0]'] = midX - halfX;
+        upd['xaxis.range[1]'] = midX + halfX;
+      }
+      Plotly.relayout(el, upd).then(function(){ busy = false; });
+    }
+    el.on('plotly_afterplot', correctAspect);
+    el.on('plotly_relayout', function(ed) {
+      if (!Object.keys(ed).some(function(k){ return /\\.range\\[/.test(k); })) return;
+      correctAspect();
+    });
+  }"
+}
+
 # --- Cluster plot -----------------------------------------------------------
 
 .cluster_plot <- function(study, active_clusters, dot_size,
@@ -72,7 +114,7 @@
   mask <- .cells_in_active_clusters(study, active_clusters, cell_mask)
   cells <- study$cells[mask, , drop = FALSE]
   color_map <- .cluster_color_map(study$clusters)
-
+  
   p <- plotly::plot_ly(
     cells,
     x = ~coord1, y = ~coord2,
@@ -86,7 +128,7 @@
     ),
     customdata = ~cellID
   )
-
+  
   if (isTRUE(show_labels) &&
       !is.null(study$clusters$label_1) &&
       !is.null(study$clusters$label_2)) {
@@ -108,17 +150,17 @@
       )
     }
   }
-
+  
   plotly::layout(
     p,
     xaxis = list(title = paste0(study$meta$coordinate, "_1"),
                  zeroline = FALSE),
     yaxis = list(title = paste0(study$meta$coordinate, "_2"),
-                 zeroline = FALSE,
-                 scaleanchor = "x", scaleratio = 1),
+                 zeroline = FALSE),
     legend = list(title = list(text = "Cluster")),
     margin = list(l = 50, r = 20, t = 30, b = 50)
-  )
+  ) |>
+    htmlwidgets::onRender(.aspect_correct_js())
 }
 
 # --- Feature plot -----------------------------------------------------------
@@ -135,7 +177,7 @@
   mask <- .cells_in_active_clusters(study, active_clusters, cell_mask)
   cells <- study$cells[mask, , drop = FALSE]
   v <- vals[mask]
-
+  
   plotly::plot_ly(
     cells,
     x = ~coord1, y = ~coord2,
@@ -144,8 +186,8 @@
       size = dot_size,
       color = v,
       colorscale = list(c(0, "#dddddd"),
-                         c(0.5, "#7c9fd1"),
-                         c(1, "#1f3a72")),
+                        c(0.5, "#7c9fd1"),
+                        c(1, "#1f3a72")),
       cmin = min(v, na.rm = TRUE),
       cmax = max(v, na.rm = TRUE),
       colorbar = list(title = list(text = gene)),
@@ -161,10 +203,10 @@
       xaxis = list(title = paste0(study$meta$coordinate, "_1"),
                    zeroline = FALSE),
       yaxis = list(title = paste0(study$meta$coordinate, "_2"),
-                   zeroline = FALSE,
-                   scaleanchor = "x", scaleratio = 1),
+                   zeroline = FALSE),
       margin = list(l = 50, r = 20, t = 30, b = 50)
-    )
+    ) |>
+    htmlwidgets::onRender(.aspect_correct_js())
 }
 
 # --- Violin plot ------------------------------------------------------------
@@ -205,7 +247,7 @@
 # --- Heatmap (mean per cluster) --------------------------------------------
 
 .cluster_aggregate_pair <- function(study, genes, relationship,
-                                     active_clusters, cell_mask = NULL) {
+                                    active_clusters, cell_mask = NULL) {
   # Returns list(mean = matrix, pct = matrix), both gene x cluster.
   index <- .relationship_index(study, relationship)
   if (is.null(index) || length(genes) == 0) return(NULL)
@@ -213,7 +255,7 @@
   if (length(present) == 0) return(NULL)
   ct <- study$cells$cellType
   sample_mask <- if (is.null(cell_mask)) rep(TRUE, length(ct))
-                 else as.logical(cell_mask)
+  else as.logical(cell_mask)
   clusters <- active_clusters %||% unique(ct)
   means <- matrix(0, nrow = length(present), ncol = length(clusters),
                   dimnames = list(present, clusters))
@@ -249,7 +291,7 @@
   if (length(present) == 0) {
     return(.empty_plot("No data available for the selected genes"))
   }
-
+  
   base <- .cells_in_active_clusters(study, active_clusters, cell_mask)
   if (!any(base)) {
     return(.empty_plot("No cells in current selection"))
@@ -259,7 +301,7 @@
   if (is.null(cell_ids) || length(cell_ids) != length(ct)) {
     cell_ids <- as.character(seq_along(ct))
   }
-
+  
   cluster_order <- if (is.null(active_clusters) ||
                        length(active_clusters) == 0) {
     as.character(study$clusters$cellType)
@@ -268,17 +310,17 @@
   }
   present_in_sel <- unique(ct[base])
   ordered_clusters <- cluster_order[cluster_order %in% present_in_sel]
-
+  
   keep_idx <- which(base)
   ct_keep <- ct[keep_idx]
   order_idx <- unlist(lapply(ordered_clusters,
-                              function(c) keep_idx[ct_keep == c]),
+                             function(c) keep_idx[ct_keep == c]),
                       use.names = FALSE)
   if (is.null(order_idx) || length(order_idx) == 0) order_idx <- keep_idx
-
+  
   sorted_cell_ids <- cell_ids[order_idx]
   sorted_cell_types <- ct[order_idx]
-
+  
   z <- matrix(NA_real_, nrow = length(present), ncol = length(order_idx),
               dimnames = list(present, sorted_cell_ids))
   for (i in seq_along(present)) {
@@ -286,12 +328,12 @@
     if (is.null(vals)) next
     z[i, ] <- vals[order_idx]
   }
-
+  
   color_map <- .cluster_color_map(study$clusters)
   cluster_to_idx <- stats::setNames(seq_along(ordered_clusters) - 1L,
-                                     ordered_clusters)
+                                    ordered_clusters)
   ann_z <- matrix(cluster_to_idx[sorted_cell_types], nrow = 1)
-
+  
   n_clusters <- length(ordered_clusters)
   if (n_clusters <= 1) {
     col <- if (n_clusters == 1) color_map[[ordered_clusters[1]]] else "#cccccc"
@@ -308,7 +350,7 @@
     }
     zmin_ann <- -0.5; zmax_ann <- n_clusters - 0.5
   }
-
+  
   ann_fig <- plotly::plot_ly(
     z = ann_z,
     x = sorted_cell_ids,
@@ -324,7 +366,7 @@
       xaxis = list(showticklabels = FALSE, ticks = "", title = "Cell"),
       yaxis = list(showticklabels = FALSE, ticks = "")
     )
-
+  
   ct_text <- matrix(rep(sorted_cell_types, each = length(present)),
                     nrow = length(present), byrow = FALSE)
   main_fig <- plotly::plot_ly(
@@ -333,8 +375,8 @@
     y = present,
     type = "heatmap",
     colorscale = list(c(0,   "#2166ac"),
-                       c(0.5, "#ffffff"),
-                       c(1,   "#b2182b")),
+                      c(0.5, "#ffffff"),
+                      c(1,   "#b2182b")),
     zmid = 0,
     colorbar = list(title = list(text = "value")),
     text = ct_text,
@@ -348,7 +390,7 @@
       xaxis = list(showticklabels = FALSE, ticks = ""),
       yaxis = list(title = "Gene", autorange = "reversed")
     )
-
+  
   # Invisible legend traces for cluster colors.
   for (c in ordered_clusters) {
     main_fig <- plotly::add_trace(
@@ -361,7 +403,7 @@
       inherit = FALSE
     )
   }
-
+  
   plotly::subplot(main_fig, ann_fig,
                   nrows = 2, heights = c(0.94, 0.06),
                   shareX = TRUE, titleX = TRUE, titleY = TRUE) |>
@@ -384,7 +426,7 @@
     return(.empty_plot())
   }
   agg <- .cluster_aggregate_pair(study, genes, relationship,
-                                  active_clusters, cell_mask)
+                                 active_clusters, cell_mask)
   if (is.null(agg)) {
     return(.empty_plot("Select gene(s) to build bubble plot"))
   }
@@ -396,7 +438,7 @@
                       stringsAsFactors = FALSE)
   grid$mean <- as.numeric(means[cbind(grid$gene, grid$cluster)])
   grid$pct  <- as.numeric(pcts[cbind(grid$gene, grid$cluster)])
-
+  
   plotly::plot_ly(
     grid,
     x = ~cluster, y = ~gene,
@@ -423,9 +465,9 @@
 .network_plot <- function(study, gene, network_type,
                           active_clusters, max_edges = 60) {
   edges_df <- switch(network_type,
-    "TF"  = study$network_tf,
-    "SIG" = study$network_sig,
-    NULL
+                     "TF"  = study$network_tf,
+                     "SIG" = study$network_sig,
+                     NULL
   )
   if (is.null(edges_df) || nrow(edges_df) == 0) return(NULL)
   edges_df <- edges_df[edges_df$source == gene | edges_df$target == gene, ,
@@ -439,32 +481,32 @@
   if (nrow(edges_df) > max_edges) {
     edges_df <- edges_df[seq_len(max_edges), , drop = FALSE]
   }
-
+  
   if (!requireNamespace("visNetwork", quietly = TRUE)) {
     return(edges_df)
   }
-
+  
   # Direction encoding: positive correlation = activator (teal),
   # negative = repressor (red). We use spearman (rank-based, robust to
   # outliers — scMINER convention); fall back to pearson if spearman is
   # NA. Width = |MI| so dominant edges are visually heaviest.
   dir_score <- ifelse(is.na(edges_df$spearman),
-                       edges_df$pearson, edges_df$spearman)
+                      edges_df$pearson, edges_df$spearman)
   direction <- ifelse(is.na(dir_score), "Unknown",
-                       ifelse(dir_score >= 0, "Activator", "Repressor"))
+                      ifelse(dir_score >= 0, "Activator", "Repressor"))
   dir_color <- c(Activator = "#2E7D6A", Repressor = "#D7493A",
-                  Unknown   = "#9e9e9e")
-
+                 Unknown   = "#9e9e9e")
+  
   # Per-neighbor dominant direction: the strongest |MI| edge to each
   # neighbor decides which side of the ring (and which color) it gets.
   # edges_df is already sorted by descending |MI|, so the first row that
   # mentions a neighbor carries that neighbor's dominant direction.
   edge_neighbor <- ifelse(edges_df$source == gene,
-                           edges_df$target, edges_df$source)
+                          edges_df$target, edges_df$source)
   nb_seen <- !duplicated(edge_neighbor)
   nb_ids  <- edge_neighbor[nb_seen]
   nb_dir  <- direction[nb_seen]
-
+  
   # Sort neighbors by (direction priority, descending MI). Activators
   # cluster on one arc, repressors on the opposite arc, with the
   # strongest of each group closest to the seam — reads cleanly at a
@@ -473,14 +515,14 @@
   nb_mi <- abs(edges_df$mi[nb_seen])
   nb_order <- order(dir_priority[nb_dir], -nb_mi)
   nb_ids <- nb_ids[nb_order]
-
+  
   nodes <- data.frame(
     id = c(gene, nb_ids),
     stringsAsFactors = FALSE
   )
   n_neighbors <- length(nb_ids)
   radius <- 260
-
+  
   # Focus node: warm amber, slightly larger, white border ring.
   # Neighbor nodes: cool slate, smaller, white border.
   nodes$label <- nodes$id
@@ -490,7 +532,7 @@
   nodes$font.color <- "#1f1f1f"
   nodes$borderWidth <- c(3L, rep(1.5, n_neighbors))
   nodes$color.border <- "#ffffff"
-
+  
   # Radial layout — focus at (0,0), neighbors evenly spaced starting at
   # 12 o'clock and walking clockwise so the sort above shows up visually.
   nodes$x <- 0
@@ -502,7 +544,7 @@
     nodes$x[-1L] <- radius * cos(theta)
     nodes$y[-1L] <- radius * sin(theta)
   }
-
+  
   # Visual orientation: every edge is drawn as focus → neighbor so the
   # `to` arrow lands at the rim next to the non-focus gene regardless of
   # which side is `source` vs `target` in the underlying network. The
@@ -511,7 +553,7 @@
   focus_is_source <- edges_df$source == gene
   vis_from <- ifelse(focus_is_source, edges_df$source, edges_df$target)
   vis_to   <- ifelse(focus_is_source, edges_df$target, edges_df$source)
-
+  
   edges <- data.frame(
     from  = vis_from,
     to    = vis_to,
@@ -534,7 +576,7 @@
     arrowStrikethrough = FALSE,
     stringsAsFactors = FALSE
   )
-
+  
   ledges <- data.frame(
     label = c("Activator (+)", "Repressor (−)"),
     color = c(dir_color["Activator"], dir_color["Repressor"]),
@@ -542,7 +584,7 @@
     font.align = "top",
     stringsAsFactors = FALSE
   )
-
+  
   main_html <- sprintf(
     paste0("<div style='text-align:center'>",
            "<span style='font-size:15px;font-weight:600;color:#1f1f1f'>",
@@ -552,16 +594,16 @@
            "</span></div>"),
     network_type, gene, nrow(edges_df)
   )
-
+  
   visNetwork::visNetwork(
-      nodes, edges,
-      width = "100%", height = "680px",
-      main = list(text = main_html, style = "padding-top:6px;"),
-      background = "#FBFBF9"
-    ) |>
+    nodes, edges,
+    width = "100%", height = "680px",
+    main = list(text = main_html, style = "padding-top:6px;"),
+    background = "#FBFBF9"
+  ) |>
     visNetwork::visEdges(
       smooth = list(enabled = FALSE),       # straight lines so the arrow
-                                             # sits cleanly at the target node
+      # sits cleanly at the target node
       # Width range 1.4 (smallest edge) -> 4 (largest edge). The min is
       # anchored so weak edges stay visible; the max is intentionally
       # restrained so heavy edges don't dominate the figure visually.
@@ -571,7 +613,7 @@
       # don't need a dominant arrow head. scaleFactor 0.7 keeps the
       # tip readable next to a node without overwhelming the plot.
       arrows = list(to = list(enabled = TRUE, scaleFactor = 0.7,
-                               type = "arrow")),
+                              type = "arrow")),
       arrowStrikethrough = FALSE,            # arrow tip stops at the node border
       # Force the per-edge `color` column to apply to BOTH the line and
       # the arrow. Without `inherit = FALSE`, vis.js falls back to its
@@ -584,20 +626,20 @@
       shape = "dot",
       borderWidth = 2, borderWidthSelected = 3,
       shadow = list(enabled = TRUE, size = 10, x = 0, y = 2,
-                     color = "rgba(0,0,0,0.15)"),
+                    color = "rgba(0,0,0,0.15)"),
       font = list(face = "Helvetica, Arial, sans-serif")
     ) |>
     visNetwork::visOptions(
       highlightNearest = list(enabled = TRUE, degree = 1,
-                               algorithm = "hierarchical")
+                              algorithm = "hierarchical")
     ) |>
     # Physics disabled so the radial layout we computed for `nodes$x/y`
     # is exactly what gets drawn — focus gene stays pinned at center.
     visNetwork::visPhysics(enabled = FALSE) |>
     visNetwork::visInteraction(dragNodes = TRUE, dragView = TRUE,
-                                zoomView = TRUE, tooltipDelay = 120,
-                                hover = TRUE) |>
+                               zoomView = TRUE, tooltipDelay = 120,
+                               hover = TRUE) |>
     visNetwork::visLegend(useGroups = FALSE, addEdges = ledges,
-                           position = "right", main = "Direction",
-                           width = 0.12, ncol = 1, zoom = FALSE)
+                          position = "right", main = "Direction",
+                          width = 0.12, ncol = 1, zoom = FALSE)
 }
