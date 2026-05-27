@@ -10,7 +10,7 @@ Two examples ship with the project:
 | File | Role |
 | --- | --- |
 | `scminerViewer/inst/extdata/example_config.yml` | Annotated **template** — every field documented inline; reachable via `system.file()`. |
-| `data/example/2327.yml`                          | Concrete **runnable** config keyed to the actual 2327 study (Tex). Edit `input.*` paths and run. |
+| `config-2327.yml`                          | Concrete **runnable** config keyed to the actual 2327 study (Tex). Edit `input.*` paths and run. |
 
 Copy the template:
 
@@ -57,11 +57,11 @@ geneSymbol: geneSymbol      # column in fData carrying the gene symbol
 
 # Input files
 input:
-  expression: inputs/2327_expression.rds   # required, Biobase ExpressionSet
-  activity:   inputs/2327_activity.rds     # optional, ExpressionSet
+  expression: data/input/2327/expression.rds   # required, Biobase ExpressionSet
+  activity:   data/input/2327/activity.rds     # optional, ExpressionSet
                                             # rows ending in _TF / _SIG split
                                             # into the two activity matrices
-  networks:   inputs/2327_networks.tsv     # optional, tab-separated:
+  networks:   data/input/2327/networks.tsv     # optional, tab-separated:
                                             # source, target, NetworkType,
                                             # CellGroup, mi, pearson,
                                             # spearman, rho, pvalue
