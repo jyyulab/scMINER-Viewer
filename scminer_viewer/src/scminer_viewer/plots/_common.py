@@ -92,6 +92,87 @@ def aggregate_by_cluster(
     )
 
 
+# Injected into the page once to enforce equal-aspect ratio on every plotly
+# scatter plot after box zoom or initial render. Uses MutationObserver to
+# attach to each .js-plotly-plot element as plotly creates it. Mirrors the
+# htmlwidgets::onRender approach used in the R package.
+ASPECT_CORRECT_JS = r"""
+(function () {
+  var attached = new WeakSet();
+
+  // Only correct scatter/scattergl plots whose both axes are continuous.
+  // Heatmap, violin, and bubble plots are excluded:
+  //   - heatmap/violin: non-scatter trace types -> allScatter false
+  //   - bubble: scatter traces but x-axis is categorical (cluster names)
+  function isEmbeddingPlot(el) {
+    if (!el._fullData || !el._fullData.length) return false;
+    var allScatter = el._fullData.every(function (t) {
+      return t.type === 'scattergl' || t.type === 'scatter';
+    });
+    if (!allScatter) return false;
+    var xa = el._fullLayout && el._fullLayout.xaxis;
+    var ya = el._fullLayout && el._fullLayout.yaxis;
+    if (!xa || !ya) return false;
+    return xa.type !== 'category' && ya.type !== 'category';
+  }
+
+  function correctAspect(el) {
+    if (!isEmbeddingPlot(el)) return null;
+    var xa = el._fullLayout.xaxis;
+    var ya = el._fullLayout.yaxis;
+    if (!xa._length || !ya._length) return null;
+    var xUpp = Math.abs(xa.range[1] - xa.range[0]) / xa._length;
+    var yUpp = Math.abs(ya.range[1] - ya.range[0]) / ya._length;
+    var tol  = 1e-6 * Math.max(xUpp, yUpp);
+    if (Math.abs(xUpp - yUpp) <= tol) return null;
+    var upd = {};
+    if (xUpp > yUpp) {
+      var halfY = xUpp * ya._length / 2;
+      var midY  = (ya.range[0] + ya.range[1]) / 2;
+      upd['yaxis.range[0]'] = midY - halfY;
+      upd['yaxis.range[1]'] = midY + halfY;
+    } else {
+      var halfX = yUpp * xa._length / 2;
+      var midX  = (xa.range[0] + xa.range[1]) / 2;
+      upd['xaxis.range[0]'] = midX - halfX;
+      upd['xaxis.range[1]'] = midX + halfX;
+    }
+    return upd;
+  }
+
+  function attachTo(el) {
+    if (attached.has(el)) return;
+    attached.add(el);
+    var busy = false;
+    function run() {
+      if (busy) return;
+      var upd = correctAspect(el);
+      if (!upd) return;
+      busy = true;
+      Plotly.relayout(el, upd).then(function () { busy = false; });
+    }
+    el.on('plotly_afterplot', run);
+    el.on('plotly_relayout', function (ed) {
+      if (!Object.keys(ed).some(function (k) {
+        return /\.range\[/.test(k);
+      })) return;
+      run();
+    });
+  }
+
+  function scan() {
+    document.querySelectorAll('.js-plotly-plot').forEach(attachTo);
+  }
+
+  new MutationObserver(scan).observe(document.documentElement, {
+    childList: true, subtree: true,
+    attributes: true, attributeFilter: ['class'],
+  });
+  scan();
+})();
+"""
+
+
 def empty_figure(title: str = ""):
     import plotly.graph_objects as go
     fig = go.Figure()
