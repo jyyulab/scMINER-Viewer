@@ -221,7 +221,7 @@ ssh -L 8000:localhost:8000 user@<hpc-node>
 ```
 
 If your HPC requires logging into a head node first, chain a jump:
-`ssh -L 8000:<compute-node>:8000 -J user@head user@<compute-node>`.
+`ssh -L 8000:localhost:8000 -J user@head user@<compute-node>`.
 
 **Option 2 — bind to a public interface.** Use `--allow-remote`
 (shortcut for `--host 0.0.0.0 --no-browser`) and connect directly:
