@@ -88,10 +88,15 @@ def _build_gene_panel(gene: str, kind: str,
     )
 
 
-def _ui_factory(study: Study):
+def _ui_factory(study: Study, with_chrome: bool = True):
     cell_count_total = f"{study.n_cells:,}"
 
-    return ui.page_fluid(
+    # Build the study UI body once; `with_chrome=True` (run_app) wraps it
+    # in a page_fluid with a <title>, while the multi-study browser embeds
+    # the bare content inside its own page shell (with_chrome=False). The
+    # injected script/style travel with the content either way so the
+    # embedded plots still get aspect-lock.
+    content = (
         ui.tags.script(ASPECT_CORRECT_JS),
         ui.tags.style("""
           .panel-card { border: 1px solid #dee2e6; border-radius: 6px;
@@ -229,8 +234,13 @@ def _ui_factory(study: Study):
             ),
             id="main_tabs",
         ),
-        title=f"scMINER Viewer - {study.meta.shortTitle}",
     )
+    if with_chrome:
+        return ui.page_fluid(
+            *content,
+            title=f"scMINER Viewer - {study.meta.shortTitle}",
+        )
+    return ui.TagList(*content)
 
 
 def _server_factory(study: Study):
