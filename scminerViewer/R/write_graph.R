@@ -174,7 +174,8 @@
 
 .write_graph_shards <- function(out_dir, meta, mat, kind, meta_kind,
                                 manifest_dir, manifest_name, cell_ids,
-                                type_label, verbose = FALSE) {
+                                type_label, verbose = FALSE,
+                                progress = FALSE) {
   # mat: Matrix (G x N), rows = genes, columns = cells
   # kind:      where per-letter shard dirs live, relative to out_dir.
   #            e.g. "expression_files/<studyID>" or "activity_files/<studyID>/TF"
@@ -213,6 +214,15 @@
   }
   ncells <- ncol(mat)
 
+  # A live progress bar over the per-gene shard loop — this is the slow
+  # part of prepare_study (one gzipped file per gene). Falls back to the
+  # every-1000 verbose message when `progress` is off.
+  pb <- NULL
+  if (isTRUE(progress) && nrow(mat) > 0) {
+    pb <- utils::txtProgressBar(min = 0, max = nrow(mat), style = 3)
+    on.exit(close(pb), add = TRUE)
+  }
+
   is_sparse <- inherits(mat, "Matrix")
   for (i in seq_len(nrow(mat))) {
     gene <- genes[i]
@@ -244,7 +254,9 @@
     )
     R.utils::gzip(csv_path, destname = paste0(csv_path, ".gz"),
                   overwrite = TRUE, remove = TRUE)
-    if (isTRUE(verbose) && (i %% 1000L == 0L)) {
+    if (!is.null(pb)) {
+      utils::setTxtProgressBar(pb, i)
+    } else if (isTRUE(verbose) && (i %% 1000L == 0L)) {
       message(sprintf("  [%s] %d/%d shards written",
                       manifest_name, i, nrow(mat)))
     }

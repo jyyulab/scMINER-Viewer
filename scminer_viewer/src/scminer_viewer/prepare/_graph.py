@@ -244,6 +244,7 @@ def write_graph_shards(
     type_label: str,
     genes: Iterable[str],
     verbose: bool = False,
+    progress: bool = False,
 ) -> None:
     """Write the per-gene shard tree + manifest CSV + cell-header.
 
@@ -294,7 +295,15 @@ def write_graph_shards(
             "Type", "FileHeader", "File",
         ])
 
-        for i, row_vals in enumerate(_iter_rows(mat)):
+        # A live progress bar over the per-gene shard loop — the slow part
+        # of prepare_study (one gzipped file per gene). Falls back to the
+        # every-1000 verbose message when `progress` is off or tqdm is
+        # unavailable.
+        rows = _progress_rows(
+            _iter_rows(mat), len(genes_list),
+            desc=f"  {manifest_name}", enabled=progress,
+        )
+        for i, row_vals in enumerate(rows):
             gene = genes_list[i]
             name = gene.replace("/", "_")
             letter = shard_letter(gene)
@@ -309,11 +318,26 @@ def write_graph_shards(
             # intermediate uncompressed file the R version writes.
             _write_shard_csv_gz(csv_gz_path, row_vals)
 
-            if verbose and (i + 1) % 1000 == 0:
+            if not progress and verbose and (i + 1) % 1000 == 0:
                 print(
                     f"  [{manifest_name}] {i + 1}/{len(genes_list)} shards written",
                     flush=True,
                 )
+
+
+def _progress_rows(iterable, total: int, desc: str, enabled: bool):
+    """Wrap a row iterator in a tqdm progress bar when `enabled`.
+
+    Falls back to the bare iterator if `enabled` is False or tqdm isn't
+    installed (the per-1000 verbose print then provides coarse progress).
+    """
+    if not enabled:
+        return iterable
+    try:
+        from tqdm import tqdm
+    except ImportError:
+        return iterable
+    return tqdm(iterable, total=total, desc=desc, unit="gene", leave=True)
 
 
 def _nrows(mat) -> int:

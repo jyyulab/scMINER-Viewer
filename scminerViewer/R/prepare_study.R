@@ -36,6 +36,9 @@ NULL
 #' @param network_tf,network_sig Optional data.frames.
 #' @param emit Character vector — any subset of `c("graph", "bundle")`.
 #' @param verbose Logical; emit progress messages while writing shards.
+#' @param progress Logical (default `TRUE`); show step-by-step
+#'   `[i/n]` stage messages and a live progress bar over the per-gene
+#'   shard writing. Set `FALSE` to silence (e.g. in batch jobs).
 #' @export
 prepare_study_data <- function(out_dir,
                                 meta,
@@ -50,9 +53,26 @@ prepare_study_data <- function(out_dir,
                                 default_genes = NULL,
                                 cluster_palette = "npg",
                                 emit = c("graph", "bundle"),
-                                verbose = FALSE) {
+                                verbose = FALSE,
+                                progress = TRUE) {
   emit <- match.arg(emit, c("graph", "bundle"), several.ok = TRUE)
   stopifnot(is.list(meta), is.data.frame(cells), is.character(genes))
+
+  # Step announcer: prints "[i/n] <label>" for each major stage so the
+  # user can see where a long prepare is. Driven by `progress` (on by
+  # default) or `verbose`. Shard writing additionally gets a live bar.
+  show_progress <- isTRUE(progress) || isTRUE(verbose)
+  n_graph_mats <- sum(!is.null(expression), !is.null(activity_tf),
+                      !is.null(activity_sig))
+  total_steps <- (if ("graph" %in% emit) 1L + n_graph_mats else 0L) +
+    (if ("bundle" %in% emit) 1L else 0L)
+  step_i <- 0L
+  step_msg <- function(label) {
+    step_i <<- step_i + 1L
+    if (show_progress) {
+      message(sprintf("[%d/%d] %s", step_i, total_steps, label))
+    }
+  }
 
   # Fill in counts, colours (ggsci palette per `cluster_palette`), and
   # label centroids (mean coord1/coord2 per cellType) for any clusters
@@ -83,7 +103,7 @@ prepare_study_data <- function(out_dir,
   dir.create(study_out, showWarnings = FALSE, recursive = TRUE)
 
   if ("graph" %in% emit) {
-    if (isTRUE(verbose)) message("Writing graph-import layout to ", study_out)
+    step_msg("Writing graph-import layout (cells, clusters, genes, networks)")
     .ensure_graph_tree(study_out)
     .write_graph_study(study_out, meta)
     .write_graph_clusters(study_out, meta, clusters)
@@ -95,6 +115,8 @@ prepare_study_data <- function(out_dir,
     act_root <- file.path("activity_files",   study_id)
 
     if (!is.null(expression)) {
+      step_msg(sprintf("Writing expression shards (%d genes)",
+                       nrow(expression)))
       .write_graph_shards(study_out, meta, expression,
                           kind          = exp_root,
                           meta_kind     = exp_root,
@@ -102,9 +124,12 @@ prepare_study_data <- function(out_dir,
                           manifest_name = "expression",
                           cell_ids      = cells$cellID,
                           type_label    = "Expression",
-                          verbose       = verbose)
+                          verbose       = verbose,
+                          progress      = show_progress)
     }
     if (!is.null(activity_tf)) {
+      step_msg(sprintf("Writing TF activity shards (%d genes)",
+                       nrow(activity_tf)))
       .write_graph_shards(study_out, meta, activity_tf,
                           kind          = file.path(act_root, "TF"),
                           meta_kind     = act_root,
@@ -112,9 +137,12 @@ prepare_study_data <- function(out_dir,
                           manifest_name = "activity_tf",
                           cell_ids      = cells$cellID,
                           type_label    = "TF",
-                          verbose       = verbose)
+                          verbose       = verbose,
+                          progress      = show_progress)
     }
     if (!is.null(activity_sig)) {
+      step_msg(sprintf("Writing SIG activity shards (%d genes)",
+                       nrow(activity_sig)))
       .write_graph_shards(study_out, meta, activity_sig,
                           kind          = file.path(act_root, "SIG"),
                           meta_kind     = act_root,
@@ -122,7 +150,8 @@ prepare_study_data <- function(out_dir,
                           manifest_name = "activity_sig",
                           cell_ids      = cells$cellID,
                           type_label    = "SIG",
-                          verbose       = verbose)
+                          verbose       = verbose,
+                          progress      = show_progress)
     }
   }
 
@@ -130,7 +159,7 @@ prepare_study_data <- function(out_dir,
   if ("bundle" %in% emit) {
     bundle_path <- file.path(study_out,
                              paste0(study_id, ".scminer.h5"))
-    if (isTRUE(verbose)) message("Writing bundle to ", bundle_path)
+    step_msg("Writing bundle (.scminer.h5)")
     write_bundle(
       bundle_path        = bundle_path,
       meta               = meta,
@@ -198,7 +227,8 @@ prepare_study_from_eset <- function(out_dir,
                                      cluster_palette  = "npg",
                                      default_genes    = NULL,
                                      emit             = c("graph", "bundle"),
-                                     verbose          = FALSE) {
+                                     verbose          = FALSE,
+                                     progress         = TRUE) {
   cells <- extract_cells(
     expression_eset,
     cell_id_col      = cell_id_col,
@@ -233,7 +263,8 @@ prepare_study_from_eset <- function(out_dir,
     network_sig     = nets$sig,
     default_genes   = default_genes,
     emit            = emit,
-    verbose         = verbose
+    verbose         = verbose,
+    progress        = progress
   )
 }
 
@@ -248,7 +279,8 @@ prepare_study_from_eset <- function(out_dir,
 #' @export
 prepare_study <- function(config_path,
                            emit = c("graph", "bundle"),
-                           verbose = FALSE) {
+                           verbose = FALSE,
+                           progress = TRUE) {
   cfg <- load_study_config(config_path)
 
   if (!requireNamespace("Biobase", quietly = TRUE)) {
@@ -285,7 +317,8 @@ prepare_study <- function(config_path,
     cluster_palette  = cfg$cluster_palette,
     default_genes    = cfg$default_genes,
     emit             = emit,
-    verbose          = verbose
+    verbose          = verbose,
+    progress         = progress
   )
 }
 

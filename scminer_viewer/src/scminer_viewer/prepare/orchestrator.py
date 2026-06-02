@@ -65,6 +65,7 @@ def prepare_study_data(
     cluster_palette: str = "npg",
     emit: Sequence[str] = _EMIT_VALUES,
     verbose: bool = False,
+    progress: bool = True,
 ) -> dict:
     """Lowest-level orchestrator — write graph layout and/or bundle.
 
@@ -85,6 +86,9 @@ def prepare_study_data(
             cluster colors.
         emit: Subset of ``("graph", "bundle")``.
         verbose: Emit progress while writing shards.
+        progress: Show step-by-step ``[i/n]`` stage messages and a live
+            tqdm progress bar over per-gene shard writing (default True).
+            Set False to silence (e.g. in batch jobs).
 
     Returns:
         ``{"out_dir": ..., "root_dir": ..., "bundle_path": ...}``.
@@ -95,6 +99,24 @@ def prepare_study_data(
         raise ValueError(
             f"emit must be a subset of {_EMIT_VALUES}; got: {bad}"
         )
+
+    # Step announcer: prints "[i/n] <label>" for each major stage so the
+    # user can see where a long prepare is. Driven by `progress` (on by
+    # default) or `verbose`. Shard writing additionally gets a live bar.
+    show_progress = progress or verbose
+    _n_mats = sum(
+        m is not None for m in (expression, activity_tf, activity_sig)
+    )
+    _total_steps = (
+        (1 + _n_mats if "graph" in emit else 0)
+        + (1 if "bundle" in emit else 0)
+    )
+    _step = {"i": 0}
+
+    def step_msg(label: str) -> None:
+        _step["i"] += 1
+        if show_progress:
+            print(f"[{_step['i']}/{_total_steps}] {label}", flush=True)
 
     if not isinstance(meta, Mapping):
         raise TypeError("`meta` must be a Mapping")
@@ -125,8 +147,7 @@ def prepare_study_data(
     study_out.mkdir(parents=True, exist_ok=True)
 
     if "graph" in emit:
-        if verbose:
-            print(f"Writing graph-import layout to {study_out}")
+        step_msg("Writing graph-import layout (cells, clusters, genes, networks)")
         ensure_graph_tree(study_out)
         write_graph_study(study_out, meta)
         write_graph_clusters(study_out, meta, clusters)
@@ -140,6 +161,7 @@ def prepare_study_data(
         cell_ids = cells["cellID"].astype(str).tolist()
 
         if expression is not None:
+            step_msg(f"Writing expression shards ({len(genes)} genes)")
             write_graph_shards(
                 study_out, meta, expression,
                 kind=exp_root,
@@ -150,8 +172,10 @@ def prepare_study_data(
                 type_label="Expression",
                 genes=genes,
                 verbose=verbose,
+                progress=show_progress,
             )
         if activity_tf is not None:
+            step_msg(f"Writing TF activity shards ({len(genes)} genes)")
             write_graph_shards(
                 study_out, meta, activity_tf,
                 kind=f"{act_root}/TF",
@@ -162,8 +186,10 @@ def prepare_study_data(
                 type_label="TF",
                 genes=genes,
                 verbose=verbose,
+                progress=show_progress,
             )
         if activity_sig is not None:
+            step_msg(f"Writing SIG activity shards ({len(genes)} genes)")
             write_graph_shards(
                 study_out, meta, activity_sig,
                 kind=f"{act_root}/SIG",
@@ -174,13 +200,13 @@ def prepare_study_data(
                 type_label="SIG",
                 genes=genes,
                 verbose=verbose,
+                progress=show_progress,
             )
 
     bundle_path = None
     if "bundle" in emit:
         bundle_path = study_out / f"{study_id}.scminer.h5"
-        if verbose:
-            print(f"Writing bundle to {bundle_path}")
+        step_msg("Writing bundle (.scminer.h5)")
         write_bundle(
             bundle_path=bundle_path,
             meta=meta,
@@ -222,6 +248,7 @@ def prepare_study_from_anndata(
     default_genes: Optional[Sequence[str]] = None,
     emit: Sequence[str] = _EMIT_VALUES,
     verbose: bool = False,
+    progress: bool = True,
 ) -> dict:
     """Mid-level orchestrator: accepts AnnData objects directly.
 
@@ -278,6 +305,7 @@ def prepare_study_from_anndata(
         cluster_palette=cluster_palette,
         emit=emit,
         verbose=verbose,
+        progress=progress,
     )
 
 
@@ -286,6 +314,7 @@ def prepare_study(
     *,
     emit: Sequence[str] = _EMIT_VALUES,
     verbose: bool = False,
+    progress: bool = True,
 ) -> dict:
     """High-level YAML-driven entry point.
 
@@ -349,4 +378,5 @@ def prepare_study(
         default_genes=cfg["default_genes"],
         emit=emit,
         verbose=verbose,
+        progress=progress,
     )
