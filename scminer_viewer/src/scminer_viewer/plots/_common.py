@@ -106,6 +106,10 @@ ASPECT_CORRECT_JS = r"""
   //   - bubble: scatter traces but x-axis is categorical (cluster names)
   function isEmbeddingPlot(el) {
     if (!el._fullData || !el._fullData.length) return false;
+    // Opt-out: plots that set layout.meta.scvFill stretch to fill their
+    // panel (the cluster overview) instead of locking to equal aspect.
+    var meta = el._fullLayout && el._fullLayout.meta;
+    if (meta && meta.scvFill) return false;
     var allScatter = el._fullData.every(function (t) {
       return t.type === 'scattergl' || t.type === 'scatter';
     });

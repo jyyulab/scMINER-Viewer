@@ -157,8 +157,9 @@
                  zeroline = FALSE),
     legend = list(title = list(text = "Cluster")),
     margin = list(l = 50, r = 20, t = 30, b = 50)
-  ) |>
-    htmlwidgets::onRender(.aspect_correct_js())
+  )
+  # NB: no equal-aspect lock here — the cluster overview stretches to
+  # fill the full panel width. (Feature plots keep the aspect lock.)
 }
 
 # --- Feature plot -----------------------------------------------------------
@@ -203,8 +204,9 @@
       yaxis = list(title = paste0(study$meta$coordinate, "_2"),
                    zeroline = FALSE),
       margin = list(l = 50, r = 20, t = 30, b = 50)
-    ) |>
-    htmlwidgets::onRender(.aspect_correct_js())
+    )
+  # NB: no equal-aspect lock — the feature plot stretches to fill the
+  # full panel width, matching the cluster plot.
 }
 
 # --- Violin plot ------------------------------------------------------------

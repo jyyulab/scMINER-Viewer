@@ -52,5 +52,10 @@ def feature_plot(
         xaxis=dict(title=f"{study.meta.coordinate}_1", zeroline=False),
         yaxis=dict(title=f"{study.meta.coordinate}_2", zeroline=False),
         margin=dict(l=50, r=20, t=30, b=50),
+        autosize=True,
+        # Opt out of the equal-aspect lock (see ASPECT_CORRECT_JS) so the
+        # feature plot stretches to fill the full panel, like the cluster
+        # plot.
+        meta=dict(scvFill=True),
     )
     return fig
