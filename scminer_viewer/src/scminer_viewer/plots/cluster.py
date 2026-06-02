@@ -50,12 +50,11 @@ def cluster_plot(
             else study.clusters.loc[study.clusters.index.isin(active_clusters)]
         )
         for cluster_id, row in visible.iterrows():
+            # Plain text label — no background box / border.
             fig.add_annotation(
                 x=row["label_1"], y=row["label_2"],
                 text=cluster_id, showarrow=False,
                 font=dict(size=14, color="#222"),
-                bgcolor="rgba(255,255,255,0.7)",
-                bordercolor="#666", borderpad=3,
             )
 
     fig.update_layout(

@@ -68,6 +68,8 @@
           font-size: 12px; color: #6c757d;
       }
       @keyframes scm-spin { to { transform: rotate(360deg); } }
+      /* Hide the Plotly logo in every plot's modebar. */
+      .modebar-btn--logo { display: none !important; }
     ")
 }
 

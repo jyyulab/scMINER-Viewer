@@ -124,6 +124,8 @@ def _ui_factory(study: Study, with_chrome: bool = True):
           .cluster-table .ct-color { text-align: center; }
           .cluster-table .ct-count { font-family: monospace;
                                       font-size: 12px; }
+          /* Hide the Plotly logo in every plot's modebar. */
+          .modebar-btn--logo { display: none !important; }
         """),
         ui.div(
             {"class": "study-title"},

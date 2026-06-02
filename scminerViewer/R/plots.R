@@ -137,16 +137,14 @@
       drop = FALSE
     ]
     if (nrow(visible_labels) > 0) {
+      # Plain text label — no background box / border.
       p <- plotly::add_annotations(
         p,
         x = visible_labels$label_1,
         y = visible_labels$label_2,
         text = visible_labels$cellType,
         showarrow = FALSE,
-        font = list(size = 14, color = "#222"),
-        bgcolor = "rgba(255,255,255,0.7)",
-        bordercolor = "#666",
-        borderpad = 3
+        font = list(size = 14, color = "#222")
       )
     }
   }
